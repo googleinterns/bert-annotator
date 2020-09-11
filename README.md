@@ -23,7 +23,7 @@ Next, create the following files:
 Now, build the augmenter using
 
 ```
-bazel build //augmenter::augmenter
+bazel build //augmenter::main
 ```
 
 Because the exported `textproto` files don't have the correct format,
@@ -38,5 +38,5 @@ bash input_data/proprocess.sh [corpus]
 The augmenter can be run using
 
 ```
-./bazel-bin/augmenter/augmenter [corpus]
+./bazel-bin/augmenter/main [corpus]
 ```
