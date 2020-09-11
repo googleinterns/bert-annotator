@@ -1,0 +1,39 @@
+# Project specific
+protocol_buffer/document.*
+data/input/preprocessed
+data/input/raw/*
+!data/input/raw/.keep
+data/output/*
+!data/output/keep
+
+# Bazel specific
+bazel-*
+bazel.gpg
+
+# C++ specific
+# Prerequisites
+*.d
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+# Precompiled Headers
+*.gch
+*.pch
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+# Fortran module files
+*.mod
+*.smod
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+# Executables
+*.exe
+*.out
+*.app
