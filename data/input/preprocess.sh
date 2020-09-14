@@ -8,10 +8,9 @@
 # documents {[parameters document 2]}
 ###
 
-rm -rf input_data/preprocessed
-mkdir input_data/preprocessed
+mkdir -p data/input/preprocessed
 corpus=$1
-echo "Preprocessing file input_data/raw/"$corpus".textproto"
+echo "Preprocessing file data/input/raw/"$corpus".textproto"
 
-sed "s/^[[:digit:]]* : /documents /g" input_data/raw/$corpus.textproto >> \
-    input_data/preprocessed/$corpus.textproto
+sed "s/^[[:digit:]]* : /documents /g" data/input/raw/$corpus.textproto >> \
+    data/input/preprocessed/$corpus.textproto
