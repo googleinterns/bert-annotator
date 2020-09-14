@@ -1,5 +1,7 @@
 #include "augmenter/augmenter.h"
 
+#include <stdlib.h>
+
 #include <string>
 
 #include "augmenter/percentage.h"
@@ -9,12 +11,17 @@
 
 Augmenter::Augmenter(bert_annotator::Documents documents) {
   documents_ = documents;
+  srand(time(NULL));
 }
 
 // Transforms the text to lowercase
 // Only explicitly listed tokens are transformed
 void Augmenter::lowercase(Percentage lowercase_percentage) {
   for (bert_annotator::Document& document : *documents_.mutable_documents()) {
+    if(lowercase_percentage.percentage > rand() % 100 + 1) {
+      continue;
+    }
+
     std::string* text = document.mutable_text();
     std::vector<char> new_text_bytes = std::vector<char>();
     int text_index = 0;
