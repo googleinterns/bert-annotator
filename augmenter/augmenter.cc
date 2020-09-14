@@ -1,8 +1,25 @@
+//
+// Copyright 2020 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
 #include "augmenter/augmenter.h"
 
 #include <stdlib.h>
 
 #include <string>
+#include <vector>
 
 #include "augmenter/percentage.h"
 #include "boost/algorithm/string.hpp"
@@ -18,7 +35,7 @@ Augmenter::Augmenter(bert_annotator::Documents documents) {
 // Only explicitly listed tokens are transformed
 void Augmenter::lowercase(Percentage lowercase_percentage) {
   for (bert_annotator::Document& document : *documents_.mutable_documents()) {
-    if(lowercase_percentage.percentage < rand() % 100 + 1) {
+    if (lowercase_percentage.percentage < rand_r() % 100 + 1) {
       continue;
     }
 
