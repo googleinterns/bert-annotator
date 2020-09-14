@@ -43,3 +43,19 @@ jobs:
       - name: Build
         run: |
           "${GITHUB_WORKSPACE}/bin/bazel" build //...
+
+  cpplint:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+
+    - name: Setup Python
+      uses: actions/setup-python@v1
+
+    - name: Install cpplint
+      run: pip install cpplint
+
+    - name: Run cpplint
+      run: cpplint --recursive .
