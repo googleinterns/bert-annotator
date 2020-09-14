@@ -18,7 +18,7 @@ Augmenter::Augmenter(bert_annotator::Documents documents) {
 // Only explicitly listed tokens are transformed
 void Augmenter::lowercase(Percentage lowercase_percentage) {
   for (bert_annotator::Document& document : *documents_.mutable_documents()) {
-    if(lowercase_percentage.percentage > rand() % 100 + 1) {
+    if(lowercase_percentage.percentage < rand() % 100 + 1) {
       continue;
     }
 
