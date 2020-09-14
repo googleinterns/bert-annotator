@@ -27,5 +27,6 @@ class Augmenter {
 
  private:
   bert_annotator::Documents documents_;
+  uint seed_;
 };
 #endif  // AUGMENTER_AUGMENTER_H_

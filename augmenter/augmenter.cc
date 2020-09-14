@@ -28,14 +28,14 @@
 
 Augmenter::Augmenter(bert_annotator::Documents documents) {
   documents_ = documents;
-  srand(time(NULL));
+  seed_ = time(NULL);
 }
 
 // Transforms the text to lowercase
 // Only explicitly listed tokens are transformed
 void Augmenter::lowercase(Percentage lowercase_percentage) {
   for (bert_annotator::Document& document : *documents_.mutable_documents()) {
-    if (lowercase_percentage.percentage < rand_r() % 100 + 1) {
+    if (lowercase_percentage.percentage < rand_r(&seed_) % 100 + 1) {
       continue;
     }
 
