@@ -38,7 +38,7 @@ jobs:
 
       - name: Run tests
         run: |
-          "${GITHUB_WORKSPACE}/bin/bazel" test --test_output=errors //...
+          "${GITHUB_WORKSPACE}/bin/bazel" test --test_output=errors --test_verbose_timeout_warnings //...
 
       - name: Build
         run: |
