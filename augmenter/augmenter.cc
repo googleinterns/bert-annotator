@@ -34,16 +34,22 @@ Augmenter::Augmenter(bert_annotator::Documents documents) {
 // Transforms the text to lowercase
 // Only explicitly listed tokens are transformed
 void Augmenter::lowercase(Percentage lowercase_percentage) {
-  for (bert_annotator::Document& document : *documents_.mutable_documents()) {
+  int num_original_documents = documents_.documents_size();
+  for (int j = 0; j < num_original_documents; ++j) {
     if (lowercase_percentage.percentage < rand_r(&seed_) % 100 + 1) {
       continue;
     }
 
-    std::string* text = document.mutable_text();
+    const bert_annotator::Document& original_document = documents_.documents(j);
+
+    bert_annotator::Document* augmented_document = documents_.add_documents();
+    augmented_document->CopyFrom(original_document);
+
+    std::string* text = augmented_document->mutable_text();
     std::vector<char> new_text_bytes = std::vector<char>();
     int text_index = 0;
-    for (int i = 0; i < document.token_size(); ++i) {
-      bert_annotator::Token* token = document.mutable_token(i);
+    for (int i = 0; i < augmented_document->token_size(); ++i) {
+      bert_annotator::Token* token = augmented_document->mutable_token(i);
 
       // Adds the string inbetween two tokens as it is
       int token_start = token->start();
@@ -62,7 +68,7 @@ void Augmenter::lowercase(Percentage lowercase_percentage) {
     new_text_bytes.insert(new_text_bytes.end(), text->begin() + text_index,
                           text->end());
     std::string new_text(new_text_bytes.begin(), new_text_bytes.end());
-    document.set_text(new_text);
+    augmented_document->set_text(new_text);
   }
 }
 
