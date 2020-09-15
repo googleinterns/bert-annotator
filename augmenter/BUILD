@@ -17,7 +17,7 @@ cc_library(
   deps = [
     "percentage",
     "//protocol_buffer:documents_cc_proto",
-    "@boost//:algorithm",
+    "@com_google_absl//absl/strings:strings",
   ]
 )
 
@@ -54,7 +54,6 @@ cc_binary(
     "augmenter",
     "textproto_io",
     "//protocol_buffer:documents_cc_proto",
-    "@boost//:algorithm",
     "@com_google_absl//absl/flags:flag",
     "@com_google_absl//absl/flags:marshalling",
     "@com_google_absl//absl/flags:parse",

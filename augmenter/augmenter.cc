@@ -21,8 +21,8 @@
 #include <string>
 #include <vector>
 
+#include "absl/strings/ascii.h"
 #include "augmenter/percentage.h"
-#include "boost/algorithm/string.hpp"
 #include "protocol_buffer/document.pb.h"
 #include "protocol_buffer/documents.pb.h"
 
@@ -61,7 +61,7 @@ void Augmenter::lowercase(Percentage lowercase_percentage) {
 
       // Transforms the token to lowercase
       std::string* word = token->mutable_word();
-      boost::algorithm::to_lower(*word);
+      absl::AsciiStrToLower(word);
       new_text_bytes.insert(new_text_bytes.end(), word->begin(), word->end());
       text_index = token_end + 1;
     }
