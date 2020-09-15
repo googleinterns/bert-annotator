@@ -27,22 +27,25 @@
 
 namespace augmenter {
 
-Augmenter::Augmenter(bert_annotator::Documents documents) {
-  documents_ = documents;
+Augmenter::Augmenter(const bert_annotator::Documents documents)
+    : documents_(documents) {
   seed_ = time(NULL);
 }
+
+Augmenter::Augmenter(const bert_annotator::Documents documents, uint seed)
+    : documents_(documents), seed_(seed) {}
 
 // Transforms the text to lowercase.
 // Only explicitly listed tokens are transformed.
 void Augmenter::lowercase(double lowercase_percentage) {
   int num_original_documents = documents_.documents_size();
-  for (int j = 0; j < num_original_documents; ++j) {
+  for (int i = 0; i < num_original_documents; ++i) {
     // Skip if not in interval (0, 1]
     if (lowercase_percentage < (rand_r(&seed_) + 1.) / (RAND_MAX + 1.)) {
       continue;
     }
 
-    const bert_annotator::Document& original_document = documents_.documents(j);
+    const bert_annotator::Document& original_document = documents_.documents(i);
 
     bert_annotator::Document* augmented_document = documents_.add_documents();
     augmented_document->CopyFrom(original_document);
@@ -50,8 +53,8 @@ void Augmenter::lowercase(double lowercase_percentage) {
     std::string* text = augmented_document->mutable_text();
     std::vector<char> new_text_bytes = std::vector<char>();
     int text_index = 0;
-    for (int i = 0; i < augmented_document->token_size(); ++i) {
-      bert_annotator::Token* token = augmented_document->mutable_token(i);
+    for (int j = 0; j < augmented_document->token_size(); ++j) {
+      bert_annotator::Token* token = augmented_document->mutable_token(j);
 
       // Adds the string inbetween two tokens as it is.
       int token_start = token->start();

@@ -36,7 +36,7 @@ cc_library(
 
 cc_binary(
   name = "main",
-  srcs = ["main.cc", "main.h"],
+  srcs = ["main.cc"],
   deps = [
     ":augmenter",
     ":textproto_io",

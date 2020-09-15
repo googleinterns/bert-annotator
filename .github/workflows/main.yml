@@ -25,7 +25,7 @@ jobs:
 
       - name: Setup protobuf specification file
         run: |
-          mv protocol_buffer/document.proto.test protocol_buffer/document.proto
+          mv protocol_buffer/document_test.proto protocol_buffer/document.proto
 
       - name: Run tests
         run: |

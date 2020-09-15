@@ -14,8 +14,6 @@
 // limitations under the License.
 //
 
-#include "augmenter/main.h"
-
 #include <string>
 #include <vector>
 
@@ -39,7 +37,7 @@ int main(int argc, char* argv[]) {
   double lowercase_percentage = absl::GetFlag(FLAGS_lowercase);
   std::vector<std::string> corpora = absl::GetFlag(FLAGS_corpora);
 
-  for (std::string corpus : corpora) {
+  for (const std::string& corpus : corpora) {
     std::cout << corpus << std::endl;
     augmenter::TextprotoIO textproto_io = augmenter::TextprotoIO();
     if (!textproto_io.load(corpus)) {
