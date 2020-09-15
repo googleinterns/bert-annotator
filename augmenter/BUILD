@@ -34,6 +34,34 @@ cc_library(
   ]
 )
 
+cc_library(
+  name = "random_item",
+  srcs = ["random_item.cc"],
+  hdrs = ["random_item.h"],
+)
+
+cc_library(
+  name = "random_sampler",
+  srcs = ["random_sampler.cc"],
+  hdrs = ["random_sampler.h"],
+  deps = [
+    "random_item",
+  ],
+)
+
+cc_test (
+  name = "random_sampler_test",
+  srcs = [
+    "random_sampler_test.cc"
+  ],
+  deps = [
+    "random_sampler",
+    "@gtest//:gtest",
+    "@gtest//:gtest_main",
+  ],
+  size = "small"
+)
+
 cc_binary(
   name = "main",
   srcs = ["main.cc"],
