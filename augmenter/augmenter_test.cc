@@ -45,7 +45,7 @@ TEST(AugmenterTest, AugmentsAreAdded) {
   token->set_word("InterWordCapitalization");
   Augmenter augmenter = Augmenter(documents);
 
-  augmenter.lowercase(Percentage(100));
+  augmenter.lowercase(1.0);
 
   ASSERT_EQ(augmenter.get_documents().documents_size(), 2);
 }
@@ -73,7 +73,7 @@ TEST(AugmenterTest, NoLowercasingForZeroPercent) {
   token->set_word("InterWordCapitalization");
   Augmenter augmenter = Augmenter(documents);
 
-  augmenter.lowercase(Percentage(0));
+  augmenter.lowercase(0.0);
 
   ASSERT_STREQ(augmenter.get_documents().documents(0).text().c_str(),
                "Text with some InterWordCapitalization");
@@ -102,7 +102,7 @@ TEST(AugmenterTest, CompleteLowercasingForHundretPercent) {
   token->set_word("InterWordCapitalization");
   Augmenter augmenter = Augmenter(documents);
 
-  augmenter.lowercase(Percentage(100));
+  augmenter.lowercase(1.0);
 
   ASSERT_STREQ(augmenter.get_documents().documents(1).text().c_str(),
                "text with some interwordcapitalization");
@@ -131,7 +131,7 @@ TEST(AugmenterTest, DontLowercaseNonTokens) {
   token->set_word("InterWordCapitalization");
   Augmenter augmenter = Augmenter(documents);
 
-  augmenter.lowercase(Percentage(100));
+  augmenter.lowercase(1.0);
 
   ASSERT_STREQ(augmenter.get_documents().documents(1).text().c_str(),
                "[BOS] text with some interwordcapitalization [EOS]");

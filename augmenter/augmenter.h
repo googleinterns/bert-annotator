@@ -16,7 +16,7 @@
 
 #ifndef AUGMENTER_AUGMENTER_H_
 #define AUGMENTER_AUGMENTER_H_
-#include "augmenter/percentage.h"
+
 #include "protocol_buffer/documents.pb.h"
 
 namespace augmenter {
@@ -24,7 +24,7 @@ namespace augmenter {
 class Augmenter {
  public:
   explicit Augmenter(bert_annotator::Documents documents);
-  void lowercase(Percentage lowercase_percentage);
+  void lowercase(double lowercase_percentage);
   bert_annotator::Documents get_documents();
 
  private:

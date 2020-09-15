@@ -22,11 +22,9 @@
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
 #include "augmenter/augmenter.h"
-#include "augmenter/percentage.h"
 #include "augmenter/textproto_io.h"
 
-ABSL_FLAG(augmenter::Percentage, lowercase, augmenter::Percentage(0),
-          "Percentage of augmentations by lowercasing");
+ABSL_FLAG(double, lowercase, 0, "Percentage of augmentations by lowercasing");
 ABSL_FLAG(std::vector<std::string>, corpora, std::vector<std::string>({}),
           "comma-separated list of corpora to augment");
 
@@ -38,7 +36,7 @@ int main(int argc, char* argv[]) {
 
   absl::ParseCommandLine(argc, argv);
 
-  augmenter::Percentage lowercase_percentage = absl::GetFlag(FLAGS_lowercase);
+  double lowercase_percentage = absl::GetFlag(FLAGS_lowercase);
   std::vector<std::string> corpora = absl::GetFlag(FLAGS_corpora);
 
   for (std::string corpus : corpora) {

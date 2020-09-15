@@ -22,7 +22,6 @@
 #include <vector>
 
 #include "absl/strings/ascii.h"
-#include "augmenter/percentage.h"
 #include "protocol_buffer/document.pb.h"
 #include "protocol_buffer/documents.pb.h"
 
@@ -35,10 +34,11 @@ Augmenter::Augmenter(bert_annotator::Documents documents) {
 
 // Transforms the text to lowercase
 // Only explicitly listed tokens are transformed
-void Augmenter::lowercase(Percentage lowercase_percentage) {
+void Augmenter::lowercase(double lowercase_percentage) {
   int num_original_documents = documents_.documents_size();
   for (int j = 0; j < num_original_documents; ++j) {
-    if (lowercase_percentage.percentage < rand_r(&seed_) % 100 + 1) {
+    // Skip if not in interval (0, 1]
+    if (lowercase_percentage < (rand_r(&seed_) + 1.) / (RAND_MAX + 1.)) {
       continue;
     }
 
