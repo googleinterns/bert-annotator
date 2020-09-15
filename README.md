@@ -23,7 +23,7 @@ Next, create the following files:
 Now, build the augmenter using
 
 ```
-bazel build //augmenter::main
+bazel build //augmenter:main
 ```
 
 Because the exported `textproto` files don't have the correct format,
