@@ -22,7 +22,7 @@
 
 namespace augmenter {
 
-TEST(AugmenterTest, AugmentsAreAdded) {
+bert_annotator::Documents construct_test_document() {
   bert_annotator::Documents documents;
   bert_annotator::Document* document = documents.add_documents();
   document->set_text("Text with some InterWordCapitalization");
@@ -43,6 +43,12 @@ TEST(AugmenterTest, AugmentsAreAdded) {
   token->set_start(15);
   token->set_end(37);
   token->set_word("InterWordCapitalization");
+
+  return documents;
+}
+
+TEST(AugmenterTest, AugmentsAreAdded) {
+  bert_annotator::Documents documents = construct_test_document();
   Augmenter augmenter = Augmenter(documents);
 
   augmenter.lowercase(1.0);
@@ -51,26 +57,7 @@ TEST(AugmenterTest, AugmentsAreAdded) {
 }
 
 TEST(AugmenterTest, NoLowercasingForZeroPercent) {
-  bert_annotator::Documents documents;
-  bert_annotator::Document* document = documents.add_documents();
-  document->set_text("Text with some InterWordCapitalization");
-  bert_annotator::Token* token;
-  token = document->add_token();
-  token->set_start(0);
-  token->set_end(3);
-  token->set_word("Text");
-  token = document->add_token();
-  token->set_start(5);
-  token->set_end(8);
-  token->set_word("with");
-  token = document->add_token();
-  token->set_start(10);
-  token->set_end(13);
-  token->set_word("some");
-  token = document->add_token();
-  token->set_start(15);
-  token->set_end(37);
-  token->set_word("InterWordCapitalization");
+  bert_annotator::Documents documents = construct_test_document();
   Augmenter augmenter = Augmenter(documents);
 
   augmenter.lowercase(0.0);
@@ -80,26 +67,7 @@ TEST(AugmenterTest, NoLowercasingForZeroPercent) {
 }
 
 TEST(AugmenterTest, CompleteLowercasingForHundretPercent) {
-  bert_annotator::Documents documents;
-  bert_annotator::Document* document = documents.add_documents();
-  document->set_text("Text with some InterWordCapitalization");
-  bert_annotator::Token* token;
-  token = document->add_token();
-  token->set_start(0);
-  token->set_end(3);
-  token->set_word("Text");
-  token = document->add_token();
-  token->set_start(5);
-  token->set_end(8);
-  token->set_word("with");
-  token = document->add_token();
-  token->set_start(10);
-  token->set_end(13);
-  token->set_word("some");
-  token = document->add_token();
-  token->set_start(15);
-  token->set_end(37);
-  token->set_word("InterWordCapitalization");
+  bert_annotator::Documents documents = construct_test_document();
   Augmenter augmenter = Augmenter(documents);
 
   augmenter.lowercase(1.0);
