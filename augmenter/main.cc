@@ -28,7 +28,7 @@ ABSL_FLAG(double, lowercase, 0, "Percentage of augmentations by lowercasing");
 ABSL_FLAG(std::vector<std::string>, corpora, std::vector<std::string>({}),
           "comma-separated list of corpora to augment");
 
-// Augments the dataset by applying configurable actions, see defined flags
+// Augments the dataset by applying configurable actions, see defined flags.
 int main(int argc, char* argv[]) {
   // Verify that the version of the library that we linked against is
   // compatible with the version of the headers we compiled against.

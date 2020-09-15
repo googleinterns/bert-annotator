@@ -32,8 +32,8 @@ Augmenter::Augmenter(bert_annotator::Documents documents) {
   seed_ = time(NULL);
 }
 
-// Transforms the text to lowercase
-// Only explicitly listed tokens are transformed
+// Transforms the text to lowercase.
+// Only explicitly listed tokens are transformed.
 void Augmenter::lowercase(double lowercase_percentage) {
   int num_original_documents = documents_.documents_size();
   for (int j = 0; j < num_original_documents; ++j) {
@@ -53,7 +53,7 @@ void Augmenter::lowercase(double lowercase_percentage) {
     for (int i = 0; i < augmented_document->token_size(); ++i) {
       bert_annotator::Token* token = augmented_document->mutable_token(i);
 
-      // Adds the string inbetween two tokens as it is
+      // Adds the string inbetween two tokens as it is.
       int token_start = token->start();
       int token_end = token->end();
       if (text_index < token_start) {
@@ -61,7 +61,7 @@ void Augmenter::lowercase(double lowercase_percentage) {
                               text->begin() + token_start);
       }
 
-      // Transforms the token to lowercase
+      // Transforms the token to lowercase.
       std::string* word = token->mutable_word();
       absl::AsciiStrToLower(word);
       new_text_bytes.insert(new_text_bytes.end(), word->begin(), word->end());
