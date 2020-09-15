@@ -11,7 +11,7 @@ manipulations
 
 First, clone this repository using 
 
-```
+```sh
 git clone git@github.com:googleinterns/bert-annotator.git
 ```
 
@@ -22,14 +22,14 @@ Next, create the following files:
 
 Now, build the augmenter using
 
-```
+```sh
 bazel build //augmenter:main
 ```
 
 Because the exported `textproto` files don't have the correct format,
 preprocess them first:
 
-```
+```sh
 bash data/input/preprocess.sh [corpus]
 ```
 
@@ -37,6 +37,6 @@ bash data/input/preprocess.sh [corpus]
 
 The augmenter can be run using
 
-```
+```sh
 ./bazel-bin/augmenter/main [corpus]
 ```
