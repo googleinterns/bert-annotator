@@ -52,7 +52,9 @@ bool TextprotoIO::save(const std::string corpus) {
   return true;
 }
 
-bert_annotator::Documents TextprotoIO::get_documents() { return documents_; }
+const bert_annotator::Documents TextprotoIO::get_documents() const {
+  return documents_;
+}
 
 void TextprotoIO::set_documents(const bert_annotator::Documents documents) {
   documents_ = documents;

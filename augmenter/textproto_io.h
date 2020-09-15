@@ -27,7 +27,7 @@ class TextprotoIO {
  public:
   bool load(std::string corpus);
   bool save(std::string corpus);
-  bert_annotator::Documents get_documents();
+  const bert_annotator::Documents get_documents() const;
   void set_documents(bert_annotator::Documents documents);
 
  private:

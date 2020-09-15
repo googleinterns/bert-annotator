@@ -77,6 +77,8 @@ void Augmenter::lowercase(double lowercase_percentage) {
   }
 }
 
-bert_annotator::Documents Augmenter::get_documents() { return documents_; }
+const bert_annotator::Documents Augmenter::get_documents() const {
+  return documents_;
+}
 
 }  // namespace augmenter
