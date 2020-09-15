@@ -66,7 +66,7 @@ TEST(AugmenterTest, NoLowercasingForZeroPercent) {
                "Text with some InterWordCapitalization");
 }
 
-TEST(AugmenterTest, CompleteLowercasingForHundretPercent) {
+TEST(AugmenterTest, CompleteLowercasingForHundredPercent) {
   bert_annotator::Documents documents = construct_test_document();
   Augmenter augmenter = Augmenter(documents);
 
