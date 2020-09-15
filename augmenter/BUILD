@@ -15,7 +15,7 @@ cc_library(
   srcs = ["augmenter.cc"],
   hdrs = ["augmenter.h"],
   deps = [
-    "percentage",
+    ":percentage",
     "//protocol_buffer:documents_cc_proto",
     "@com_google_absl//absl/strings:strings",
   ]
@@ -27,8 +27,8 @@ cc_test (
     "augmenter_test.cc"
   ],
   deps = [
-    "percentage",
-    "augmenter",
+    ":percentage",
+    ":augmenter",
     "//protocol_buffer:documents_cc_proto",
     "@com_google_absl//absl/flags:flag",
     "@gtest//:gtest",
@@ -50,9 +50,9 @@ cc_binary(
   name = "main",
   srcs = ["main.cc", "main.h"],
   deps = [
-    "percentage",
-    "augmenter",
-    "textproto_io",
+    ":percentage",
+    ":augmenter",
+    ":textproto_io",
     "//protocol_buffer:documents_cc_proto",
     "@com_google_absl//absl/flags:flag",
     "@com_google_absl//absl/flags:marshalling",
