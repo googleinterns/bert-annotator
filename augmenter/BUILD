@@ -21,6 +21,22 @@ cc_library(
   ]
 )
 
+cc_test (
+  name = "augmenter_test",
+  srcs = [
+    "augmenter_test.cc"
+  ],
+  deps = [
+    "percentage",
+    "augmenter",
+    "//protocol_buffer:documents_cc_proto",
+    "@com_google_absl//absl/flags:flag",
+    "@gtest//:gtest",
+    "@gtest//:gtest_main",
+  ],
+  size = "small"
+)
+
 cc_library(
   name = "textproto_io",
   srcs = ["textproto_io.cc"],
@@ -43,20 +59,4 @@ cc_binary(
     "@com_google_absl//absl/flags:marshalling",
     "@com_google_absl//absl/flags:parse",
   ],
-)
-
-cc_test (
-  name = "AugmenterTest",
-  srcs = [
-    "augmenter_test.cc"
-  ],
-  deps = [
-    "percentage",
-    "augmenter",
-    "//protocol_buffer:documents_cc_proto",
-    "@com_google_absl//absl/flags:flag",
-    "@gtest//:gtest",
-    "@gtest//:gtest_main",
-  ],
-  size = "small"
 )
