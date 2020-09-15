@@ -17,4 +17,6 @@
 #ifndef AUGMENTER_MAIN_H_
 #define AUGMENTER_MAIN_H_
 
+namespace augmenter {}
+
 #endif  // AUGMENTER_MAIN_H_

@@ -26,6 +26,8 @@
 #include "protocol_buffer/document.pb.h"
 #include "protocol_buffer/documents.pb.h"
 
+namespace augmenter {
+
 Augmenter::Augmenter(bert_annotator::Documents documents) {
   documents_ = documents;
   seed_ = time(NULL);
@@ -73,3 +75,5 @@ void Augmenter::lowercase(Percentage lowercase_percentage) {
 }
 
 bert_annotator::Documents Augmenter::get_documents() { return documents_; }
+
+}  // namespace augmenter

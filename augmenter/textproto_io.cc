@@ -23,6 +23,8 @@
 #include "google/protobuf/text_format.h"
 #include "protocol_buffer/documents.pb.h"
 
+namespace augmenter {
+
 bool TextprotoIO::load(std::string corpus) {
   std::ifstream input("data/input/preprocessed/" + corpus + ".textproto");
   if (input.fail()) {
@@ -55,3 +57,5 @@ bert_annotator::Documents TextprotoIO::get_documents() { return documents_; }
 void TextprotoIO::set_documents(bert_annotator::Documents documents) {
   documents_ = documents;
 }
+
+}  // namespace augmenter

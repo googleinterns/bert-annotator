@@ -20,6 +20,8 @@
 #include "protocol_buffer/document.pb.h"
 #include "protocol_buffer/documents.pb.h"
 
+namespace augmenter {
+
 TEST(AugmenterTest, AugmentsAreAdded) {
   bert_annotator::Documents documents;
   bert_annotator::Document* document = documents.add_documents();
@@ -134,3 +136,5 @@ TEST(AugmenterTest, DontLowercaseNonTokens) {
   ASSERT_STREQ(augmenter.get_documents().documents(1).text().c_str(),
                "[BOS] text with some interwordcapitalization [EOS]");
 }
+
+}  // namespace augmenter

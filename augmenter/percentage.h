@@ -16,9 +16,13 @@
 
 #ifndef AUGMENTER_PERCENTAGE_H_
 #define AUGMENTER_PERCENTAGE_H_
+
 #include <string>
 
 #include "absl/flags/flag.h"
+
+namespace augmenter {
+
 struct Percentage {
   explicit Percentage(int p = 0) : percentage(p) {}
 
@@ -27,4 +31,7 @@ struct Percentage {
 std::string AbslUnparseFlag(Percentage p);
 
 bool AbslParseFlag(absl::string_view text, Percentage* p, std::string* error);
+
+}  // namespace augmenter
+
 #endif  // AUGMENTER_PERCENTAGE_H_

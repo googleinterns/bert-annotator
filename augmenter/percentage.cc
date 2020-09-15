@@ -21,6 +21,8 @@
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
 
+namespace augmenter {
+
 // Returns a textual flag value corresponding to the Percentage `p`.
 std::string AbslUnparseFlag(Percentage p) {
   // Delegate to the usual unparsing for int.
@@ -41,3 +43,5 @@ bool AbslParseFlag(absl::string_view text, Percentage* p, std::string* error) {
   }
   return true;
 }
+
+}  // namespace augmenter

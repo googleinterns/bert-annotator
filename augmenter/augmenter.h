@@ -19,6 +19,8 @@
 #include "augmenter/percentage.h"
 #include "protocol_buffer/documents.pb.h"
 
+namespace augmenter {
+
 class Augmenter {
  public:
   explicit Augmenter(bert_annotator::Documents documents);
@@ -29,4 +31,7 @@ class Augmenter {
   bert_annotator::Documents documents_;
   uint seed_;
 };
+
+}  // namespace augmenter
+
 #endif  // AUGMENTER_AUGMENTER_H_

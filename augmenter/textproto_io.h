@@ -16,9 +16,13 @@
 
 #ifndef AUGMENTER_TEXTPROTO_IO_H_
 #define AUGMENTER_TEXTPROTO_IO_H_
+
 #include <string>
 
 #include "protocol_buffer/documents.pb.h"
+
+namespace augmenter {
+
 class TextprotoIO {
  public:
   bool load(std::string corpus);
@@ -29,4 +33,7 @@ class TextprotoIO {
  private:
   bert_annotator::Documents documents_;
 };
+
+}  // namespace augmenter
+
 #endif  // AUGMENTER_TEXTPROTO_IO_H_

@@ -25,7 +25,7 @@
 #include "augmenter/percentage.h"
 #include "augmenter/textproto_io.h"
 
-ABSL_FLAG(Percentage, lowercase, Percentage(0),
+ABSL_FLAG(augmenter::Percentage, lowercase, augmenter::Percentage(0),
           "Percentage of augmentations by lowercasing");
 ABSL_FLAG(std::vector<std::string>, corpora, std::vector<std::string>({}),
           "comma-separated list of corpora to augment");
@@ -38,18 +38,19 @@ int main(int argc, char* argv[]) {
 
   absl::ParseCommandLine(argc, argv);
 
-  Percentage lowercase_percentage = absl::GetFlag(FLAGS_lowercase);
+  augmenter::Percentage lowercase_percentage = absl::GetFlag(FLAGS_lowercase);
   std::vector<std::string> corpora = absl::GetFlag(FLAGS_corpora);
 
   for (std::string corpus : corpora) {
     std::cout << corpus << std::endl;
-    TextprotoIO textproto_io = TextprotoIO();
+    augmenter::TextprotoIO textproto_io = augmenter::TextprotoIO();
     if (!textproto_io.load(corpus)) {
       std::cerr << "Skipping corpus " << corpus << "." << std::endl;
       continue;
     }
 
-    Augmenter augmenter = Augmenter(textproto_io.get_documents());
+    augmenter::Augmenter augmenter =
+        augmenter::Augmenter(textproto_io.get_documents());
     augmenter.lowercase(lowercase_percentage);
 
     textproto_io.set_documents(augmenter.get_documents());
