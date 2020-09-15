@@ -26,13 +26,6 @@ load("@com_github_nelhage_rules_boost//:boost/boost.bzl", "boost_deps")
 boost_deps()
 
 # Abseil
-#http_archive(
-#  name = "com_google_absl",
-#  urls = ["https://github.com/abseil/abseil-cpp/archive/98eb410c93ad059f9bba1bf43f5bb916fc92a5ea.zip"],
-#  strip_prefix = "abseil-cpp-98eb410c93ad059f9bba1bf43f5bb916fc92a5ea",
-#  sha256 = "aabf6c57e3834f8dc3873a927f37eaf69975d4b28117fc7427dfb1c661542a87"
-#)
-
 git_repository(
     name = "com_google_absl",
     commit = "f2c9c663db28a8a898c1fc8c8e06ab9b93eb5610",

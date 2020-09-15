@@ -56,7 +56,7 @@ cc_test (
     "//protocol_buffer:documents_cc_proto",
     "@com_google_absl//absl/flags:flag",
     "@gtest//:gtest",
-    "@gtest//:gtest_main" # Only if hello_test.cc has no main()
+    "@gtest//:gtest_main",
   ],
   size = "small"
 )

@@ -30,8 +30,7 @@ ABSL_FLAG(Percentage, lowercase, Percentage(0),
 ABSL_FLAG(std::vector<std::string>, corpora, std::vector<std::string>({}),
           "comma-separated list of corpora to augment");
 
-// Main function:  Reads the entire address book from a file and prints all
-//   the information inside.
+// Augments the dataset by applying configurable actions, see defined flags
 int main(int argc, char* argv[]) {
   // Verify that the version of the library that we linked against is
   // compatible with the version of the headers we compiled against.
