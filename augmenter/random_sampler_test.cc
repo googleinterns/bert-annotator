@@ -18,7 +18,7 @@
 
 #include <string>
 
-#include "absl/random/random.h"
+#include "absl/random/mock_distributions.h"
 #include "gtest/gtest.h"
 
 TEST(RandomSamplerDeathTest, ErrorOnWrongFormat) {
@@ -84,8 +84,13 @@ TEST(RandomSamplerTest, ParsingMultipleEntriesNormalization) {
 }
 
 TEST(RandomSamplerTest, SampleSingleEntry) {
+  absl::MockingBitGen bitgen;
+  EXPECT_CALL(absl::MockUniform<double>(), Call(bitgen, 0.0, 1.0))
+      .WillOnce(testing::Return(0.25))
+      .WillOnce(testing::Return(0.25))
+      .WillOnce(testing::Return(0.25));
   std::istringstream dummyStream("Some text\t1");
-  auto random_sampler = RandomSampler(dummyStream);
+  auto random_sampler = RandomSampler(dummyStream, bitgen);
   // Sampling multiple times should be possible
   EXPECT_EQ(random_sampler.sample(), "Some text");
   EXPECT_EQ(random_sampler.sample(), "Some text");
@@ -93,16 +98,19 @@ TEST(RandomSamplerTest, SampleSingleEntry) {
 }
 
 TEST(RandomSamplerTest, SampleMultipleEntriesA) {
-  // absl::MockingBitGen bitgen;
-  // ON_CALL(absl::MockUniform(), Call(bitgen, 0.25))
-  //     .WillByDefault(testing::Return(true));
-  // std::istringstream dummyStream("Some text\t0.5\nMore text\t0.5");
-  // auto random_sampler = RandomSampler(dummyStream);
-  // EXPECT_EQ(random_sampler.sample(), "Some text");
+  absl::MockingBitGen bitgen;
+  EXPECT_CALL(absl::MockUniform<double>(), Call(bitgen, 0.0, 1.0))
+      .WillOnce(testing::Return(0.25));
+  std::istringstream dummyStream("Some text\t0.5\nMore text\t0.5");
+  auto random_sampler = RandomSampler(dummyStream, bitgen);
+  EXPECT_EQ(random_sampler.sample(), "Some text");
 }
 
 TEST(RandomSamplerTest, SampleMultipleEntriesB) {
+  absl::MockingBitGen bitgen;
+  EXPECT_CALL(absl::MockUniform<double>(), Call(bitgen, 0.0, 1.0))
+      .WillOnce(testing::Return(0.75));
   std::istringstream dummyStream("Some text\t0.5\nMore text\t0.5");
-  auto random_sampler = RandomSampler(dummyStream);
+  auto random_sampler = RandomSampler(dummyStream, bitgen);
   EXPECT_EQ(random_sampler.sample(), "More text");
 }

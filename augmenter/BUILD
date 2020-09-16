@@ -19,8 +19,8 @@ cc_test (
     ":augmenter",
     "//protocol_buffer:documents_cc_proto",
     "@com_google_absl//absl/flags:flag",
-    "@gtest//:gtest",
-    "@gtest//:gtest_main",
+    "@com_google_googletest//:gtest",
+    "@com_google_googletest//:gtest_main",
   ],
   size = "small"
 )
@@ -58,9 +58,9 @@ cc_test (
   ],
   deps = [
     "random_sampler",
-    "@com_google_absl//absl/random",
-    "@gtest//:gtest",
-    "@gtest//:gtest_main",
+    "@com_google_absl//absl/random:mock_distributions",
+    "@com_google_googletest//:gtest",
+    "@com_google_googletest//:gtest_main",
   ],
   size = "small"
 )

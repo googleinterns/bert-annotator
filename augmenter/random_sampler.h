@@ -27,8 +27,9 @@
 class RandomSampler {
  public:
   explicit RandomSampler(std::istringstream& input_stream);
+  RandomSampler(std::istringstream& input_stream, absl::BitGenRef bigen);
   std::string sample();
-  std::string sample(absl::BitGen bitgen);
+  std::string sample(absl::BitGenRef bitgen);
   std::vector<RandomItem> items();
 
  private:
@@ -37,6 +38,7 @@ class RandomSampler {
                      int upper_bound);
   std::vector<RandomItem> items_;
   uint seed_;
+  absl::BitGenRef bitgenref_;
   absl::BitGen bitgen_;
 };
 #endif  // AUGMENTER_RANDOM_SAMPLER_H_

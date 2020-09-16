@@ -29,7 +29,9 @@
 // Parses a file containing entities and their corresponding probabilities.
 // Expects at least one item in the format [Entitiy]\t[Probability].
 // Can be used to draw replacements for the augmentation.
-RandomSampler::RandomSampler(std::istringstream& input_stream) {
+RandomSampler::RandomSampler(std::istringstream& input_stream,
+                             absl::BitGenRef bitgenref)
+    : bitgenref_(bitgenref) {
   double accumulated_probability = 0;
   items_ = std::vector<RandomItem>();
 
@@ -67,13 +69,11 @@ RandomSampler::RandomSampler(std::istringstream& input_stream) {
   }
 }
 
+RandomSampler::RandomSampler(std::istringstream& input_stream)
+    : RandomSampler(input_stream, bitgen_) {}
+
 std::string RandomSampler::sample() {
-  double sampled_probability = absl::Uniform(bitgen_, 0, 1.0);
-  return search(sampled_probability);
-}
-std::string RandomSampler::sample(absl::BitGen bitgen) {
-  // bitgen_ = bitgen; NOT POSSIBLE
-  double sampled_probability = absl::Uniform(bitgen, 0, 1.0);
+  double sampled_probability = absl::Uniform<double>(bitgenref_, 0, 1);
   return search(sampled_probability);
 }
 
