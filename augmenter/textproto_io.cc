@@ -40,7 +40,7 @@ bool TextprotoIO::load(const std::string corpus) {
   return true;
 }
 
-bool TextprotoIO::save(const std::string corpus) {
+bool TextprotoIO::save(const std::string corpus) const {
   std::ofstream output("data/output/" + corpus + ".textproto");
   google::protobuf::io::OstreamOutputStream fileOutput(&output,
                                                        std::ios::binary);

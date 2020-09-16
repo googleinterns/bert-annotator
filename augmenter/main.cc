@@ -34,8 +34,8 @@ int main(int argc, char* argv[]) {
 
   absl::ParseCommandLine(argc, argv);
 
-  double lowercase_percentage = absl::GetFlag(FLAGS_lowercase);
-  std::vector<std::string> corpora = absl::GetFlag(FLAGS_corpora);
+  const double lowercase_percentage = absl::GetFlag(FLAGS_lowercase);
+  const std::vector<std::string> corpora = absl::GetFlag(FLAGS_corpora);
 
   for (const std::string& corpus : corpora) {
     std::cout << corpus << std::endl;
