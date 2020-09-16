@@ -25,9 +25,9 @@ namespace augmenter {
 
 class TextprotoIO {
  public:
-  bool load(const std::string corpus);
-  bool save(const std::string corpus) const;
-  const bert_annotator::Documents get_documents() const;
+  bool Load(const std::string corpus);
+  bool Save(const std::string corpus) const;
+  const bert_annotator::Documents documents() const;
   void set_documents(const bert_annotator::Documents documents);
 
  private:

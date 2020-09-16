@@ -35,7 +35,7 @@ Augmenter::Augmenter(const bert_annotator::Documents documents, const uint seed)
 
 // Transforms the text to lowercase.
 // Only explicitly listed tokens are transformed.
-void Augmenter::lowercase(const double lowercase_percentage) {
+void Augmenter::Lowercase(const double lowercase_percentage) {
   const int num_original_documents = documents_.documents_size();
   for (int i = 0; i < num_original_documents; ++i) {
     // Skip if not in interval (0, 1].
@@ -75,7 +75,7 @@ void Augmenter::lowercase(const double lowercase_percentage) {
   }
 }
 
-const bert_annotator::Documents Augmenter::get_documents() const {
+const bert_annotator::Documents Augmenter::documents() const {
   return documents_;
 }
 

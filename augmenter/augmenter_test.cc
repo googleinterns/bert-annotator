@@ -17,6 +17,7 @@
 #include "augmenter/augmenter.h"
 
 #include <string>
+#include <vector>
 
 #include "gtest/gtest.h"
 #include "protocol_buffer/document.pb.h"
@@ -40,7 +41,7 @@ struct TestDocument {
       : text(text_), test_tokens(test_tokens_) {}
 };
 
-bert_annotator::Documents construct_test_documents(
+bert_annotator::Documents ConstructTestDocuments(
     const std::vector<TestDocument> test_documents) {
   bert_annotator::Documents documents = bert_annotator::Documents();
   for (const TestDocument test_document : test_documents) {
@@ -59,42 +60,42 @@ bert_annotator::Documents construct_test_documents(
 }
 
 TEST(AugmenterTest, AugmentsAreAdded) {
-  bert_annotator::Documents documents = construct_test_documents(
+  bert_annotator::Documents documents = ConstructTestDocuments(
       {TestDocument("Text with some InterWordCapitalization", {})});
   Augmenter augmenter = Augmenter(documents);
 
-  augmenter.lowercase(/*lowercase_percentage=*/1.0);
+  augmenter.Lowercase(/*lowercase_percentage=*/1.0);
 
-  ASSERT_EQ(augmenter.get_documents().documents_size(), 2);
+  ASSERT_EQ(augmenter.documents().documents_size(), 2);
 }
 
 TEST(AugmenterTest, NoLowercasingForZeroPercent) {
-  bert_annotator::Documents documents = construct_test_documents(
+  bert_annotator::Documents documents = ConstructTestDocuments(
       {TestDocument("Text with some InterWordCapitalization", {})});
   Augmenter augmenter = Augmenter(documents);
 
-  augmenter.lowercase(/*lowercase_percentage=*/0.0);
+  augmenter.Lowercase(/*lowercase_percentage=*/0.0);
 
-  ASSERT_STREQ(augmenter.get_documents().documents(0).text().c_str(),
+  ASSERT_STREQ(augmenter.documents().documents(0).text().c_str(),
                "Text with some InterWordCapitalization");
 }
 
 TEST(AugmenterTest, CompleteLowercasingForHundredPercent) {
-  bert_annotator::Documents documents = construct_test_documents(
+  bert_annotator::Documents documents = ConstructTestDocuments(
       {TestDocument("Text with some InterWordCapitalization",
                     {TestToken("Text", 0, 3), TestToken("with", 5, 8),
                      TestToken("some", 10, 13),
                      TestToken("InterWordCapitalization", 15, 37)})});
   Augmenter augmenter = Augmenter(documents);
 
-  augmenter.lowercase(/*lowercase_percentage=*/1.0);
+  augmenter.Lowercase(/*lowercase_percentage=*/1.0);
 
-  ASSERT_STREQ(augmenter.get_documents().documents(1).text().c_str(),
+  ASSERT_STREQ(augmenter.documents().documents(1).text().c_str(),
                "text with some interwordcapitalization");
 }
 
 TEST(AugmenterTest, RandomizedLowercasing) {
-  bert_annotator::Documents documents = construct_test_documents(
+  bert_annotator::Documents documents = ConstructTestDocuments(
       {TestDocument("Text with some InterWordCapitalization [0]",
                     {TestToken("Text", 0, 3), TestToken("with", 5, 8),
                      TestToken("some", 10, 13),
@@ -105,28 +106,28 @@ TEST(AugmenterTest, RandomizedLowercasing) {
                      TestToken("InterWordCapitalization", 15, 37)})});
   Augmenter augmenter = Augmenter(documents, /*seed=*/0);
 
-  augmenter.lowercase(/*lowercase_percentage=*/0.5);
+  augmenter.Lowercase(/*lowercase_percentage=*/0.5);
 
-  ASSERT_EQ(augmenter.get_documents().documents_size(), 3);
-  EXPECT_STREQ(augmenter.get_documents().documents(0).text().c_str(),
+  ASSERT_EQ(augmenter.documents().documents_size(), 3);
+  EXPECT_STREQ(augmenter.documents().documents(0).text().c_str(),
                "Text with some InterWordCapitalization [0]");
-  EXPECT_STREQ(augmenter.get_documents().documents(1).text().c_str(),
+  EXPECT_STREQ(augmenter.documents().documents(1).text().c_str(),
                "Text with some InterWordCapitalization [1]");
-  EXPECT_STREQ(augmenter.get_documents().documents(2).text().c_str(),
+  EXPECT_STREQ(augmenter.documents().documents(2).text().c_str(),
                "text with some interwordcapitalization [0]");
 }
 
 TEST(AugmenterTest, DontLowercaseNonTokens) {
-  bert_annotator::Documents documents = construct_test_documents(
+  bert_annotator::Documents documents = ConstructTestDocuments(
       {TestDocument("[BOS] Text with some InterWordCapitalization [EOS]",
                     {TestToken("Text", 6, 9), TestToken("with", 11, 14),
                      TestToken("some", 16, 19),
                      TestToken("InterWordCapitalization", 21, 43)})});
   Augmenter augmenter = Augmenter(documents);
 
-  augmenter.lowercase(/*lowercase_percentage=*/1.0);
+  augmenter.Lowercase(/*lowercase_percentage=*/1.0);
 
-  ASSERT_STREQ(augmenter.get_documents().documents(1).text().c_str(),
+  ASSERT_STREQ(augmenter.documents().documents(1).text().c_str(),
                "[BOS] text with some interwordcapitalization [EOS]");
 }
 

@@ -25,8 +25,8 @@ class Augmenter {
  public:
   explicit Augmenter(bert_annotator::Documents documents);
   Augmenter(bert_annotator::Documents documents, const uint seed);
-  void lowercase(const double lowercase_percentage);
-  const bert_annotator::Documents get_documents() const;
+  void Lowercase(const double lowercase_percentage);
+  const bert_annotator::Documents documents() const;
 
  private:
   bert_annotator::Documents documents_;

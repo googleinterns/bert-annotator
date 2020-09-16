@@ -39,18 +39,18 @@ int main(int argc, char* argv[]) {
 
   for (const std::string& corpus : corpora) {
     augmenter::TextprotoIO textproto_io = augmenter::TextprotoIO();
-    if (!textproto_io.load(corpus)) {
+    if (!textproto_io.Load(corpus)) {
       std::cerr << "Skipping corpus " << corpus << "." << std::endl;
       continue;
     }
     std::cout << "Processing corpus " << corpus << std::endl;
 
     augmenter::Augmenter augmenter =
-        augmenter::Augmenter(textproto_io.get_documents());
-    augmenter.lowercase(lowercase_percentage);
+        augmenter::Augmenter(textproto_io.documents());
+    augmenter.Lowercase(lowercase_percentage);
 
-    textproto_io.set_documents(augmenter.get_documents());
-    textproto_io.save(corpus);
+    textproto_io.set_documents(augmenter.documents());
+    textproto_io.Save(corpus);
   }
 
   return 0;

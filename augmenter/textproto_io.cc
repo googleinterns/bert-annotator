@@ -25,7 +25,7 @@
 
 namespace augmenter {
 
-bool TextprotoIO::load(const std::string corpus) {
+bool TextprotoIO::Load(const std::string corpus) {
   std::ifstream input("data/input/preprocessed/" + corpus + ".textproto");
   if (input.fail()) {
     std::cerr << "Failed to load corpus " << corpus << std::endl;
@@ -40,7 +40,7 @@ bool TextprotoIO::load(const std::string corpus) {
   return true;
 }
 
-bool TextprotoIO::save(const std::string corpus) const {
+bool TextprotoIO::Save(const std::string corpus) const {
   std::ofstream output("data/output/" + corpus + ".textproto");
   google::protobuf::io::OstreamOutputStream fileOutput(&output,
                                                        std::ios::binary);
@@ -52,7 +52,7 @@ bool TextprotoIO::save(const std::string corpus) const {
   return true;
 }
 
-const bert_annotator::Documents TextprotoIO::get_documents() const {
+const bert_annotator::Documents TextprotoIO::documents() const {
   return documents_;
 }
 
