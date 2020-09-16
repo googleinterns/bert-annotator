@@ -33,7 +33,7 @@ RandomSampler::RandomSampler(std::istringstream& input_stream,
                              absl::BitGenRef bitgenref)
     : bitgenref_(bitgenref) {
   double accumulated_probability = 0;
-  items_ = std::vector<RandomItem>();
+  random_items_ = std::vector<RandomItem>();
 
   // Parse input.
   std::string line;
@@ -51,47 +51,52 @@ RandomSampler::RandomSampler(std::istringstream& input_stream,
       std::cerr << "Wrong entity format" << std::endl;
       std::abort();
     }
-    double probability = std::stod(probability_string);
+    const double probability = std::stod(probability_string);
 
     accumulated_probability += probability;
-    items_.push_back(RandomItem(text, probability, accumulated_probability));
+    random_items_.push_back(
+        RandomItem(text, probability, accumulated_probability));
   }
 
-  // At least one item needs to exist, otherwise sampling will not be possible
-  if (items_.size() == 0) {
-    std::cerr << "No item added to sampler!" << std::endl;
+  // At least one item needs to exist, otherwise sampling will not be possible.
+  if (random_items_.size() == 0) {
+    std::cerr << "No item added to the sampler!" << std::endl;
     std::abort();
   }
 
   // Normalize probabilities.
-  for (auto& random_item : items_) {
-    random_item.normalize(accumulated_probability);
+  for (RandomItem& random_item : random_items_) {
+    random_item.Normalize(accumulated_probability);
   }
 }
 
 RandomSampler::RandomSampler(std::istringstream& input_stream)
     : RandomSampler(input_stream, bitgen_) {}
 
-std::string RandomSampler::sample() {
+std::string RandomSampler::Sample() {
   double sampled_probability = absl::Uniform<double>(bitgenref_, 0, 1);
-  return search(sampled_probability);
+  return Search(sampled_probability);
 }
 
-std::vector<RandomItem> RandomSampler::items() { return items_; }
+std::vector<RandomItem> RandomSampler::items() { return random_items_; }
 
-std::string RandomSampler::search(double accumulated_probability) {
-  return search(accumulated_probability, 0, items_.size() - 1);
+// Performs a binary search for the first item with target_probability >=
+// accumulated_probability.
+std::string RandomSampler::Search(const double target_probability) {
+  return Search(target_probability, 0, random_items_.size() - 1);
 }
-std::string RandomSampler::search(double accumulated_probability,
-                                  int lower_bound, int upper_bound) {
+
+std::string RandomSampler::Search(const double accumulated_probability,
+                                  const int lower_bound,
+                                  const int upper_bound) {
   if (lower_bound == upper_bound) {
-    return items_[lower_bound].text();
+    return random_items_[lower_bound].text();
   }
-  int center_index = (lower_bound + upper_bound) / 2;
-  if (items_[center_index].accumulated_probability() <
+  const int center_index = (lower_bound + upper_bound) / 2;
+  if (random_items_[center_index].accumulated_probability() <
       accumulated_probability) {
-    return search(accumulated_probability, center_index + 1, upper_bound);
+    return Search(accumulated_probability, center_index + 1, upper_bound);
   } else {
-    return search(accumulated_probability, lower_bound, center_index);
+    return Search(accumulated_probability, lower_bound, center_index);
   }
 }

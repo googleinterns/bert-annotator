@@ -16,21 +16,21 @@
 
 #include "augmenter/random_item.h"
 
-RandomItem::RandomItem(std::string text, double probability,
+RandomItem::RandomItem(const std::string text, double probability,
                        double accumulated_probability)
     : text_(text),
       probability_(probability),
       accumulated_probability_(accumulated_probability) {}
 
-std::string RandomItem::text() { return text_; }
-
-double RandomItem::probability() const { return probability_; }
-
-double RandomItem::accumulated_probability() const {
-  return accumulated_probability_;
-}
-
-void RandomItem::normalize(double factor) {
+void RandomItem::Normalize(const double factor) {
   probability_ /= factor;
   accumulated_probability_ /= factor;
+}
+
+const std::string RandomItem::text() const { return text_; }
+
+const double RandomItem::probability() const { return probability_; }
+
+const double RandomItem::accumulated_probability() const {
+  return accumulated_probability_;
 }

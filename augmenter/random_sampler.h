@@ -16,6 +16,7 @@
 
 #ifndef AUGMENTER_RANDOM_SAMPLER_H_
 #define AUGMENTER_RANDOM_SAMPLER_H_
+
 #include <string>
 #include <utility>
 #include <vector>
@@ -28,16 +29,14 @@ class RandomSampler {
  public:
   explicit RandomSampler(std::istringstream& input_stream);
   RandomSampler(std::istringstream& input_stream, absl::BitGenRef bigen);
-  std::string sample();
-  std::string sample(absl::BitGenRef bitgen);
+  std::string Sample();
   std::vector<RandomItem> items();
 
  private:
-  std::string search(double accumulated_probability);
-  std::string search(double accumulated_probability, int lower_bound,
-                     int upper_bound);
-  std::vector<RandomItem> items_;
-  uint seed_;
+  std::string Search(const double accumulated_probability);
+  std::string Search(const double accumulated_probability,
+                     const int lower_bound, const int upper_bound);
+  std::vector<RandomItem> random_items_;
   absl::BitGenRef bitgenref_;
   absl::BitGen bitgen_;
 };

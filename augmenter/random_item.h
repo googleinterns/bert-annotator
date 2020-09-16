@@ -16,19 +16,21 @@
 
 #ifndef AUGMENTER_RANDOM_ITEM_H_
 #define AUGMENTER_RANDOM_ITEM_H_
+
 #include <string>
 
 class RandomItem {
  public:
-  RandomItem(std::string text, double probability,
+  // Probabilities are not constant, they may change during normalization.
+  RandomItem(const std::string text, double probability,
              double accumulated_probability);
-  std::string text();
-  double probability() const;
-  double accumulated_probability() const;
-  void normalize(double factor);
+  void Normalize(const double factor);
+  const std::string text() const;
+  const double probability() const;
+  const double accumulated_probability() const;
 
  private:
-  std::string text_;
+  const std::string text_;
   double probability_;
   double accumulated_probability_;
 };
