@@ -38,12 +38,12 @@ int main(int argc, char* argv[]) {
   const std::vector<std::string> corpora = absl::GetFlag(FLAGS_corpora);
 
   for (const std::string& corpus : corpora) {
-    std::cout << corpus << std::endl;
     augmenter::TextprotoIO textproto_io = augmenter::TextprotoIO();
     if (!textproto_io.load(corpus)) {
       std::cerr << "Skipping corpus " << corpus << "." << std::endl;
       continue;
     }
+    std::cout << "Processing corpus " << corpus << std::endl;
 
     augmenter::Augmenter augmenter =
         augmenter::Augmenter(textproto_io.get_documents());

@@ -28,9 +28,7 @@
 namespace augmenter {
 
 Augmenter::Augmenter(const bert_annotator::Documents documents)
-    : documents_(documents) {
-  seed_ = time(NULL);
-}
+    : documents_(documents), seed_(time(NULL)) {}
 
 Augmenter::Augmenter(const bert_annotator::Documents documents, const uint seed)
     : documents_(documents), seed_(seed) {}
@@ -40,7 +38,7 @@ Augmenter::Augmenter(const bert_annotator::Documents documents, const uint seed)
 void Augmenter::lowercase(const double lowercase_percentage) {
   const int num_original_documents = documents_.documents_size();
   for (int i = 0; i < num_original_documents; ++i) {
-    // Skip if not in interval (0, 1]
+    // Skip if not in interval (0, 1].
     if (lowercase_percentage < (rand_r(&seed_) + 1.) / (RAND_MAX + 1.)) {
       continue;
     }
