@@ -46,6 +46,8 @@ cc_library(
   hdrs = ["random_sampler.h"],
   deps = [
     "random_item",
+    "@com_google_absl//absl/random",
+    "@com_google_absl//absl/random:bit_gen_ref",
   ],
 )
 
@@ -56,6 +58,7 @@ cc_test (
   ],
   deps = [
     "random_sampler",
+    "@com_google_absl//absl/random",
     "@gtest//:gtest",
     "@gtest//:gtest_main",
   ],

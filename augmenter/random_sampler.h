@@ -20,15 +20,23 @@
 #include <utility>
 #include <vector>
 
+#include "absl/random/bit_gen_ref.h"
+#include "absl/random/random.h"
 #include "augmenter/random_item.h"
 
 class RandomSampler {
  public:
-  RandomSampler(std::istringstream& input_stream);
+  explicit RandomSampler(std::istringstream& input_stream);
+  std::string sample();
+  std::string sample(absl::BitGen bitgen);
   std::vector<RandomItem> items();
 
  private:
+  std::string search(double accumulated_probability);
+  std::string search(double accumulated_probability, int lower_bound,
+                     int upper_bound);
   std::vector<RandomItem> items_;
   uint seed_;
+  absl::BitGen bitgen_;
 };
 #endif  // AUGMENTER_RANDOM_SAMPLER_H_

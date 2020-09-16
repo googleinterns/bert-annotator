@@ -20,15 +20,16 @@
 
 class RandomItem {
  public:
-  RandomItem(std::string text, float probability,
-             float accumulated_probability);
+  RandomItem(std::string text, double probability,
+             double accumulated_probability);
   std::string text();
-  float probability();
-  float accumulated_probability();
+  double probability() const;
+  double accumulated_probability() const;
+  void normalize(double factor);
 
  private:
   std::string text_;
-  float probability_;
-  float accumulated_probability_;
+  double probability_;
+  double accumulated_probability_;
 };
 #endif  // AUGMENTER_RANDOM_ITEM_H_

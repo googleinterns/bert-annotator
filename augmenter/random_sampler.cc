@@ -16,22 +16,26 @@
 
 #include "augmenter/random_sampler.h"
 
+#include <algorithm>
 #include <fstream>
 #include <iostream>
 #include <memory>
 #include <sstream>
 #include <string>
 
+#include "absl/random/bit_gen_ref.h"
+#include "absl/random/random.h"
+
 // Parses a file containing entities and their corresponding probabilities.
-// Expects entries in the format [Entitiy]\t[Probability].
+// Expects at least one item in the format [Entitiy]\t[Probability].
 // Can be used to draw replacements for the augmentation.
 RandomSampler::RandomSampler(std::istringstream& input_stream) {
-  float accumulated_probability = 0;
+  double accumulated_probability = 0;
   items_ = std::vector<RandomItem>();
 
+  // Parse input.
   std::string line;
   while (std::getline(input_stream, line)) {
-    std::cout << "LINE READ: " << line << std::endl;
     std::istringstream iss(line);
     std::string text;
     std::getline(iss, text, '\t');
@@ -45,11 +49,49 @@ RandomSampler::RandomSampler(std::istringstream& input_stream) {
       std::cerr << "Wrong entity format" << std::endl;
       std::abort();
     }
-    float probability = std::stof(probability_string);
+    double probability = std::stod(probability_string);
 
     accumulated_probability += probability;
     items_.push_back(RandomItem(text, probability, accumulated_probability));
   }
+
+  // At least one item needs to exist, otherwise sampling will not be possible
+  if (items_.size() == 0) {
+    std::cerr << "No item added to sampler!" << std::endl;
+    std::abort();
+  }
+
+  // Normalize probabilities.
+  for (auto& random_item : items_) {
+    random_item.normalize(accumulated_probability);
+  }
+}
+
+std::string RandomSampler::sample() {
+  double sampled_probability = absl::Uniform(bitgen_, 0, 1.0);
+  return search(sampled_probability);
+}
+std::string RandomSampler::sample(absl::BitGen bitgen) {
+  // bitgen_ = bitgen; NOT POSSIBLE
+  double sampled_probability = absl::Uniform(bitgen, 0, 1.0);
+  return search(sampled_probability);
 }
 
 std::vector<RandomItem> RandomSampler::items() { return items_; }
+
+std::string RandomSampler::search(double accumulated_probability) {
+  return search(accumulated_probability, 0, items_.size() - 1);
+}
+std::string RandomSampler::search(double accumulated_probability,
+                                  int lower_bound, int upper_bound) {
+  if (lower_bound == upper_bound) {
+    return items_[lower_bound].text();
+  }
+  int center_index = (lower_bound + upper_bound) / 2;
+  if (items_[center_index].accumulated_probability() <
+      accumulated_probability) {
+    return search(accumulated_probability, center_index + 1, upper_bound);
+  } else {
+    return search(accumulated_probability, lower_bound, center_index);
+  }
+}

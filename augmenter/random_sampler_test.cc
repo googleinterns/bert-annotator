@@ -18,37 +18,91 @@
 
 #include <string>
 
+#include "absl/random/random.h"
 #include "gtest/gtest.h"
 
 TEST(RandomSamplerDeathTest, ErrorOnWrongFormat) {
   EXPECT_DEATH(
       {
-        std::istringstream dummyStream("Some text [NoTab] 0.5");
+        std::istringstream dummyStream("Some text [NoTab] 1");
         auto random_sampler = RandomSampler(dummyStream);
       },
       "Wrong entity format");
 }
 
+TEST(RandomSamplerDeathTest, ErrorOnEmptyInput) {
+  EXPECT_DEATH(
+      {
+        std::istringstream dummyStream("");
+        auto random_sampler = RandomSampler(dummyStream);
+      },
+      "No item added to sampler!");
+}
+
 TEST(RandomSamplerTest, ParsingSingleEntry) {
-  std::istringstream dummyStream("Some text\t0.5");
+  std::istringstream dummyStream("Some text\t1");
   auto random_sampler = RandomSampler(dummyStream);
   std::vector<RandomItem> items = random_sampler.items();
   ASSERT_EQ(items.size(), 1);
   EXPECT_EQ(items[0].text(), "Some text");
-  EXPECT_EQ(items[0].probability(), 0.5);
-  EXPECT_EQ(items[0].accumulated_probability(), 0.5);
+  EXPECT_EQ(items[0].probability(), 1);
+  EXPECT_EQ(items[0].accumulated_probability(), 1);
+}
+
+TEST(RandomSamplerTest, ParsingSingleEntryScientific) {
+  std::istringstream dummyStream("Some text\t1e");
+  auto random_sampler = RandomSampler(dummyStream);
+  std::vector<RandomItem> items = random_sampler.items();
+  ASSERT_EQ(items.size(), 1);
+  EXPECT_EQ(items[0].text(), "Some text");
+  EXPECT_DOUBLE_EQ(items[0].probability(), 1);
+  EXPECT_DOUBLE_EQ(items[0].accumulated_probability(), 1);
 }
 
 TEST(RandomSamplerTest, ParsingMultipleEntries) {
-  std::istringstream dummyStream("Some text\t0.5\nMore text\t0.25");
+  std::istringstream dummyStream("Some text\t0.75\nMore text\t0.25");
   auto random_sampler = RandomSampler(dummyStream);
   std::vector<RandomItem> items = random_sampler.items();
   ASSERT_EQ(items.size(), 2);
   EXPECT_EQ(items[0].text(), "Some text");
-  EXPECT_EQ(items[0].probability(), 0.5);
-  EXPECT_EQ(items[0].accumulated_probability(), 0.5);
+  EXPECT_EQ(items[0].probability(), 0.75);
+  EXPECT_EQ(items[0].accumulated_probability(), 0.75);
   EXPECT_EQ(items[1].text(), "More text");
   EXPECT_EQ(items[1].probability(), 0.25);
-  EXPECT_EQ(items[1].accumulated_probability(), 0.75);
+  EXPECT_EQ(items[1].accumulated_probability(), 1);
 }
 
+TEST(RandomSamplerTest, ParsingMultipleEntriesNormalization) {
+  std::istringstream dummyStream("Some text\t0.25\nMore text\t0.25");
+  auto random_sampler = RandomSampler(dummyStream);
+  std::vector<RandomItem> items = random_sampler.items();
+  ASSERT_EQ(items.size(), 2);
+  EXPECT_EQ(items[0].probability(), 0.5);
+  EXPECT_EQ(items[0].accumulated_probability(), 0.5);
+  EXPECT_EQ(items[1].probability(), 0.5);
+  EXPECT_EQ(items[1].accumulated_probability(), 1);
+}
+
+TEST(RandomSamplerTest, SampleSingleEntry) {
+  std::istringstream dummyStream("Some text\t1");
+  auto random_sampler = RandomSampler(dummyStream);
+  // Sampling multiple times should be possible
+  EXPECT_EQ(random_sampler.sample(), "Some text");
+  EXPECT_EQ(random_sampler.sample(), "Some text");
+  EXPECT_EQ(random_sampler.sample(), "Some text");
+}
+
+TEST(RandomSamplerTest, SampleMultipleEntriesA) {
+  // absl::MockingBitGen bitgen;
+  // ON_CALL(absl::MockUniform(), Call(bitgen, 0.25))
+  //     .WillByDefault(testing::Return(true));
+  // std::istringstream dummyStream("Some text\t0.5\nMore text\t0.5");
+  // auto random_sampler = RandomSampler(dummyStream);
+  // EXPECT_EQ(random_sampler.sample(), "Some text");
+}
+
+TEST(RandomSamplerTest, SampleMultipleEntriesB) {
+  std::istringstream dummyStream("Some text\t0.5\nMore text\t0.5");
+  auto random_sampler = RandomSampler(dummyStream);
+  EXPECT_EQ(random_sampler.sample(), "More text");
+}
