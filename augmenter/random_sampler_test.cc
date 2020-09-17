@@ -101,7 +101,7 @@ TEST(RandomSamplerTest, SampleSingleEntry) {
       .WillOnce(testing::Return(0.25))
       .WillOnce(testing::Return(0.25));
   auto random_sampler = ConstructRandomSampler("Some text\t1", bitgen);
-  // Sampling multiple times should be possible
+  // Sampling multiple times should be possible.
   EXPECT_EQ(random_sampler.Sample(), "Some text");
   EXPECT_EQ(random_sampler.Sample(), "Some text");
   EXPECT_EQ(random_sampler.Sample(), "Some text");
