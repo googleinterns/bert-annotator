@@ -57,8 +57,8 @@ TEST(RandomSamplerTest, ParsingSingleEntry) {
   std::vector<RandomItem> items = random_sampler.items();
   ASSERT_EQ(items.size(), 1);
   EXPECT_EQ(items[0].text(), "Some text");
-  EXPECT_EQ(items[0].probability(), 1);
-  EXPECT_EQ(items[0].accumulated_probability(), 1);
+  EXPECT_DOUBLE_EQ(items[0].probability(), 1);
+  EXPECT_DOUBLE_EQ(items[0].accumulated_probability(), 1);
 }
 
 TEST(RandomSamplerTest, ParsingSingleEntryScientific) {
@@ -76,11 +76,11 @@ TEST(RandomSamplerTest, ParsingMultipleEntries) {
   std::vector<RandomItem> items = random_sampler.items();
   ASSERT_EQ(items.size(), 2);
   EXPECT_EQ(items[0].text(), "Some text");
-  EXPECT_EQ(items[0].probability(), 0.75);
-  EXPECT_EQ(items[0].accumulated_probability(), 0.75);
+  EXPECT_DOUBLE_EQ(items[0].probability(), 0.75);
+  EXPECT_DOUBLE_EQ(items[0].accumulated_probability(), 0.75);
   EXPECT_EQ(items[1].text(), "More text");
-  EXPECT_EQ(items[1].probability(), 0.25);
-  EXPECT_EQ(items[1].accumulated_probability(), 1);
+  EXPECT_DOUBLE_EQ(items[1].probability(), 0.25);
+  EXPECT_DOUBLE_EQ(items[1].accumulated_probability(), 1);
 }
 
 TEST(RandomSamplerTest, ParsingMultipleEntriesNormalization) {
@@ -88,10 +88,10 @@ TEST(RandomSamplerTest, ParsingMultipleEntriesNormalization) {
       ConstructRandomSampler("Some text\t0.25\nMore text\t0.25");
   std::vector<RandomItem> items = random_sampler.items();
   ASSERT_EQ(items.size(), 2);
-  EXPECT_EQ(items[0].probability(), 0.5);
-  EXPECT_EQ(items[0].accumulated_probability(), 0.5);
-  EXPECT_EQ(items[1].probability(), 0.5);
-  EXPECT_EQ(items[1].accumulated_probability(), 1);
+  EXPECT_DOUBLE_EQ(items[0].probability(), 0.5);
+  EXPECT_DOUBLE_EQ(items[0].accumulated_probability(), 0.5);
+  EXPECT_DOUBLE_EQ(items[1].probability(), 0.5);
+  EXPECT_DOUBLE_EQ(items[1].accumulated_probability(), 1);
 }
 
 TEST(RandomSamplerTest, SampleSingleEntry) {
