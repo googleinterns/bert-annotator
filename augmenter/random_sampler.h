@@ -30,7 +30,7 @@ namespace augmenter {
 class RandomSampler {
  public:
   explicit RandomSampler(std::istringstream& input_stream);
-  RandomSampler(std::istringstream& input_stream, absl::BitGenRef bigen);
+  RandomSampler(std::istringstream& input_stream, absl::BitGenRef bitgen);
   const std::string Sample();
   std::vector<RandomItem> items();
 
