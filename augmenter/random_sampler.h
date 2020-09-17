@@ -29,15 +29,16 @@ class RandomSampler {
  public:
   explicit RandomSampler(std::istringstream& input_stream);
   RandomSampler(std::istringstream& input_stream, absl::BitGenRef bigen);
-  std::string Sample();
+  const std::string Sample();
   std::vector<RandomItem> items();
 
  private:
-  std::string Search(const double accumulated_probability);
-  std::string Search(const double accumulated_probability,
-                     const int lower_bound, const int upper_bound);
+  const std::string Search(const double accumulated_probability);
+  const std::string Search(const double accumulated_probability,
+                           const int lower_bound, const int upper_bound);
   std::vector<RandomItem> random_items_;
   absl::BitGenRef bitgenref_;
   absl::BitGen bitgen_;
 };
+
 #endif  // AUGMENTER_RANDOM_SAMPLER_H_

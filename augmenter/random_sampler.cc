@@ -73,7 +73,7 @@ RandomSampler::RandomSampler(std::istringstream& input_stream,
 RandomSampler::RandomSampler(std::istringstream& input_stream)
     : RandomSampler(input_stream, bitgen_) {}
 
-std::string RandomSampler::Sample() {
+const std::string RandomSampler::Sample() {
   double sampled_probability = absl::Uniform<double>(bitgenref_, 0, 1);
   return Search(sampled_probability);
 }
@@ -82,13 +82,13 @@ std::vector<RandomItem> RandomSampler::items() { return random_items_; }
 
 // Performs a binary search for the first item with target_probability >=
 // accumulated_probability.
-std::string RandomSampler::Search(const double target_probability) {
+const std::string RandomSampler::Search(const double target_probability) {
   return Search(target_probability, 0, random_items_.size() - 1);
 }
 
-std::string RandomSampler::Search(const double accumulated_probability,
-                                  const int lower_bound,
-                                  const int upper_bound) {
+const std::string RandomSampler::Search(const double accumulated_probability,
+                                        const int lower_bound,
+                                        const int upper_bound) {
   if (lower_bound == upper_bound) {
     return random_items_[lower_bound].text();
   }

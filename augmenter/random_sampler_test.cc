@@ -21,14 +21,14 @@
 #include "absl/random/mock_distributions.h"
 #include "gtest/gtest.h"
 
-RandomSampler ConstructRandomSampler(std::string text) {
+RandomSampler ConstructRandomSampler(const std::string text) {
   std::istringstream dummy_stream(text);
   auto random_sampler = RandomSampler(dummy_stream);
   return random_sampler;
 }
 
-RandomSampler ConstructRandomSampler(std::string text,
-                                     absl::BitGenRef bitgenref) {
+RandomSampler ConstructRandomSampler(const std::string text,
+                                           absl::BitGenRef bitgenref) {
   std::istringstream dummy_stream(text);
   auto random_sampler = RandomSampler(dummy_stream, bitgenref);
   return random_sampler;

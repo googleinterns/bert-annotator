@@ -34,4 +34,5 @@ class RandomItem {
   double probability_;
   double accumulated_probability_;
 };
+
 #endif  // AUGMENTER_RANDOM_ITEM_H_
