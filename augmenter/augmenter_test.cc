@@ -25,34 +25,36 @@
 
 namespace augmenter {
 
-struct TestToken {
+struct TokenSpec {
   const std::string text;
   const int start;
   const int end;
-  TestToken(const std::string text_, const int start_, const int end_)
+  TokenSpec(const std::string text_, const int start_, const int end_)
       : text(text_), start(start_), end(end_) {}
 };
 
-struct TestDocument {
+struct DocumentSpec {
   const std::string text;
-  const std::vector<TestToken> test_tokens;
-  TestDocument(const std::string text_,
-               const std::vector<TestToken> test_tokens_)
-      : text(text_), test_tokens(test_tokens_) {}
+  const std::vector<TokenSpec> token_specs;
+  DocumentSpec(const std::string text_,
+               const std::vector<TokenSpec> token_specs_)
+      : text(text_), token_specs(token_specs_) {}
 };
 
-bert_annotator::Documents ConstructTestDocuments(
-    const std::vector<TestDocument> test_documents) {
+// Creates a documents wrapper with documents each containing the specified
+// string and list of tokens
+bert_annotator::Documents ConstructBertDocument(
+    const std::vector<DocumentSpec> document_specs) {
   bert_annotator::Documents documents = bert_annotator::Documents();
-  for (const TestDocument test_document : test_documents) {
+  for (const DocumentSpec document_spec : document_specs) {
     bert_annotator::Document* document = documents.add_documents();
-    document->set_text(test_document.text);
-    for (const TestToken test_token : test_document.test_tokens) {
+    document->set_text(document_spec.text);
+    for (const TokenSpec token_spec : document_spec.token_specs) {
       bert_annotator::Token* token;
       token = document->add_token();
-      token->set_start(test_token.start);
-      token->set_end(test_token.end);
-      token->set_word(test_token.text);
+      token->set_start(token_spec.start);
+      token->set_end(token_spec.end);
+      token->set_word(token_spec.text);
     }
   }
 
@@ -60,8 +62,8 @@ bert_annotator::Documents ConstructTestDocuments(
 }
 
 TEST(AugmenterTest, AugmentsAreAdded) {
-  bert_annotator::Documents documents = ConstructTestDocuments(
-      {TestDocument("Text with some InterWordCapitalization", {})});
+  bert_annotator::Documents documents = ConstructBertDocument(
+      {DocumentSpec("Text with some InterWordCapitalization", {})});
   Augmenter augmenter = Augmenter(documents);
 
   augmenter.Lowercase(/*lowercase_percentage=*/1.0);
@@ -70,8 +72,8 @@ TEST(AugmenterTest, AugmentsAreAdded) {
 }
 
 TEST(AugmenterTest, NoLowercasingForZeroPercent) {
-  bert_annotator::Documents documents = ConstructTestDocuments(
-      {TestDocument("Text with some InterWordCapitalization", {})});
+  bert_annotator::Documents documents = ConstructBertDocument(
+      {DocumentSpec("Text with some InterWordCapitalization", {})});
   Augmenter augmenter = Augmenter(documents);
 
   augmenter.Lowercase(/*lowercase_percentage=*/0.0);
@@ -81,11 +83,11 @@ TEST(AugmenterTest, NoLowercasingForZeroPercent) {
 }
 
 TEST(AugmenterTest, CompleteLowercasingForHundredPercent) {
-  bert_annotator::Documents documents = ConstructTestDocuments(
-      {TestDocument("Text with some InterWordCapitalization",
-                    {TestToken("Text", 0, 3), TestToken("with", 5, 8),
-                     TestToken("some", 10, 13),
-                     TestToken("InterWordCapitalization", 15, 37)})});
+  bert_annotator::Documents documents = ConstructBertDocument(
+      {DocumentSpec("Text with some InterWordCapitalization",
+                    {TokenSpec("Text", 0, 3), TokenSpec("with", 5, 8),
+                     TokenSpec("some", 10, 13),
+                     TokenSpec("InterWordCapitalization", 15, 37)})});
   Augmenter augmenter = Augmenter(documents);
 
   augmenter.Lowercase(/*lowercase_percentage=*/1.0);
@@ -95,15 +97,15 @@ TEST(AugmenterTest, CompleteLowercasingForHundredPercent) {
 }
 
 TEST(AugmenterTest, RandomizedLowercasing) {
-  bert_annotator::Documents documents = ConstructTestDocuments(
-      {TestDocument("Text with some InterWordCapitalization [0]",
-                    {TestToken("Text", 0, 3), TestToken("with", 5, 8),
-                     TestToken("some", 10, 13),
-                     TestToken("InterWordCapitalization", 15, 37)}),
-       TestDocument("Text with some InterWordCapitalization [1]",
-                    {TestToken("Text", 0, 3), TestToken("with", 5, 8),
-                     TestToken("some", 10, 13),
-                     TestToken("InterWordCapitalization", 15, 37)})});
+  bert_annotator::Documents documents = ConstructBertDocument(
+      {DocumentSpec("Text with some InterWordCapitalization [0]",
+                    {TokenSpec("Text", 0, 3), TokenSpec("with", 5, 8),
+                     TokenSpec("some", 10, 13),
+                     TokenSpec("InterWordCapitalization", 15, 37)}),
+       DocumentSpec("Text with some InterWordCapitalization [1]",
+                    {TokenSpec("Text", 0, 3), TokenSpec("with", 5, 8),
+                     TokenSpec("some", 10, 13),
+                     TokenSpec("InterWordCapitalization", 15, 37)})});
   Augmenter augmenter = Augmenter(documents, /*seed=*/0);
 
   augmenter.Lowercase(/*lowercase_percentage=*/0.5);
@@ -118,11 +120,11 @@ TEST(AugmenterTest, RandomizedLowercasing) {
 }
 
 TEST(AugmenterTest, DontLowercaseNonTokens) {
-  bert_annotator::Documents documents = ConstructTestDocuments(
-      {TestDocument("[BOS] Text with some InterWordCapitalization [EOS]",
-                    {TestToken("Text", 6, 9), TestToken("with", 11, 14),
-                     TestToken("some", 16, 19),
-                     TestToken("InterWordCapitalization", 21, 43)})});
+  bert_annotator::Documents documents = ConstructBertDocument(
+      {DocumentSpec("[BOS] Text with some InterWordCapitalization [EOS]",
+                    {TokenSpec("Text", 6, 9), TokenSpec("with", 11, 14),
+                     TokenSpec("some", 16, 19),
+                     TokenSpec("InterWordCapitalization", 21, 43)})});
   Augmenter augmenter = Augmenter(documents);
 
   augmenter.Lowercase(/*lowercase_percentage=*/1.0);
