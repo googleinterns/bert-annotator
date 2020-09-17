@@ -17,6 +17,8 @@
 #ifndef AUGMENTER_AUGMENTER_H_
 #define AUGMENTER_AUGMENTER_H_
 
+#include "absl/random/bit_gen_ref.h"
+#include "absl/random/random.h"
 #include "protocol_buffer/documents.pb.h"
 
 namespace augmenter {
@@ -24,13 +26,15 @@ namespace augmenter {
 class Augmenter {
  public:
   explicit Augmenter(bert_annotator::Documents documents);
-  Augmenter(bert_annotator::Documents documents, const uint seed);
-  void Lowercase(const double lowercase_percentage);
+  Augmenter(bert_annotator::Documents documents, absl::BitGenRef bigen);
+  void Augment(const int augmentations, const double lowercase_percentage);
   const bert_annotator::Documents documents() const;
 
  private:
+  void Lowercase(bert_annotator::Document* const augmented_document);
   bert_annotator::Documents documents_;
-  uint seed_;
+  absl::BitGenRef bitgenref_;
+  absl::BitGen bitgen_;
 };
 
 }  // namespace augmenter

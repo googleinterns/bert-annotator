@@ -25,52 +25,63 @@
 
 namespace augmenter {
 
+Augmenter::Augmenter(const bert_annotator::Documents documents,
+                     absl::BitGenRef bitgenref)
+    : documents_(documents), bitgenref_(bitgenref) {}
+
 Augmenter::Augmenter(const bert_annotator::Documents documents)
-    : documents_(documents), seed_(time(NULL)) {}
+    : Augmenter(documents, bitgen_) {}
 
-Augmenter::Augmenter(const bert_annotator::Documents documents, const uint seed)
-    : documents_(documents), seed_(seed) {}
-
-// Transforms the text to lowercase.
-// Only explicitly listed tokens are transformed.
-void Augmenter::Lowercase(const double lowercase_percentage) {
-  const int num_original_documents = documents_.documents_size();
-  for (int i = 0; i < num_original_documents; ++i) {
-    // Skip if not in interval (0, 1].
-    if (lowercase_percentage < (rand_r(&seed_) + 1.) / (RAND_MAX + 1.)) {
-      continue;
-    }
-
-    const bert_annotator::Document& original_document = documents_.documents(i);
+void Augmenter::Augment(const int augmentations,
+                        const double lowercase_percentage) {
+  const int original_document_number = documents_.documents_size();
+  int remaining_lowercase_augmentations = augmentations * lowercase_percentage;
+  for (int i = 0; i < augmentations; ++i) {
+    const int remaining_augmentations = augmentations - i;
+    const int document_id = i % original_document_number;
+    const bert_annotator::Document& original_document =
+        documents_.documents(document_id);
 
     bert_annotator::Document* augmented_document = documents_.add_documents();
     augmented_document->CopyFrom(original_document);
 
-    std::string* text = augmented_document->mutable_text();
-    std::vector<char> new_text_bytes = std::vector<char>();
-    int text_index = 0;
-    for (int j = 0; j < augmented_document->token_size(); ++j) {
-      bert_annotator::Token* token = augmented_document->mutable_token(j);
-
-      // Adds the string inbetween two tokens as it is.
-      const int token_start = token->start();
-      const int token_end = token->end();
-      if (text_index < token_start) {
-        new_text_bytes.insert(new_text_bytes.end(), text->begin() + text_index,
-                              text->begin() + token_start);
-      }
-
-      // Transforms the token to lowercase.
-      std::string* word = token->mutable_word();
-      absl::AsciiStrToLower(word);
-      new_text_bytes.insert(new_text_bytes.end(), word->begin(), word->end());
-      text_index = token_end + 1;
+    const bool perform_lowercasing = absl::Bernoulli(
+        bitgenref_, static_cast<double>(remaining_lowercase_augmentations) /
+                        remaining_augmentations);
+    if (perform_lowercasing) {
+      Lowercase(augmented_document);
+      --remaining_lowercase_augmentations;
     }
-    new_text_bytes.insert(new_text_bytes.end(), text->begin() + text_index,
-                          text->end());
-    const std::string new_text(new_text_bytes.begin(), new_text_bytes.end());
-    augmented_document->set_text(new_text);
   }
+}
+
+// Transforms the text to lowercase.
+// Only explicitly listed tokens are transformed.
+void Augmenter::Lowercase(bert_annotator::Document* const augmented_document) {
+  std::string* text = augmented_document->mutable_text();
+  std::vector<char> new_text_bytes = std::vector<char>();
+  int text_index = 0;
+  for (int j = 0; j < augmented_document->token_size(); ++j) {
+    bert_annotator::Token* token = augmented_document->mutable_token(j);
+
+    // Adds the string inbetween two tokens as it is.
+    const int token_start = token->start();
+    const int token_end = token->end();
+    if (text_index < token_start) {
+      new_text_bytes.insert(new_text_bytes.end(), text->begin() + text_index,
+                            text->begin() + token_start);
+    }
+
+    // Transforms the token to lowercase.
+    std::string* word = token->mutable_word();
+    absl::AsciiStrToLower(word);
+    new_text_bytes.insert(new_text_bytes.end(), word->begin(), word->end());
+    text_index = token_end + 1;
+  }
+  new_text_bytes.insert(new_text_bytes.end(), text->begin() + text_index,
+                        text->end());
+  const std::string new_text(new_text_bytes.begin(), new_text_bytes.end());
+  augmented_document->set_text(new_text);
 }
 
 const bert_annotator::Documents Augmenter::documents() const {

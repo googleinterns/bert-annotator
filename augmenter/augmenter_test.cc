@@ -19,6 +19,7 @@
 #include <string>
 #include <vector>
 
+#include "absl/random/mock_distributions.h"
 #include "gtest/gtest.h"
 #include "protocol_buffer/document.pb.h"
 #include "protocol_buffer/documents.pb.h"
@@ -61,14 +62,24 @@ bert_annotator::Documents ConstructBertDocument(
   return documents;
 }
 
+TEST(AugmenterTest, NoAugmentation) {
+  bert_annotator::Documents documents = ConstructBertDocument(
+      {DocumentSpec("Text with some InterWordCapitalization", {})});
+  Augmenter augmenter = Augmenter(documents);
+
+  augmenter.Augment(/*augmentations=*/0, /*lowercase_percentage=*/0.0);
+
+  EXPECT_EQ(augmenter.documents().documents_size(), 1);
+}
+
 TEST(AugmenterTest, AugmentsAreAdded) {
   bert_annotator::Documents documents = ConstructBertDocument(
       {DocumentSpec("Text with some InterWordCapitalization", {})});
   Augmenter augmenter = Augmenter(documents);
 
-  augmenter.Lowercase(/*lowercase_percentage=*/1.0);
+  augmenter.Augment(/*augmentations=*/1, /*lowercase_percentage=*/0.0);
 
-  ASSERT_EQ(augmenter.documents().documents_size(), 2);
+  EXPECT_EQ(augmenter.documents().documents_size(), 2);
 }
 
 TEST(AugmenterTest, NoLowercasingForZeroPercent) {
@@ -76,10 +87,13 @@ TEST(AugmenterTest, NoLowercasingForZeroPercent) {
       {DocumentSpec("Text with some InterWordCapitalization", {})});
   Augmenter augmenter = Augmenter(documents);
 
-  augmenter.Lowercase(/*lowercase_percentage=*/0.0);
+  const int augmentations = 10;
+  augmenter.Augment(augmentations, /*lowercase_percentage=*/0.0);
 
-  ASSERT_STREQ(augmenter.documents().documents(0).text().c_str(),
-               "Text with some InterWordCapitalization");
+  for (int i = 0; i < augmentations + 1; ++i) {
+    EXPECT_STREQ(augmenter.documents().documents(i).text().c_str(),
+                 "Text with some InterWordCapitalization");
+  }
 }
 
 TEST(AugmenterTest, CompleteLowercasingForHundredPercent) {
@@ -90,10 +104,31 @@ TEST(AugmenterTest, CompleteLowercasingForHundredPercent) {
                      TokenSpec("InterWordCapitalization", 15, 37)})});
   Augmenter augmenter = Augmenter(documents);
 
-  augmenter.Lowercase(/*lowercase_percentage=*/1.0);
+  const int augmentations = 10;
+  augmenter.Augment(augmentations, /*lowercase_percentage=*/1.0);
 
-  ASSERT_STREQ(augmenter.documents().documents(1).text().c_str(),
-               "text with some interwordcapitalization");
+  EXPECT_STREQ(augmenter.documents().documents(0).text().c_str(),
+               "Text with some InterWordCapitalization");
+  EXPECT_STREQ(augmenter.documents().documents(0).token(0).word().c_str(),
+               "Text");
+  EXPECT_STREQ(augmenter.documents().documents(0).token(1).word().c_str(),
+               "with");
+  EXPECT_STREQ(augmenter.documents().documents(0).token(2).word().c_str(),
+               "some");
+  EXPECT_STREQ(augmenter.documents().documents(0).token(3).word().c_str(),
+               "InterWordCapitalization");
+  for (int i = 1; i < augmentations + 1; ++i) {
+    EXPECT_STREQ(augmenter.documents().documents(i).text().c_str(),
+                 "text with some interwordcapitalization");
+    EXPECT_STREQ(augmenter.documents().documents(i).token(0).word().c_str(),
+                 "text");
+    EXPECT_STREQ(augmenter.documents().documents(i).token(1).word().c_str(),
+                 "with");
+    EXPECT_STREQ(augmenter.documents().documents(i).token(2).word().c_str(),
+                 "some");
+    EXPECT_STREQ(augmenter.documents().documents(i).token(3).word().c_str(),
+                 "interwordcapitalization");
+  }
 }
 
 TEST(AugmenterTest, RandomizedLowercasing) {
@@ -105,17 +140,34 @@ TEST(AugmenterTest, RandomizedLowercasing) {
        DocumentSpec("Text with some InterWordCapitalization [1]",
                     {TokenSpec("Text", 0, 3), TokenSpec("with", 5, 8),
                      TokenSpec("some", 10, 13),
+                     TokenSpec("InterWordCapitalization", 15, 37)}),
+       DocumentSpec("Text with some InterWordCapitalization [2]",
+                    {TokenSpec("Text", 0, 3), TokenSpec("with", 5, 8),
+                     TokenSpec("some", 10, 13),
                      TokenSpec("InterWordCapitalization", 15, 37)})});
-  Augmenter augmenter = Augmenter(documents, /*seed=*/0);
 
-  augmenter.Lowercase(/*lowercase_percentage=*/0.5);
+  absl::MockingBitGen bitgen;
+  testing::InSequence s;
+  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 2.0 / 4))
+      .WillOnce(testing::Return(true));
+  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 1.0 / 3))
+      .WillOnce(testing::Return(false));
+  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 1.0 / 2))
+      .WillOnce(testing::Return(false));
+  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 1.0 / 1))
+      .WillOnce(testing::Return(true));
+  Augmenter augmenter = Augmenter(documents, bitgen);
 
-  ASSERT_EQ(augmenter.documents().documents_size(), 3);
-  EXPECT_STREQ(augmenter.documents().documents(0).text().c_str(),
-               "Text with some InterWordCapitalization [0]");
-  EXPECT_STREQ(augmenter.documents().documents(1).text().c_str(),
+  augmenter.Augment(/*augmentations=*/4, /*lowercase_percentage=*/0.5);
+
+  ASSERT_EQ(augmenter.documents().documents_size(), 7);
+  EXPECT_STREQ(augmenter.documents().documents(3).text().c_str(),
+               "text with some interwordcapitalization [0]");
+  EXPECT_STREQ(augmenter.documents().documents(4).text().c_str(),
                "Text with some InterWordCapitalization [1]");
-  EXPECT_STREQ(augmenter.documents().documents(2).text().c_str(),
+  EXPECT_STREQ(augmenter.documents().documents(5).text().c_str(),
+               "Text with some InterWordCapitalization [2]");
+  EXPECT_STREQ(augmenter.documents().documents(6).text().c_str(),
                "text with some interwordcapitalization [0]");
 }
 
@@ -127,9 +179,9 @@ TEST(AugmenterTest, DontLowercaseNonTokens) {
                      TokenSpec("InterWordCapitalization", 21, 43)})});
   Augmenter augmenter = Augmenter(documents);
 
-  augmenter.Lowercase(/*lowercase_percentage=*/1.0);
+  augmenter.Augment(/*augmentations=*/1, /*lowercase_percentage=*/1.0);
 
-  ASSERT_STREQ(augmenter.documents().documents(1).text().c_str(),
+  EXPECT_STREQ(augmenter.documents().documents(1).text().c_str(),
                "[BOS] text with some interwordcapitalization [EOS]");
 }
 

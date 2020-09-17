@@ -22,6 +22,7 @@
 #include "augmenter/augmenter.h"
 #include "augmenter/textproto_io.h"
 
+ABSL_FLAG(int, augmentations, 0, "Number of created augmented samples");
 ABSL_FLAG(double, lowercase, 0, "Percentage of augmentations by lowercasing");
 ABSL_FLAG(std::vector<std::string>, corpora, std::vector<std::string>({}),
           "comma-separated list of corpora to augment");
@@ -34,6 +35,7 @@ int main(int argc, char* argv[]) {
 
   absl::ParseCommandLine(argc, argv);
 
+  const int augmentations = absl::GetFlag(FLAGS_augmentations);
   const double lowercase_percentage = absl::GetFlag(FLAGS_lowercase);
   const std::vector<std::string> corpora = absl::GetFlag(FLAGS_corpora);
 
@@ -47,7 +49,7 @@ int main(int argc, char* argv[]) {
 
     augmenter::Augmenter augmenter =
         augmenter::Augmenter(textproto_io.documents());
-    augmenter.Lowercase(lowercase_percentage);
+    augmenter.Augment(augmentations, lowercase_percentage);
 
     textproto_io.set_documents(augmenter.documents());
     textproto_io.Save(corpus);

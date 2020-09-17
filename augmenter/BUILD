@@ -6,6 +6,8 @@ cc_library(
   hdrs = ["augmenter.h"],
   deps = [
     "//protocol_buffer:documents_cc_proto",
+    "@com_google_absl//absl/random",
+    "@com_google_absl//absl/random:bit_gen_ref",
     "@com_google_absl//absl/strings:strings",
   ]
 )
@@ -19,6 +21,7 @@ cc_test (
     ":augmenter",
     "//protocol_buffer:documents_cc_proto",
     "@com_google_absl//absl/flags:flag",
+    "@com_google_absl//absl/random:mock_distributions",
     "@com_google_googletest//:gtest",
     "@com_google_googletest//:gtest_main",
   ],
