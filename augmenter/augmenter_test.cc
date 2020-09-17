@@ -42,7 +42,7 @@ struct DocumentSpec {
 };
 
 // Creates a documents wrapper with documents each containing the specified
-// string and list of tokens
+// string and list of tokens.
 bert_annotator::Documents ConstructBertDocument(
     const std::vector<DocumentSpec> document_specs) {
   bert_annotator::Documents documents = bert_annotator::Documents();
