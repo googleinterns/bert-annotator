@@ -1,0 +1,16 @@
+// Copyright 2009 Google Inc. All Rights Reserved.
+//
+// Enumeration wrapper for protocol buffer documents
+
+// LINT: ALLOW_GROUPS
+syntax = "proto2";
+
+package bert_annotator;
+
+option cc_enable_arenas = true;
+
+import "protocol_buffer/document.proto";
+
+message Documents {
+  repeated Document documents = 1;
+}
