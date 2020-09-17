@@ -16,6 +16,8 @@
 
 #include "augmenter/random_item.h"
 
+namespace augmenter {
+
 RandomItem::RandomItem(const std::string text, double probability,
                        double accumulated_probability)
     : text_(text),
@@ -34,3 +36,5 @@ const double RandomItem::probability() const { return probability_; }
 const double RandomItem::accumulated_probability() const {
   return accumulated_probability_;
 }
+
+}  // namespace augmenter

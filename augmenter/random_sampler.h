@@ -25,6 +25,8 @@
 #include "absl/random/random.h"
 #include "augmenter/random_item.h"
 
+namespace augmenter {
+
 class RandomSampler {
  public:
   explicit RandomSampler(std::istringstream& input_stream);
@@ -40,5 +42,7 @@ class RandomSampler {
   absl::BitGenRef bitgenref_;
   absl::BitGen bitgen_;
 };
+
+}  // namespace augmenter
 
 #endif  // AUGMENTER_RANDOM_SAMPLER_H_

@@ -19,6 +19,8 @@
 
 #include <string>
 
+namespace augmenter {
+
 class RandomItem {
  public:
   // Probabilities are not constant, they may change during normalization.
@@ -34,5 +36,7 @@ class RandomItem {
   double probability_;
   double accumulated_probability_;
 };
+
+}  // namespace augmenter
 
 #endif  // AUGMENTER_RANDOM_ITEM_H_

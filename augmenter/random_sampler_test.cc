@@ -21,6 +21,8 @@
 #include "absl/random/mock_distributions.h"
 #include "gtest/gtest.h"
 
+namespace augmenter {
+
 RandomSampler ConstructRandomSampler(const std::string text) {
   std::istringstream dummy_stream(text);
   auto random_sampler = RandomSampler(dummy_stream);
@@ -124,3 +126,5 @@ TEST(RandomSamplerTest, SampleMultipleEntriesB) {
       ConstructRandomSampler("Some text\t0.5\nMore text\t0.5", bitgen);
   EXPECT_EQ(random_sampler.Sample(), "More text");
 }
+
+}  // namespace augmenter

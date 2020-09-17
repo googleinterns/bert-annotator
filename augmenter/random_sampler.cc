@@ -26,6 +26,8 @@
 #include "absl/random/bit_gen_ref.h"
 #include "absl/random/random.h"
 
+namespace augmenter {
+
 // Parses a file containing entities and their corresponding probabilities.
 // Expects at least one item in the format [Entitiy]\t[Probability].
 // Can be used to draw replacements for the augmentation.
@@ -100,3 +102,5 @@ const std::string RandomSampler::Search(const double accumulated_probability,
     return Search(accumulated_probability, lower_bound, center_index);
   }
 }
+
+}  // namespace augmenter
