@@ -23,6 +23,8 @@
 
 namespace augmenter {
 
+using ::testing::Return;
+
 RandomSampler ConstructRandomSampler(const std::string text) {
   std::istringstream dummy_stream(text);
   return RandomSampler(dummy_stream);
@@ -98,7 +100,7 @@ TEST(RandomSamplerTest, SampleSingleEntry) {
   absl::MockingBitGen bitgen;
   EXPECT_CALL(absl::MockUniform<double>(), Call(bitgen, 0.0, 1.0))
       .Times(3)
-      .WillRepeatedly(testing::Return(0.25));
+      .WillRepeatedly(Return(0.25));
   auto random_sampler = ConstructRandomSampler("Some text\t1", bitgen);
   // Sampling multiple times should be possible.
   EXPECT_EQ(random_sampler.Sample(), "Some text");
@@ -109,7 +111,7 @@ TEST(RandomSamplerTest, SampleSingleEntry) {
 TEST(RandomSamplerTest, SampleMultipleEntriesA) {
   absl::MockingBitGen bitgen;
   EXPECT_CALL(absl::MockUniform<double>(), Call(bitgen, 0.0, 1.0))
-      .WillOnce(testing::Return(0.25));
+      .WillOnce(Return(0.25));
   auto random_sampler =
       ConstructRandomSampler("Some text\t0.5\nMore text\t0.5", bitgen);
   EXPECT_EQ(random_sampler.Sample(), "Some text");
@@ -118,7 +120,7 @@ TEST(RandomSamplerTest, SampleMultipleEntriesA) {
 TEST(RandomSamplerTest, SampleMultipleEntriesB) {
   absl::MockingBitGen bitgen;
   EXPECT_CALL(absl::MockUniform<double>(), Call(bitgen, 0.0, 1.0))
-      .WillOnce(testing::Return(0.75));
+      .WillOnce(Return(0.75));
   auto random_sampler =
       ConstructRandomSampler("Some text\t0.5\nMore text\t0.5", bitgen);
   EXPECT_EQ(random_sampler.Sample(), "More text");
