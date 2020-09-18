@@ -24,10 +24,10 @@ namespace augmenter {
 class RandomItem {
  public:
   // Probabilities are not constant, they may change during normalization.
-  RandomItem(const std::string text, double probability,
-             double accumulated_probability);
+  RandomItem(const std::string& text, const double probability,
+             const double accumulated_probability);
   void Normalize(const double factor);
-  const std::string text() const;
+  const std::string& text() const;
   const double probability() const;
   const double accumulated_probability() const;
 
