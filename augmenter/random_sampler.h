@@ -27,6 +27,9 @@
 
 namespace augmenter {
 
+// Parses a file containing entities and their corresponding probabilities.
+// Expects at least one item in the format [Entitiy]\t[Probability].
+// Can be used to draw replacements for the augmentation.
 class RandomSampler {
  public:
   explicit RandomSampler(std::istringstream& input_stream);
