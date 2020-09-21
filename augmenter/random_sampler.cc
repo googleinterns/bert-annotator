@@ -61,7 +61,6 @@ RandomSampler::RandomSampler(std::istringstream& input_stream) {
     std::abort();
   }
 
-  // Normalize probabilities.
   discrete_distribution_ = absl::discrete_distribution<size_t>(
       probabilities.begin(), probabilities.end());
 }
