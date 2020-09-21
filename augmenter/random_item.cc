@@ -18,23 +18,12 @@
 
 namespace augmenter {
 
-RandomItem::RandomItem(const std::string& text, const double probability,
-                       const double accumulated_probability)
+RandomItem::RandomItem(const std::string& text, const double probability)
     : text_(text),
-      probability_(probability),
-      accumulated_probability_(accumulated_probability) {}
-
-void RandomItem::Normalize(const double factor) {
-  probability_ /= factor;
-  accumulated_probability_ /= factor;
-}
+      probability_(probability) {}
 
 const std::string& RandomItem::text() const { return text_; }
 
 const double RandomItem::probability() const { return probability_; }
-
-const double RandomItem::accumulated_probability() const {
-  return accumulated_probability_;
-}
 
 }  // namespace augmenter

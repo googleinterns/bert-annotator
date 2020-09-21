@@ -48,6 +48,7 @@ cc_library(
     "random_item",
     "@com_google_absl//absl/random",
     "@com_google_absl//absl/random:bit_gen_ref",
+    "@com_google_googletest//:gtest",
   ],
 )
 

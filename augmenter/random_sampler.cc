@@ -24,18 +24,17 @@
 #include <string>
 
 #include "absl/random/bit_gen_ref.h"
+#include "absl/random/discrete_distribution.h"
 #include "absl/random/random.h"
 
 namespace augmenter {
 
-RandomSampler::RandomSampler(std::istringstream& input_stream,
-                             absl::BitGenRef bitgenref)
-    : bitgenref_(bitgenref) {
-  double accumulated_probability = 0;
+RandomSampler::RandomSampler(std::istringstream& input_stream) {
   random_items_ = std::vector<RandomItem>();
 
   // Parse input.
   std::string line;
+  std::vector<double> probabilities;
   while (std::getline(input_stream, line)) {
     std::istringstream iss(line);
     std::string text;
@@ -52,9 +51,8 @@ RandomSampler::RandomSampler(std::istringstream& input_stream,
     }
     const double probability = std::stod(probability_string);
 
-    accumulated_probability += probability;
-    random_items_.push_back(
-        RandomItem(text, probability, accumulated_probability));
+    random_items_.push_back(RandomItem(text, probability));
+    probabilities.push_back(probability);
   }
 
   // At least one item needs to exist, otherwise sampling will not be possible.
@@ -64,40 +62,17 @@ RandomSampler::RandomSampler(std::istringstream& input_stream,
   }
 
   // Normalize probabilities.
-  for (RandomItem& random_item : random_items_) {
-    random_item.Normalize(accumulated_probability);
-  }
+  discrete_distribution_ = absl::discrete_distribution<size_t>(
+      probabilities.begin(), probabilities.end());
 }
 
-RandomSampler::RandomSampler(std::istringstream& input_stream)
-    : RandomSampler(input_stream, bitgen_) {}
+RandomSampler::RandomSampler() {}
 
 const std::string RandomSampler::Sample() {
-  double sampled_probability = absl::Uniform<double>(bitgenref_, 0, 1);
-  return Search(sampled_probability);
+  size_t sampled_index = discrete_distribution_(bitgen_);
+  return random_items_[sampled_index].text();
 }
 
 std::vector<RandomItem> RandomSampler::items() { return random_items_; }
-
-// Performs a binary search for the first item with target_probability >=
-// accumulated_probability.
-const std::string RandomSampler::Search(const double target_probability) {
-  return Search(target_probability, 0, random_items_.size() - 1);
-}
-
-const std::string RandomSampler::Search(const double accumulated_probability,
-                                        const int lower_bound,
-                                        const int upper_bound) {
-  if (lower_bound == upper_bound) {
-    return random_items_[lower_bound].text();
-  }
-  const int center_index = (lower_bound + upper_bound) / 2;
-  if (random_items_[center_index].accumulated_probability() <
-      accumulated_probability) {
-    return Search(accumulated_probability, center_index + 1, upper_bound);
-  } else {
-    return Search(accumulated_probability, lower_bound, center_index);
-  }
-}
 
 }  // namespace augmenter

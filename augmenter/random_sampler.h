@@ -22,8 +22,10 @@
 #include <vector>
 
 #include "absl/random/bit_gen_ref.h"
+#include "absl/random/discrete_distribution.h"
 #include "absl/random/random.h"
 #include "augmenter/random_item.h"
+#include "gmock/gmock.h"
 
 namespace augmenter {
 
@@ -33,17 +35,24 @@ namespace augmenter {
 class RandomSampler {
  public:
   explicit RandomSampler(std::istringstream& input_stream);
-  RandomSampler(std::istringstream& input_stream, absl::BitGenRef bitgen);
-  const std::string Sample();
+  virtual const std::string Sample();
   std::vector<RandomItem> items();
 
+ protected:
+  // Should not be used to construct normal sampler objects, necessary for
+  // testing.
+  RandomSampler();
+
  private:
-  const std::string Search(const double accumulated_probability);
-  const std::string Search(const double accumulated_probability,
-                           const int lower_bound, const int upper_bound);
-  std::vector<RandomItem> random_items_;
-  absl::BitGenRef bitgenref_;
   absl::BitGen bitgen_;
+  absl::discrete_distribution<size_t> discrete_distribution_;
+  std::vector<RandomItem> random_items_;
+};
+
+class MockRandomSampler : public RandomSampler {
+ public:
+  MockRandomSampler() : RandomSampler() {}
+  MOCK_METHOD(const std::string, Sample, (), (override));
 };
 
 }  // namespace augmenter
