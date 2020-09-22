@@ -295,9 +295,8 @@ TEST(AugmenterTest, DontReplacePhone) {
   augmenter.Augment(/*total=*/1, /*lowercase=*/0, /*addresses=*/0,
                     /*phones=*/0);
 
-  EXPECT_EQ(augmenter.documents().documents_size(), 2);
-  EXPECT_STREQ(augmenter.documents().documents(1).text().c_str(),
-               "Call 0123456789! Thanks.");
+  ASSERT_EQ(augmenter.documents().documents_size(), 2);
+  ExpectEq(documents.documents(0), augmenter.documents().documents(1));
 }
 
 TEST(AugmenterTest, ReplacePhoneSameLength) {
