@@ -58,43 +58,13 @@ void Augmenter::Augment(int total, int lowercase, int addresses, int phones) {
     augmented_document->CopyFrom(original_document);
     std::cout << "Next: " << original_document.text() << std::endl;
 
-    auto address_boundary_list =
-        DocumentBoundaryList(*augmented_document, address_labels_);
-    if (!address_boundary_list.empty()) {
-      std::cout << "Replace address" << std::endl;
-      int address_boundary_index = absl::Uniform(
-          bitgenref_, static_cast<size_t>(0), address_boundary_list.size() - 1);
-      std::pair<int, int> address_boundaries =
-          address_boundary_list[address_boundary_index];
-      std::string replacement_address = address_sampler_->Sample();
-      std::cout << "Replacing..." << std::endl;
-      ReplaceTokens(augmented_document, address_boundaries,
-                    replacement_address);
-      augmentation_performed = true;
-      std::cout << address_boundaries.first << " " << address_boundaries.second
-                << std::endl;
-      std::cout << original_document.text() << std::endl;
-      std::cout << augmented_document->text() << std::endl << std::endl;
-    }
+    augmentation_performed |= MaybeReplace(
+        augmented_document, address_labels_,
+        static_cast<double>(addresses) / total, address_sampler_, "ADDRESS");
 
-    auto phone_boundary_list =
-        DocumentBoundaryList(*augmented_document, phone_labels_);
-    bool replace_phone =
-        absl::Bernoulli(bitgenref_, static_cast<double>(phones) / total);
-    if (replace_phone && !phone_boundary_list.empty()) {
-      std::cout << "Replace phone" << std::endl;
-      int phone_boundary_index = absl::Uniform(
-          bitgenref_, static_cast<size_t>(0), phone_boundary_list.size() - 1);
-      std::pair<int, int> phone_boundaries =
-          phone_boundary_list[phone_boundary_index];
-      std::string replacement_phone = phones_sampler_->Sample();
-      ReplaceTokens(augmented_document, phone_boundaries, replacement_phone);
-      augmentation_performed = true;
-      std::cout << phone_boundaries.first << " " << phone_boundaries.second
-                << std::endl;
-      std::cout << original_document.text() << std::endl;
-      std::cout << augmented_document->text() << std::endl << std::endl;
-    }
+    augmentation_performed |= MaybeReplace(augmented_document, phone_labels_,
+                                           static_cast<double>(phones) / total,
+                                           phones_sampler_, "TELEPHONE");
 
     const bool perform_lowercasing = absl::Bernoulli(
         bitgenref_, static_cast<double>(lowercase) / remaining_total);
@@ -115,9 +85,28 @@ void Augmenter::Augment(int total, int lowercase, int addresses, int phones) {
   }
 }
 
+bool Augmenter::MaybeReplace(bert_annotator::Document* augmented_document,
+                             const std::vector<std::string> label_list,
+                             double likelihood, RandomSampler* sampler,
+                             std::string replacement_label) {
+  auto boundary_list = DocumentBoundaryList(*augmented_document, label_list);
+  bool do_replace = absl::Bernoulli(bitgenref_, likelihood);
+  if (do_replace && !boundary_list.empty()) {
+    int boundary_index = absl::Uniform(bitgenref_, static_cast<size_t>(0),
+                                       boundary_list.size() - 1);
+    std::pair<int, int> phone_boundaries = boundary_list[boundary_index];
+    std::string replacement = sampler->Sample();
+    ReplaceTokens(augmented_document, phone_boundaries, replacement,
+                  replacement_label);
+    return true;
+  }
+  return false;
+}
+
 void Augmenter::ReplaceTokens(bert_annotator::Document* document,
                               std::pair<int, int> boundaries,
-                              std::string replacement) {
+                              std::string replacement,
+                              std::string replacement_label) {
   int address_string_start = document->token(boundaries.first).start();
   int address_string_end = document->token(boundaries.second).end();
   std::cout << "A..." << std::endl;
@@ -180,13 +169,13 @@ void Augmenter::ReplaceTokens(bert_annotator::Document* document,
   auto labeled_spans =
       document->mutable_labeled_spans()->at("lucid").mutable_labeled_span();
   for (int i = 0; i < labeled_spans->size(); ++i) {
-    auto labeled_span = labeled_spans->Get(i);
-    if (labeled_span.token_start() == boundaries.first) {
-      labeled_span.set_token_end(boundaries.second);
-      labeled_span.set_label("ADDRESS");
+    auto labeled_span = labeled_spans->Mutable(i);
+    if (labeled_span->token_start() == boundaries.first) {
+      labeled_span->set_token_end(boundaries.second);
+      labeled_span->set_label(replacement_label);
       delete_start = i + 1;
     }
-    if (labeled_span.token_start() <= boundaries.second) {
+    if (labeled_span->token_start() <= boundaries.second) {
       delete_end = i + 1;
     }
   }

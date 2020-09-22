@@ -40,12 +40,17 @@ class Augmenter {
   const bert_annotator::Documents documents() const;
 
  private:
+  bool MaybeReplace(bert_annotator::Document* augmented_document,
+                    const std::vector<std::string> label_list,
+                    double likelihood, RandomSampler* sampler,
+                    std::string replacement_label);
   void Lowercase(bert_annotator::Document* const augmented_document);
   std::vector<std::pair<int, int>> DocumentBoundaryList(
       const bert_annotator::Document& document,
       const std::vector<std::string>& labels);
   void ReplaceTokens(bert_annotator::Document* document,
-                     std::pair<int, int> boundaries, std::string replacement);
+                     std::pair<int, int> boundaries, std::string replacement,
+                     std::string replacement_label);
   bert_annotator::Documents documents_;
   RandomSampler* address_sampler_;
   RandomSampler* phones_sampler_;
