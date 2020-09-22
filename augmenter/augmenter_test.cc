@@ -235,7 +235,7 @@ TEST(AugmenterTest, RandomizedLowercasing) {
       .WillOnce(Return(0));
   // Phone/Address replacement likelihood.
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
-      .WillRepeatedly(testing::Return(false));
+      .WillRepeatedly(Return(false));
   // Lowercasing.
   InSequence s;
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 2.0 / 4))
@@ -312,10 +312,8 @@ TEST(AugmenterTest, ReplacePhoneSameLength) {
   EXPECT_CALL(phones_sampler, Sample()).WillOnce(ReturnRef(replacement));
   // Address/Phone replacement likelihood.
   absl::MockingBitGen bitgen;
-  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
-      .WillOnce(testing::Return(false));
-  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 1))
-      .WillOnce(testing::Return(true));
+  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0)).WillOnce(Return(false));
+  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 1)).WillOnce(Return(true));
 
   Augmenter augmenter =
       Augmenter(documents, &address_sampler, &phones_sampler, bitgen);
@@ -347,10 +345,8 @@ TEST(AugmenterTest, ReplacePhoneLongerLength) {
   EXPECT_CALL(phones_sampler, Sample()).WillOnce(ReturnRef(replacement));
   // Address/Phone replacement likelihood.
   absl::MockingBitGen bitgen;
-  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
-      .WillOnce(testing::Return(false));
-  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 1))
-      .WillOnce(testing::Return(true));
+  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0)).WillOnce(Return(false));
+  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 1)).WillOnce(Return(true));
 
   Augmenter augmenter =
       Augmenter(documents, &address_sampler, &phones_sampler, bitgen);
@@ -382,10 +378,8 @@ TEST(AugmenterTest, ReplacePhoneShorterLength) {
   EXPECT_CALL(phones_sampler, Sample()).WillOnce(ReturnRef(replacement));
   // Address/Phone replacement likelihood.
   absl::MockingBitGen bitgen;
-  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
-      .WillOnce(testing::Return(false));
-  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 1))
-      .WillOnce(testing::Return(true));
+  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0)).WillOnce(Return(false));
+  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 1)).WillOnce(Return(true));
 
   Augmenter augmenter =
       Augmenter(documents, &address_sampler, &phones_sampler, bitgen);
@@ -415,10 +409,8 @@ TEST(AugmenterTest, ReplacePhoneStart) {
   EXPECT_CALL(phones_sampler, Sample()).WillOnce(ReturnRef(replacement));
   // Address/Phone replacement likelihood.
   absl::MockingBitGen bitgen;
-  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
-      .WillOnce(testing::Return(false));
-  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 1))
-      .WillOnce(testing::Return(true));
+  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0)).WillOnce(Return(false));
+  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 1)).WillOnce(Return(true));
 
   Augmenter augmenter =
       Augmenter(documents, &address_sampler, &phones_sampler, bitgen);
@@ -448,10 +440,8 @@ TEST(AugmenterTest, ReplacePhoneEnd) {
   EXPECT_CALL(phones_sampler, Sample()).WillOnce(ReturnRef(replacement));
   // Address/Phone replacement likelihood.
   absl::MockingBitGen bitgen;
-  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
-      .WillOnce(testing::Return(false));
-  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 1))
-      .WillOnce(testing::Return(true));
+  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0)).WillOnce(Return(false));
+  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 1)).WillOnce(Return(true));
 
   Augmenter augmenter =
       Augmenter(documents, &address_sampler, &phones_sampler, bitgen);
@@ -486,10 +476,10 @@ TEST(AugmenterTest, ReplacePhoneChoice) {
   absl::MockingBitGen bitgen;
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
       .Times(2)
-      .WillRepeatedly(testing::Return(false));
+      .WillRepeatedly(Return(false));
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 1))
       .Times(2)
-      .WillRepeatedly(testing::Return(true));
+      .WillRepeatedly(Return(true));
   // Phone selection.
   EXPECT_CALL(absl::MockUniform<size_t>(), Call(bitgen, 0, 1))
       .WillOnce(Return(0))
