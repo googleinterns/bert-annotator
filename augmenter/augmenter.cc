@@ -47,7 +47,6 @@ Augmenter::Augmenter(const bert_annotator::Documents documents,
 void Augmenter::Augment(int total, int lowercase, int addresses, int phones) {
   const int original_document_number = documents_.documents_size();
   for (int i = 0; i < total; ++i) {
-    int replacements = addresses + phones;
     const int remaining_total = total - i;
     bool augmentation_performed = false;
 
@@ -71,6 +70,7 @@ void Augmenter::Augment(int total, int lowercase, int addresses, int phones) {
       std::cout << "Replacing..." << std::endl;
       ReplaceTokens(augmented_document, address_boundaries,
                     replacement_address);
+      augmentation_performed = true;
       std::cout << address_boundaries.first << " " << address_boundaries.second
                 << std::endl;
       std::cout << original_document.text() << std::endl;
@@ -89,6 +89,7 @@ void Augmenter::Augment(int total, int lowercase, int addresses, int phones) {
           phone_boundary_list[phone_boundary_index];
       std::string replacement_phone = phones_sampler_->Sample();
       ReplaceTokens(augmented_document, phone_boundaries, replacement_phone);
+      augmentation_performed = true;
       std::cout << phone_boundaries.first << " " << phone_boundaries.second
                 << std::endl;
       std::cout << original_document.text() << std::endl;
@@ -100,6 +101,16 @@ void Augmenter::Augment(int total, int lowercase, int addresses, int phones) {
     if (perform_lowercasing) {
       Lowercase(augmented_document);
       --lowercase;
+      augmentation_performed = true;
+    }
+
+    // If no action was performed and all remaining augmentations have to
+    // perform at least one action, drop this sample. It's identical to the
+    // original document. Repeat this augmentation iteration.
+    if (!augmentation_performed &&
+        remaining_total == lowercase + addresses + phones) {
+      documents_.mutable_documents()->RemoveLast();
+      --i;
     }
   }
 }
@@ -122,7 +133,7 @@ void Augmenter::ReplaceTokens(bert_annotator::Document* document,
                         replacement.end());
   std::cout << "A3..." << std::to_string(document->text().size()) << " "
             << std::to_string(address_string_end) << std::endl;
-  if (document->text().size() > address_string_end) {
+  if (static_cast<int>(document->text().size()) > address_string_end) {
     new_text_bytes.insert(
         new_text_bytes.end(),
         document->mutable_text()->begin() + address_string_end + 1,
@@ -189,6 +200,10 @@ void Augmenter::ReplaceTokens(bert_annotator::Document* document,
 std::vector<std::pair<int, int>> Augmenter::DocumentBoundaryList(
     const bert_annotator::Document& document,
     const std::vector<std::string>& labels) {
+  if (document.labeled_spans().find("lucid") ==
+      document.labeled_spans().end()) {
+    return {};
+  }
   auto labeled_spans = document.labeled_spans().at("lucid").labeled_span();
   std::cout << "0..." << std::endl;
   // First, select only spans labeled as an address. Then, join subsequent
