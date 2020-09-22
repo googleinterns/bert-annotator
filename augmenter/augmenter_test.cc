@@ -470,4 +470,57 @@ TEST(AugmenterTest, ReplacePhoneEnd) {
   ExpectEq(augmented, expected);
 }
 
+TEST(AugmenterTest, ReplacePhoneChoice) {
+  bert_annotator::Documents documents = ConstructBertDocument({DocumentSpec(
+      "0123456789 0123456789",
+      {TokenSpec("0123456789", 0, 9), TokenSpec("0123456789", 11, 20)},
+      {{"lucid",
+        {LabelSpec("TELEPHONE", 0, 0), LabelSpec("TELEPHONE", 1, 1)}}})});
+  MockRandomSampler address_sampler;
+  MockRandomSampler phones_sampler;
+  std::string replacement = "9876543210";
+  EXPECT_CALL(phones_sampler, Sample())
+      .Times(2)
+      .WillRepeatedly(ReturnRef(replacement));
+  // Address/Phone replacement likelihood.
+  absl::MockingBitGen bitgen;
+  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
+      .Times(2)
+      .WillRepeatedly(testing::Return(false));
+  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 1))
+      .Times(2)
+      .WillRepeatedly(testing::Return(true));
+  // Phone selection.
+  EXPECT_CALL(absl::MockUniform<size_t>(), Call(bitgen, 0, 1))
+      .WillOnce(Return(0))
+      .WillOnce(Return(1));
+
+  Augmenter augmenter =
+      Augmenter(documents, &address_sampler, &phones_sampler, bitgen);
+
+  augmenter.Augment(/*total=*/2, /*lowercase=*/0, /*addresses=*/0,
+                    /*phones=*/2);
+
+  bert_annotator::Document augmented = augmenter.documents().documents(1);
+  bert_annotator::Document expected =
+      ConstructBertDocument({DocumentSpec("9876543210 0123456789",
+                                          {TokenSpec("9876543210", 0, 9),
+                                           TokenSpec("0123456789", 11, 20)},
+                                          {{"lucid",
+                                            {LabelSpec("TELEPHONE", 0, 0),
+                                             LabelSpec("TELEPHONE", 1, 1)}}})})
+          .documents(0);
+  ExpectEq(augmented, expected);
+  augmented = augmenter.documents().documents(2);
+  expected =
+      ConstructBertDocument({DocumentSpec("0123456789 9876543210",
+                                          {TokenSpec("0123456789", 0, 9),
+                                           TokenSpec("9876543210", 11, 20)},
+                                          {{"lucid",
+                                            {LabelSpec("TELEPHONE", 0, 0),
+                                             LabelSpec("TELEPHONE", 1, 1)}}})})
+          .documents(0);
+  ExpectEq(augmented, expected);
+}
+
 }  // namespace augmenter
