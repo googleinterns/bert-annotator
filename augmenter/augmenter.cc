@@ -151,10 +151,12 @@ void Augmenter::ReplaceTokens(bert_annotator::Document* document,
   // Update the start end end bytes of all tokens following the replaced
   // sequence.
   int length_increase =
-      replacement.size() - (address_string_end - address_string_start);
+      replacement.size() - (address_string_end - address_string_start + 1);
   for (auto& token : *document->mutable_token()) {
-    if (token.start() >= address_string_end) {
+    if (token.start() > address_string_start) {
       token.set_start(token.start() + length_increase);
+    }
+    if (token.end() >= address_string_end) {
       token.set_end(token.end() + length_increase);
     }
   }

@@ -284,8 +284,9 @@ TEST(AugmenterTest, DontLowercaseNonTokens) {
 
 TEST(AugmenterTest, DontReplacePhone) {
   bert_annotator::Documents documents = ConstructBertDocument(
-      {DocumentSpec("Call 0123456789!",
-                    {TokenSpec("Call", 0, 3), TokenSpec("0123456789", 5, 14)},
+      {DocumentSpec("Call 0123456789! Thanks.",
+                    {TokenSpec("Call", 0, 3), TokenSpec("0123456789", 5, 14),
+                     TokenSpec("Thanks", 17, 22)},
                     {{"lucid", {LabelSpec("TELEPHONE", 1, 1)}}})});
   MockRandomSampler address_sampler;
   MockRandomSampler phones_sampler;
@@ -296,13 +297,14 @@ TEST(AugmenterTest, DontReplacePhone) {
 
   EXPECT_EQ(augmenter.documents().documents_size(), 2);
   EXPECT_STREQ(augmenter.documents().documents(1).text().c_str(),
-               "Call 0123456789!");
+               "Call 0123456789! Thanks.");
 }
 
 TEST(AugmenterTest, ReplacePhoneSameLength) {
   bert_annotator::Documents documents = ConstructBertDocument(
-      {DocumentSpec("Call 0123456789!",
-                    {TokenSpec("Call", 0, 3), TokenSpec("0123456789", 5, 14)},
+      {DocumentSpec("Call 0123456789! Thanks.",
+                    {TokenSpec("Call", 0, 3), TokenSpec("0123456789", 5, 14),
+                     TokenSpec("Thanks", 17, 22)},
                     {{"lucid", {LabelSpec("TELEPHONE", 1, 1)}}})});
   MockRandomSampler address_sampler;
   MockRandomSampler phones_sampler;
@@ -325,9 +327,79 @@ TEST(AugmenterTest, ReplacePhoneSameLength) {
   bert_annotator::Document expected =
       ConstructBertDocument(
           {DocumentSpec(
-              "Call 9876543210!",
-              {TokenSpec("Call", 0, 3), TokenSpec("9876543210", 5, 14)},
+              "Call 9876543210! Thanks.",
+              {TokenSpec("Call", 0, 3), TokenSpec("9876543210", 5, 14),
+               TokenSpec("Thanks", 17, 22)},
               {{"lucid", {LabelSpec("TELEPHONE", 1, 1)}}})})
+          .documents(0);
+  ExpectEq(augmented, expected);
+}
+
+TEST(AugmenterTest, ReplacePhoneLongerLength) {
+  bert_annotator::Documents documents = ConstructBertDocument(
+      {DocumentSpec("Call 0123456789! Thanks.",
+                    {TokenSpec("Call", 0, 3), TokenSpec("0123456789", 5, 14),
+                     TokenSpec("Thanks", 17, 22)},
+                    {{"lucid", {LabelSpec("TELEPHONE", 1, 1)}}})});
+  MockRandomSampler address_sampler;
+  MockRandomSampler phones_sampler;
+  std::string replacement = "98765432109876543210";
+  EXPECT_CALL(phones_sampler, Sample()).WillOnce(ReturnRef(replacement));
+  // Address/Phone replacement likelihood.
+  absl::MockingBitGen bitgen;
+  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
+      .WillOnce(testing::Return(false));
+  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 1))
+      .WillOnce(testing::Return(true));
+
+  Augmenter augmenter =
+      Augmenter(documents, &address_sampler, &phones_sampler, bitgen);
+
+  augmenter.Augment(/*total=*/1, /*lowercase=*/0, /*addresses=*/0,
+                    /*phones=*/1);
+
+  bert_annotator::Document augmented = augmenter.documents().documents(1);
+  bert_annotator::Document expected =
+      ConstructBertDocument(
+          {DocumentSpec("Call 98765432109876543210! Thanks.",
+                        {TokenSpec("Call", 0, 3),
+                         TokenSpec("98765432109876543210", 5, 24),
+                         TokenSpec("Thanks", 27, 32)},
+                        {{"lucid", {LabelSpec("TELEPHONE", 1, 1)}}})})
+          .documents(0);
+  ExpectEq(augmented, expected);
+}
+
+TEST(AugmenterTest, ReplacePhoneShorterLength) {
+  bert_annotator::Documents documents = ConstructBertDocument(
+      {DocumentSpec("Call 0123456789! Thanks.",
+                    {TokenSpec("Call", 0, 3), TokenSpec("0123456789", 5, 14),
+                     TokenSpec("Thanks", 17, 22)},
+                    {{"lucid", {LabelSpec("TELEPHONE", 1, 1)}}})});
+  MockRandomSampler address_sampler;
+  MockRandomSampler phones_sampler;
+  std::string replacement = "98";
+  EXPECT_CALL(phones_sampler, Sample()).WillOnce(ReturnRef(replacement));
+  // Address/Phone replacement likelihood.
+  absl::MockingBitGen bitgen;
+  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
+      .WillOnce(testing::Return(false));
+  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 1))
+      .WillOnce(testing::Return(true));
+
+  Augmenter augmenter =
+      Augmenter(documents, &address_sampler, &phones_sampler, bitgen);
+
+  augmenter.Augment(/*total=*/1, /*lowercase=*/0, /*addresses=*/0,
+                    /*phones=*/1);
+
+  bert_annotator::Document augmented = augmenter.documents().documents(1);
+  bert_annotator::Document expected =
+      ConstructBertDocument(
+          {DocumentSpec("Call 98! Thanks.",
+                        {TokenSpec("Call", 0, 3), TokenSpec("98", 5, 6),
+                         TokenSpec("Thanks", 9, 14)},
+                        {{"lucid", {LabelSpec("TELEPHONE", 1, 1)}}})})
           .documents(0);
   ExpectEq(augmented, expected);
 }
