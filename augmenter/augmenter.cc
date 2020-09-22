@@ -79,7 +79,9 @@ void Augmenter::Augment(int total, int lowercase, int addresses, int phones) {
 
     auto phone_boundary_list =
         DocumentBoundaryList(*augmented_document, phone_labels_);
-    if (!phone_boundary_list.empty()) {
+    bool replace_phone =
+        absl::Bernoulli(bitgenref_, static_cast<double>(phones) / total);
+    if (replace_phone && !phone_boundary_list.empty()) {
       std::cout << "Replace phone" << std::endl;
       int phone_boundary_index = absl::Uniform(
           bitgenref_, static_cast<size_t>(0), phone_boundary_list.size() - 1);

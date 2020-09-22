@@ -199,11 +199,16 @@ TEST(AugmenterTest, RandomizedLowercasing) {
                      TokenSpec("InterWordCapitalization", 15, 37)})});
 
   absl::MockingBitGen bitgen;
+  // Document sampling.
   EXPECT_CALL(absl::MockUniform<int>(), Call(bitgen, 0, 2))
       .WillOnce(testing::Return(0))
       .WillOnce(testing::Return(1))
       .WillOnce(testing::Return(2))
       .WillOnce(testing::Return(0));
+  // Phone/Address replacement likelihood.
+  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
+      .WillRepeatedly(testing::Return(false));
+  // Lowercasing.
   testing::InSequence s;
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 2.0 / 4))
       .WillOnce(testing::Return(true));
@@ -247,6 +252,23 @@ TEST(AugmenterTest, DontLowercaseNonTokens) {
 
   EXPECT_STREQ(augmenter.documents().documents(1).text().c_str(),
                "[BOS] text with some interwordcapitalization [EOS]");
+}
+
+TEST(AugmenterTest, DontReplacePhone) {
+  bert_annotator::Documents documents = ConstructBertDocument(
+      {DocumentSpec("Call 0123456789!",
+                    {TokenSpec("Call", 0, 3), TokenSpec("0123456789", 5, 14)},
+                    {{"lucid", {LabelSpec("TELEPHONE", 1, 1)}}})});
+  MockRandomSampler address_sampler;
+  MockRandomSampler phones_sampler;
+  Augmenter augmenter = Augmenter(documents, &address_sampler, &phones_sampler);
+
+  augmenter.Augment(/*total=*/1, /*lowercase=*/0, /*addresses=*/0,
+                    /*phones=*/0);
+
+  EXPECT_EQ(augmenter.documents().documents_size(), 2);
+  EXPECT_STREQ(augmenter.documents().documents(1).text().c_str(),
+               "Call 0123456789!");
 }
 
 }  // namespace augmenter
