@@ -108,16 +108,16 @@ bert_annotator::Documents ConstructBertDocument(
 
 void ExpectEq(bert_annotator::Document a, bert_annotator::Document b) {
   EXPECT_STREQ(a.text().c_str(), b.text().c_str());
-  EXPECT_EQ(a.token_size(), b.token_size());
+  ASSERT_EQ(a.token_size(), b.token_size());
   for (int i = 0; i < a.token_size(); ++i) {
     EXPECT_STREQ(a.token(i).word().c_str(), b.token(i).word().c_str());
     EXPECT_EQ(a.token(i).start(), b.token(i).start());
     EXPECT_EQ(a.token(i).end(), b.token(i).end());
   }
-  EXPECT_EQ(a.labeled_spans_size(), b.labeled_spans_size());
+  ASSERT_EQ(a.labeled_spans_size(), b.labeled_spans_size());
   for (auto map_entry : a.labeled_spans()) {
     auto key = map_entry.first;
-    EXPECT_EQ(a.labeled_spans().at(key).labeled_span_size(),
+    ASSERT_EQ(a.labeled_spans().at(key).labeled_span_size(),
               b.labeled_spans().at(key).labeled_span_size());
     for (int i = 0; i < a.labeled_spans().at(key).labeled_span_size(); ++i) {
       EXPECT_STREQ(a.labeled_spans().at(key).labeled_span(i).label().c_str(),
@@ -400,6 +400,72 @@ TEST(AugmenterTest, ReplacePhoneShorterLength) {
                         {TokenSpec("Call", 0, 3), TokenSpec("98", 5, 6),
                          TokenSpec("Thanks", 9, 14)},
                         {{"lucid", {LabelSpec("TELEPHONE", 1, 1)}}})})
+          .documents(0);
+  ExpectEq(augmented, expected);
+}
+
+TEST(AugmenterTest, ReplacePhoneStart) {
+  bert_annotator::Documents documents = ConstructBertDocument({DocumentSpec(
+      "0123456789! Thanks.",
+      {TokenSpec("0123456789", 0, 9), TokenSpec("Thanks", 12, 17)},
+      {{"lucid", {LabelSpec("TELEPHONE", 0, 0)}}})});
+  MockRandomSampler address_sampler;
+  MockRandomSampler phones_sampler;
+  std::string replacement = "9876543210";
+  EXPECT_CALL(phones_sampler, Sample()).WillOnce(ReturnRef(replacement));
+  // Address/Phone replacement likelihood.
+  absl::MockingBitGen bitgen;
+  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
+      .WillOnce(testing::Return(false));
+  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 1))
+      .WillOnce(testing::Return(true));
+
+  Augmenter augmenter =
+      Augmenter(documents, &address_sampler, &phones_sampler, bitgen);
+
+  augmenter.Augment(/*total=*/1, /*lowercase=*/0, /*addresses=*/0,
+                    /*phones=*/1);
+
+  bert_annotator::Document augmented = augmenter.documents().documents(1);
+  bert_annotator::Document expected =
+      ConstructBertDocument(
+          {DocumentSpec(
+              "9876543210! Thanks.",
+              {TokenSpec("9876543210", 0, 9), TokenSpec("Thanks", 12, 17)},
+              {{"lucid", {LabelSpec("TELEPHONE", 0, 0)}}})})
+          .documents(0);
+  ExpectEq(augmented, expected);
+}
+
+TEST(AugmenterTest, ReplacePhoneEnd) {
+  bert_annotator::Documents documents = ConstructBertDocument(
+      {DocumentSpec("Call 0123456789",
+                    {TokenSpec("Call", 0, 3), TokenSpec("0123456789", 5, 14)},
+                    {{"lucid", {LabelSpec("TELEPHONE", 1, 1)}}})});
+  MockRandomSampler address_sampler;
+  MockRandomSampler phones_sampler;
+  std::string replacement = "9876543210";
+  EXPECT_CALL(phones_sampler, Sample()).WillOnce(ReturnRef(replacement));
+  // Address/Phone replacement likelihood.
+  absl::MockingBitGen bitgen;
+  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
+      .WillOnce(testing::Return(false));
+  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 1))
+      .WillOnce(testing::Return(true));
+
+  Augmenter augmenter =
+      Augmenter(documents, &address_sampler, &phones_sampler, bitgen);
+
+  augmenter.Augment(/*total=*/1, /*lowercase=*/0, /*addresses=*/0,
+                    /*phones=*/1);
+
+  bert_annotator::Document augmented = augmenter.documents().documents(1);
+  bert_annotator::Document expected =
+      ConstructBertDocument(
+          {DocumentSpec(
+              "Call 9876543210",
+              {TokenSpec("Call", 0, 3), TokenSpec("9876543210", 5, 14)},
+              {{"lucid", {LabelSpec("TELEPHONE", 1, 1)}}})})
           .documents(0);
   ExpectEq(augmented, expected);
 }
