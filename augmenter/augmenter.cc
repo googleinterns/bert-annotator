@@ -135,7 +135,7 @@ void Augmenter::ReplaceTokens(bert_annotator::Document* document,
 
   // Replace the tokens. The first one summarizes the new content, all remaining
   // ones can be deleted. This introduces tokens longer than one word.
-  std::cout << std::to_string(boundaries.first)
+  std::cout << "!!!" << std::to_string(boundaries.first)
             << std::to_string(boundaries.second) << std::endl;
 
   document->mutable_token(boundaries.first)
@@ -144,7 +144,7 @@ void Augmenter::ReplaceTokens(bert_annotator::Document* document,
   if (boundaries.first != boundaries.second) {
     document->mutable_token()->erase(
         document->mutable_token()->begin() + boundaries.first + 1,
-        document->mutable_token()->begin() + boundaries.second);
+        document->mutable_token()->begin() + boundaries.second + 1);
   }
   std::cout << "C..." << std::endl;
 
@@ -168,15 +168,23 @@ void Augmenter::ReplaceTokens(bert_annotator::Document* document,
   int delete_end = 0;
   auto labeled_spans =
       document->mutable_labeled_spans()->at("lucid").mutable_labeled_span();
+  int label_count_decrease = boundaries.second - boundaries.first;
   for (int i = 0; i < labeled_spans->size(); ++i) {
     auto labeled_span = labeled_spans->Mutable(i);
     if (labeled_span->token_start() == boundaries.first) {
-      labeled_span->set_token_end(boundaries.second);
       labeled_span->set_label(replacement_label);
       delete_start = i + 1;
     }
     if (labeled_span->token_start() <= boundaries.second) {
       delete_end = i + 1;
+    }
+    if (labeled_span->token_start() > boundaries.first) {
+      labeled_span->set_token_start(labeled_span->token_start() -
+                                    label_count_decrease);
+    }
+    if (labeled_span->token_end() >= boundaries.second) {
+      labeled_span->set_token_end(labeled_span->token_end() -
+                                  label_count_decrease);
     }
   }
   std::cout << "E..." << std::endl;
@@ -208,7 +216,7 @@ std::vector<std::pair<int, int>> Augmenter::DocumentBoundaryList(
   }
   std::cout << "1..." << std::endl;
 
-  for (int i = boundary_list.size() - 2; i > 0; --i) {
+  for (int i = boundary_list.size() - 2; i >= 0; --i) {
     if (boundary_list[i].second + 1 == boundary_list[i + 1].first) {
       boundary_list[i].second = boundary_list[i + 1].second;
       boundary_list.erase(boundary_list.begin() + i + 1);
