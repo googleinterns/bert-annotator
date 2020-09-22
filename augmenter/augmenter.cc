@@ -56,7 +56,6 @@ void Augmenter::Augment(int total, int lowercase, int addresses, int phones) {
         documents_.documents(document_id);
     bert_annotator::Document* augmented_document = documents_.add_documents();
     augmented_document->CopyFrom(original_document);
-    std::cout << "Next: " << original_document.text() << std::endl;
 
     augmentation_performed |= MaybeReplace(
         augmented_document, address_labels_,
@@ -109,35 +108,25 @@ void Augmenter::ReplaceTokens(bert_annotator::Document* document,
                               std::string replacement_label) {
   int address_string_start = document->token(boundaries.first).start();
   int address_string_end = document->token(boundaries.second).end();
-  std::cout << "A..." << std::endl;
 
   // Replace the content of document->text().
   std::vector<char> new_text_bytes = std::vector<char>();
-  std::cout << "A1..." << std::endl;
   new_text_bytes.insert(
       new_text_bytes.end(), document->mutable_text()->begin(),
       document->mutable_text()->begin() + address_string_start);
-  std::cout << "A2..." << std::endl;
   new_text_bytes.insert(new_text_bytes.end(), replacement.begin(),
                         replacement.end());
-  std::cout << "A3..." << std::to_string(document->text().size()) << " "
-            << std::to_string(address_string_end) << std::endl;
   if (static_cast<int>(document->text().size()) > address_string_end) {
     new_text_bytes.insert(
         new_text_bytes.end(),
         document->mutable_text()->begin() + address_string_end + 1,
         document->mutable_text()->end());
   }
-  std::cout << "A4..." << std::endl;
   const std::string new_text(new_text_bytes.begin(), new_text_bytes.end());
   document->set_text(new_text);
-  std::cout << "B..." << std::endl;
 
   // Replace the tokens. The first one summarizes the new content, all remaining
   // ones can be deleted. This introduces tokens longer than one word.
-  std::cout << "!!!" << std::to_string(boundaries.first)
-            << std::to_string(boundaries.second) << std::endl;
-
   document->mutable_token(boundaries.first)
       ->set_end(document->token(boundaries.second).end());
   document->mutable_token(boundaries.first)->set_word(replacement);
@@ -146,7 +135,6 @@ void Augmenter::ReplaceTokens(bert_annotator::Document* document,
         document->mutable_token()->begin() + boundaries.first + 1,
         document->mutable_token()->begin() + boundaries.second + 1);
   }
-  std::cout << "C..." << std::endl;
 
   // Update the start end end bytes of all tokens following the replaced
   // sequence.
@@ -160,7 +148,6 @@ void Augmenter::ReplaceTokens(bert_annotator::Document* document,
       token.set_end(token.end() + length_increase);
     }
   }
-  std::cout << "D..." << std::endl;
 
   // Replace the labeled spans. The first one summarizes the new content, all
   // remaining ones can be deleted.
@@ -187,11 +174,8 @@ void Augmenter::ReplaceTokens(bert_annotator::Document* document,
                                   label_count_decrease);
     }
   }
-  std::cout << "E..." << std::endl;
-
   labeled_spans->erase(labeled_spans->begin() + delete_start,
                        labeled_spans->begin() + delete_end);
-  std::cout << "F..." << std::endl;
 }
 
 std::vector<std::pair<int, int>> Augmenter::DocumentBoundaryList(
@@ -202,7 +186,6 @@ std::vector<std::pair<int, int>> Augmenter::DocumentBoundaryList(
     return {};
   }
   auto labeled_spans = document.labeled_spans().at("lucid").labeled_span();
-  std::cout << "0..." << std::endl;
   // First, select only spans labeled as an address. Then, join subsequent
   // spans.
   std::vector<std::pair<int, int>> boundary_list = {};
@@ -214,7 +197,6 @@ std::vector<std::pair<int, int>> Augmenter::DocumentBoundaryList(
                                                   labeled_span.token_end()));
     }
   }
-  std::cout << "1..." << std::endl;
 
   for (int i = boundary_list.size() - 2; i >= 0; --i) {
     if (boundary_list[i].second + 1 == boundary_list[i + 1].first) {
@@ -222,7 +204,6 @@ std::vector<std::pair<int, int>> Augmenter::DocumentBoundaryList(
       boundary_list.erase(boundary_list.begin() + i + 1);
     }
   }
-  std::cout << "2..." << std::endl;
 
   return boundary_list;
 }
