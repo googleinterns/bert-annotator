@@ -27,27 +27,31 @@
 
 namespace augmenter {
 
-Augmenter::Augmenter(const bert_annotator::Documents documents,
-                     RandomSampler* address_sampler,
-                     RandomSampler* phones_sampler, absl::BitGenRef bitgenref)
+Augmenter::Augmenter(const bert_annotator::Documents& documents,
+                     RandomSampler* const address_sampler,
+                     RandomSampler* const phone_sampler,
+                     absl::BitGenRef bitgenref)
     : documents_(documents),
       address_sampler_(address_sampler),
-      phones_sampler_(phones_sampler),
+      phones_sampler_(phone_sampler),
       address_labels_({"LOCALITY", "COUNTRY", "ADMINISTRATIVE_AREA",
                        "THOROUGHFARE", "THOROUGHFARE_NUMBER", "PREMISE",
                        "POSTAL_CODE", "PREMISE_LEVEL"}),
+      address_replacement_label_("ADDRESS"),
       phone_labels_({"TELEPHONE"}),
+      phone_replacement_label_("TELEPHONE"),
       bitgenref_(bitgenref) {}
 
-Augmenter::Augmenter(const bert_annotator::Documents documents,
-                     RandomSampler* address_sampler,
-                     RandomSampler* phones_sampler)
-    : Augmenter(documents, address_sampler, phones_sampler, bitgen_) {}
+Augmenter::Augmenter(const bert_annotator::Documents& documents,
+                     RandomSampler* const address_sampler,
+                     RandomSampler* const phone_sampler)
+    : Augmenter(documents, address_sampler, phone_sampler, bitgen_) {}
 
-void Augmenter::Augment(int total, int lowercase, int addresses, int phones) {
+void Augmenter::Augment(int augmentations_total, int augmentations_lowercase,
+                        int augmentations_address, int augmentations_phone) {
   const int original_document_number = documents_.documents_size();
-  for (int i = 0; i < total; ++i) {
-    const int remaining_total = total - i;
+  for (int i = 0; i < augmentations_total; ++i) {
+    const int augmentations_remaining_total = augmentations_total - i;
     bool augmentation_performed = false;
 
     const int document_id =
@@ -57,19 +61,32 @@ void Augmenter::Augment(int total, int lowercase, int addresses, int phones) {
     bert_annotator::Document* augmented_document = documents_.add_documents();
     augmented_document->CopyFrom(original_document);
 
-    augmentation_performed |= MaybeReplace(
-        augmented_document, address_labels_,
-        static_cast<double>(addresses) / total, address_sampler_, "ADDRESS");
+    const bool replaced_address =
+        MaybeReplaceLabel(augmented_document, address_labels_,
+                          static_cast<double>(augmentations_address) /
+                              augmentations_remaining_total,
+                          address_sampler_, address_replacement_label_);
+    if (replaced_address) {
+      augmentation_performed = true;
+      --augmentations_address;
+    }
 
-    augmentation_performed |= MaybeReplace(augmented_document, phone_labels_,
-                                           static_cast<double>(phones) / total,
-                                           phones_sampler_, "TELEPHONE");
+    const bool replaced_phone =
+        MaybeReplaceLabel(augmented_document, phone_labels_,
+                          static_cast<double>(augmentations_phone) /
+                              augmentations_remaining_total,
+                          phones_sampler_, phone_replacement_label_);
+    if (replaced_phone) {
+      augmentation_performed = true;
+      --augmentations_phone;
+    }
 
     const bool perform_lowercasing = absl::Bernoulli(
-        bitgenref_, static_cast<double>(lowercase) / remaining_total);
+        bitgenref_, static_cast<double>(augmentations_lowercase) /
+                        augmentations_remaining_total);
     if (perform_lowercasing) {
       Lowercase(augmented_document);
-      --lowercase;
+      --augmentations_lowercase;
       augmentation_performed = true;
     }
 
@@ -77,37 +94,40 @@ void Augmenter::Augment(int total, int lowercase, int addresses, int phones) {
     // perform at least one action, drop this sample. It's identical to the
     // original document. Repeat this augmentation iteration.
     if (!augmentation_performed &&
-        remaining_total == lowercase + addresses + phones) {
+        augmentations_remaining_total == augmentations_lowercase +
+                                             augmentations_address +
+                                             augmentations_phone) {
       documents_.mutable_documents()->RemoveLast();
       --i;
     }
   }
 }
 
-bool Augmenter::MaybeReplace(bert_annotator::Document* augmented_document,
-                             const std::vector<std::string> label_list,
-                             double likelihood, RandomSampler* sampler,
-                             std::string replacement_label) {
-  auto boundary_list = DocumentBoundaryList(*augmented_document, label_list);
-  bool do_replace = absl::Bernoulli(bitgenref_, likelihood);
+bool Augmenter::MaybeReplaceLabel(bert_annotator::Document* const document,
+                                  const std::vector<std::string>& label_list,
+                                  const double likelihood,
+                                  RandomSampler* const sampler,
+                                  const std::string& replacement_label) {
+  const std::vector<std::pair<int, int>>& boundary_list =
+      LabelBoundaryList(*document, label_list);
+  const bool do_replace = absl::Bernoulli(bitgenref_, likelihood);
   if (do_replace && !boundary_list.empty()) {
     int boundary_index = absl::Uniform(bitgenref_, static_cast<size_t>(0),
                                        boundary_list.size() - 1);
-    std::pair<int, int> phone_boundaries = boundary_list[boundary_index];
-    std::string replacement = sampler->Sample();
-    ReplaceTokens(augmented_document, phone_boundaries, replacement,
-                  replacement_label);
+    std::pair<int, int> boundaries = boundary_list[boundary_index];
+    const std::string replacement = sampler->Sample();
+    ReplaceTokens(document, boundaries, replacement, replacement_label);
     return true;
   }
   return false;
 }
 
-void Augmenter::ReplaceTokens(bert_annotator::Document* document,
-                              std::pair<int, int> boundaries,
-                              std::string replacement,
-                              std::string replacement_label) {
-  int address_string_start = document->token(boundaries.first).start();
-  int address_string_end = document->token(boundaries.second).end();
+void Augmenter::ReplaceTokens(bert_annotator::Document* const document,
+                              const std::pair<int, int>& boundaries,
+                              const std::string& replacement,
+                              const std::string& replacement_label) const {
+  const int address_string_start = document->token(boundaries.first).start();
+  const int address_string_end = document->token(boundaries.second).end();
 
   // Replace the content of document->text().
   std::vector<char> new_text_bytes = std::vector<char>();
@@ -133,12 +153,13 @@ void Augmenter::ReplaceTokens(bert_annotator::Document* document,
   if (boundaries.first != boundaries.second) {
     document->mutable_token()->erase(
         document->mutable_token()->begin() + boundaries.first + 1,
-        document->mutable_token()->begin() + boundaries.second + 1);
+        document->mutable_token()->begin() + boundaries.second +
+            1);  // boundaries.second is inclusive.
   }
 
   // Update the start end end bytes of all tokens following the replaced
   // sequence.
-  int length_increase =
+  const int length_increase =
       replacement.size() - (address_string_end - address_string_start + 1);
   for (auto& token : *document->mutable_token()) {
     if (token.start() > address_string_start) {
@@ -174,30 +195,32 @@ void Augmenter::ReplaceTokens(bert_annotator::Document* document,
                                   label_count_decrease);
     }
   }
-  labeled_spans->erase(labeled_spans->begin() + delete_start,
-                       labeled_spans->begin() + delete_end);
+  labeled_spans->erase(
+      labeled_spans->begin() + delete_start,
+      labeled_spans->begin() + delete_end);  // delete_end is exclusive.
 }
 
-std::vector<std::pair<int, int>> Augmenter::DocumentBoundaryList(
+const std::vector<std::pair<int, int>> Augmenter::LabelBoundaryList(
     const bert_annotator::Document& document,
-    const std::vector<std::string>& labels) {
+    const std::vector<std::string>& labels) const {
   if (document.labeled_spans().find("lucid") ==
       document.labeled_spans().end()) {
     return {};
   }
-  auto labeled_spans = document.labeled_spans().at("lucid").labeled_span();
+  const auto labeled_spans =
+      document.labeled_spans().at("lucid").labeled_span();
+
   // First, select only spans labeled as an address. Then, join subsequent
   // spans.
   std::vector<std::pair<int, int>> boundary_list = {};
   for (int i = 0; i < labeled_spans.size(); ++i) {
-    auto labeled_span = labeled_spans[i];
-    if (std::find(std::begin(labels), std::end(labels), labeled_span.label()) !=
-        std::end(labels)) {
+    const auto labeled_span = labeled_spans[i];
+    if (std::find(labels.begin(), labels.end(), labeled_span.label()) !=
+        labels.end()) {
       boundary_list.push_back(std::pair<int, int>(labeled_span.token_start(),
                                                   labeled_span.token_end()));
     }
   }
-
   for (int i = boundary_list.size() - 2; i >= 0; --i) {
     if (boundary_list[i].second + 1 == boundary_list[i + 1].first) {
       boundary_list[i].second = boundary_list[i + 1].second;
@@ -210,12 +233,13 @@ std::vector<std::pair<int, int>> Augmenter::DocumentBoundaryList(
 
 // Transforms the text to lowercase.
 // Only explicitly listed tokens are transformed.
-void Augmenter::Lowercase(bert_annotator::Document* const augmented_document) {
-  std::string* text = augmented_document->mutable_text();
+void Augmenter::Lowercase(
+    bert_annotator::Document* const augmented_document) const {
+  std::string* const text = augmented_document->mutable_text();
   std::vector<char> new_text_bytes = std::vector<char>();
   int text_index = 0;
   for (int j = 0; j < augmented_document->token_size(); ++j) {
-    bert_annotator::Token* token = augmented_document->mutable_token(j);
+    bert_annotator::Token* const token = augmented_document->mutable_token(j);
 
     // Adds the string inbetween two tokens as it is.
     const int token_start = token->start();
@@ -226,7 +250,7 @@ void Augmenter::Lowercase(bert_annotator::Document* const augmented_document) {
     }
 
     // Transforms the token to lowercase.
-    std::string* word = token->mutable_word();
+    std::string* const word = token->mutable_word();
     absl::AsciiStrToLower(word);
     new_text_bytes.insert(new_text_bytes.end(), word->begin(), word->end());
     text_index = token_end + 1;

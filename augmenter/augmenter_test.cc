@@ -469,7 +469,7 @@ TEST(AugmenterTest, ReplacePhoneEnd) {
   ExpectEq(augmented, expected);
 }
 
-TEST(AugmenterTest, ReplacePhoneChoice) {
+TEST(AugmenterTest, ReplacePhoneChooseLabel) {
   bert_annotator::Documents documents = ConstructBertDocument({DocumentSpec(
       "0123456789 or 0123456789",
       {TokenSpec("0123456789", 0, 9), TokenSpec("or", 11, 12),
@@ -521,6 +521,47 @@ TEST(AugmenterTest, ReplacePhoneChoice) {
                           {LabelSpec("TELEPHONE", 0, 0),
                            LabelSpec("TELEPHONE", 2, 2)}}})})
           .documents(0);
+  ExpectEq(augmented, expected);
+}
+
+TEST(AugmenterTest, ReplacePhoneChooseDocument) {
+  bert_annotator::Documents documents = ConstructBertDocument(
+      {DocumentSpec("Call 0123456789! Thanks.",
+                    {TokenSpec("Call", 0, 3), TokenSpec("0123456789", 5, 14),
+                     TokenSpec("Thanks", 17, 22)},
+                    {{"lucid", {LabelSpec("TELEPHONE", 1, 1)}}})});
+  MockRandomSampler address_sampler;
+  MockRandomSampler phones_sampler;
+  std::string replacement = "9876543210";
+  EXPECT_CALL(phones_sampler, Sample()).WillOnce(ReturnRef(replacement));
+  absl::MockingBitGen bitgen;
+  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
+      .Times(5)  // 2 x address, 2 x lowercasing, 1x phone.
+      .WillRepeatedly(Return(false));
+  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0.5))
+      .WillOnce(Return(true));  // Replace phone in first document.
+  // Token selection.
+  EXPECT_CALL(absl::MockUniform<size_t>(), Call(bitgen, 0, 0))
+      .WillOnce(Return(0));
+
+  Augmenter augmenter =
+      Augmenter(documents, &address_sampler, &phones_sampler, bitgen);
+
+  augmenter.Augment(/*total=*/2, /*lowercase=*/0, /*addresses=*/0,
+                    /*phones=*/1);
+
+  bert_annotator::Document augmented = augmenter.documents().documents(1);
+  bert_annotator::Document expected =
+      ConstructBertDocument(
+          {DocumentSpec(
+              "Call 9876543210! Thanks.",
+              {TokenSpec("Call", 0, 3), TokenSpec("9876543210", 5, 14),
+               TokenSpec("Thanks", 17, 22)},
+              {{"lucid", {LabelSpec("TELEPHONE", 1, 1)}}})})
+          .documents(0);
+  ExpectEq(augmented, expected);
+  augmented = augmenter.documents().documents(2);
+  expected = documents.documents(0);
   ExpectEq(augmented, expected);
 }
 

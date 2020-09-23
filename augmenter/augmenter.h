@@ -30,32 +30,36 @@ namespace augmenter {
 
 class Augmenter {
  public:
-  explicit Augmenter(bert_annotator::Documents documents,
-                     RandomSampler* address_sampler,
-                     RandomSampler* phones_sampler);
-  Augmenter(bert_annotator::Documents documents, RandomSampler* address_sampler,
-            RandomSampler* phones_sampler, absl::BitGenRef bigen);
-  void Augment(const int total, const int lowercase, const int addresses,
-               const int phones);
+  Augmenter(const bert_annotator::Documents& documents,
+            RandomSampler* const address_sampler,
+            RandomSampler* const phone_sampler);
+  Augmenter(const bert_annotator::Documents& documents,
+            RandomSampler* const address_sampler,
+            RandomSampler* const phone_sampler, absl::BitGenRef bitgen);
+  void Augment(const int augmentations_total, const int augmentations_lowercase,
+               const int augmentations_address, const int augmentations_phone);
   const bert_annotator::Documents documents() const;
 
  private:
-  bool MaybeReplace(bert_annotator::Document* augmented_document,
-                    const std::vector<std::string> label_list,
-                    double likelihood, RandomSampler* sampler,
-                    std::string replacement_label);
-  void Lowercase(bert_annotator::Document* const augmented_document);
-  std::vector<std::pair<int, int>> DocumentBoundaryList(
+  bool MaybeReplaceLabel(bert_annotator::Document* const document,
+                         const std::vector<std::string>& label_list,
+                         const double likelihood, RandomSampler* const sampler,
+                         const std::string& replacement_label);
+  const std::vector<std::pair<int, int>> LabelBoundaryList(
       const bert_annotator::Document& document,
-      const std::vector<std::string>& labels);
-  void ReplaceTokens(bert_annotator::Document* document,
-                     std::pair<int, int> boundaries, std::string replacement,
-                     std::string replacement_label);
+      const std::vector<std::string>& labels) const;
+  void ReplaceTokens(bert_annotator::Document* const document,
+                     const std::pair<int, int>& boundaries,
+                     const std::string& replacement,
+                     const std::string& replacement_label) const;
+  void Lowercase(bert_annotator::Document* const document) const;
   bert_annotator::Documents documents_;
-  RandomSampler* address_sampler_;
-  RandomSampler* phones_sampler_;
+  RandomSampler* const address_sampler_;
+  RandomSampler* const phones_sampler_;
   const std::vector<std::string> address_labels_;
+  const std::string address_replacement_label_;
   const std::vector<std::string> phone_labels_;
+  const std::string phone_replacement_label_;
   absl::BitGenRef bitgenref_;
   absl::BitGen bitgen_;
 };
