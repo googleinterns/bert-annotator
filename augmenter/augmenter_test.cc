@@ -566,6 +566,8 @@ TEST(AugmenterTest, ReplacePhoneMissingLucid) {
   ExpectEq(augmented, expected);
 }
 
+// Replacing addresses is very similiar to replacing phone numbers, so not all
+// respective tests are repeated here.
 TEST(AugmenterTest, DontReplaceAddress) {
   bert_annotator::Documents documents = ConstructBertDocument(
       {DocumentSpec("Visit Zurich! Thanks.",
@@ -648,6 +650,42 @@ TEST(AugmenterTest, ReplaceAddressFewerTokens) {
                         {TokenSpec("Visit", 0, 4), TokenSpec("Munich", 6, 11),
                          TokenSpec("Thanks", 13, 18)},
                         {{"lucid", {LabelSpec("ADDRESS", 1, 1)}}})})
+          .documents(0);
+  ExpectEq(augmented, expected);
+}
+
+TEST(AugmenterTest, ReplaceAddressMultiWordReplacement) {
+  bert_annotator::Documents documents = ConstructBertDocument({DocumentSpec(
+      "Visit Zurich City! Thanks.",
+      {TokenSpec("Visit", 0, 4), TokenSpec("Zurich", 6, 11),
+       TokenSpec("City", 13, 16), TokenSpec("Thanks", 18, 23)},
+      {{"lucid",
+        {LabelSpec("LOCALITY", 1, 1), LabelSpec("LOCALITY", 2, 2)}}})});
+  MockRandomSampler address_sampler;
+  MockRandomSampler phones_sampler;
+  std::string replacement = "Munich Centrum";
+  EXPECT_CALL(address_sampler, Sample()).WillOnce(ReturnRef(replacement));
+  absl::MockingBitGen bitgen;
+  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
+      .Times(2)  // 1 x address, 1 x lowercasing.
+      .WillRepeatedly(Return(false));
+  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 1))
+      .WillOnce(Return(true));  // 1 x phone.
+
+  Augmenter augmenter =
+      Augmenter(documents, &address_sampler, &phones_sampler, bitgen);
+
+  augmenter.Augment(/*total=*/1, /*lowercase=*/0, /*addresses=*/1,
+                    /*phones=*/0);
+
+  bert_annotator::Document augmented = augmenter.documents().documents(1);
+  bert_annotator::Document expected =
+      ConstructBertDocument(
+          {DocumentSpec(
+              "Visit Munich Centrum! Thanks.",
+              {TokenSpec("Visit", 0, 4), TokenSpec("Munich Centrum", 6, 19),
+               TokenSpec("Thanks", 21, 26)},
+              {{"lucid", {LabelSpec("ADDRESS", 1, 1)}}})})
           .documents(0);
   ExpectEq(augmented, expected);
 }
