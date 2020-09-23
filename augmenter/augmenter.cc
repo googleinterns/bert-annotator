@@ -33,7 +33,7 @@ Augmenter::Augmenter(const bert_annotator::Documents& documents,
                      absl::BitGenRef bitgenref)
     : documents_(documents),
       address_sampler_(address_sampler),
-      phones_sampler_(phone_sampler),
+      phone_sampler_(phone_sampler),
       address_labels_({"LOCALITY", "COUNTRY", "ADMINISTRATIVE_AREA",
                        "THOROUGHFARE", "THOROUGHFARE_NUMBER", "PREMISE",
                        "POSTAL_CODE", "PREMISE_LEVEL"}),
@@ -75,7 +75,7 @@ void Augmenter::Augment(int augmentations_total, int augmentations_lowercase,
         MaybeReplaceLabel(augmented_document, phone_labels_,
                           static_cast<double>(augmentations_phone) /
                               augmentations_remaining_total,
-                          phones_sampler_, phone_replacement_label_);
+                          phone_sampler_, phone_replacement_label_);
     if (replaced_phone) {
       augmentation_performed = true;
       --augmentations_phone;
@@ -112,9 +112,9 @@ bool Augmenter::MaybeReplaceLabel(bert_annotator::Document* const document,
       LabelBoundaryList(*document, label_list);
   const bool do_replace = absl::Bernoulli(bitgenref_, likelihood);
   if (do_replace && !boundary_list.empty()) {
-    int boundary_index = absl::Uniform(bitgenref_, static_cast<size_t>(0),
+    const int boundary_index = absl::Uniform(bitgenref_, static_cast<size_t>(0),
                                        boundary_list.size() - 1);
-    std::pair<int, int> boundaries = boundary_list[boundary_index];
+    const std::pair<int, int> boundaries = boundary_list[boundary_index];
     const std::string replacement = sampler->Sample();
     ReplaceTokens(document, boundaries, replacement, replacement_label);
     return true;

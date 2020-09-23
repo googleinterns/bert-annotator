@@ -55,7 +55,7 @@ class Augmenter {
   void Lowercase(bert_annotator::Document* const document) const;
   bert_annotator::Documents documents_;
   RandomSampler* const address_sampler_;
-  RandomSampler* const phones_sampler_;
+  RandomSampler* const phone_sampler_;
   const std::vector<std::string> address_labels_;
   const std::string address_replacement_label_;
   const std::vector<std::string> phone_labels_;
