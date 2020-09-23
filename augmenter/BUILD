@@ -5,6 +5,7 @@ cc_library(
   srcs = ["augmenter.cc"],
   hdrs = ["augmenter.h"],
   deps = [
+    ":random_sampler",
     "//protocol_buffer:documents_cc_proto",
     "@com_google_absl//absl/random",
     "@com_google_absl//absl/random:bit_gen_ref",
@@ -74,6 +75,7 @@ cc_binary(
   srcs = ["main.cc"],
   deps = [
     ":augmenter",
+    ":random_sampler",
     ":textproto_io",
     "//protocol_buffer:documents_cc_proto",
     "@com_google_absl//absl/flags:flag",

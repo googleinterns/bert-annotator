@@ -16,6 +16,7 @@
 
 #include "augmenter/augmenter.h"
 
+#include <map>
 #include <string>
 #include <vector>
 
@@ -27,19 +28,44 @@
 namespace augmenter {
 
 struct TokenSpec {
-  const std::string text;
+  const std::string& text;
   const int start;
   const int end;
-  TokenSpec(const std::string text_, const int start_, const int end_)
+  TokenSpec(const std::string& text_, const int start_, const int end_)
       : text(text_), start(start_), end(end_) {}
 };
 
+struct LabelSpec {
+  const std::string& label;
+  const int start;
+  const int end;
+  LabelSpec(const std::string& label_, const int start_, const int end_)
+      : label(label_), start(start_), end(end_) {}
+};
+
 struct DocumentSpec {
-  const std::string text;
-  const std::vector<TokenSpec> token_specs;
-  DocumentSpec(const std::string text_,
-               const std::vector<TokenSpec> token_specs_)
-      : text(text_), token_specs(token_specs_) {}
+  const std::string& text;
+  const std::vector<TokenSpec>& token_specs;
+  const bool has_labels;
+  const std::map<std::string, std::vector<LabelSpec>>& label_specs_map;
+
+  DocumentSpec(const std::string& text_,
+               const std::vector<TokenSpec> token_specs_,
+               const std::map<std::string, std::vector<LabelSpec>>
+                   label_specs_map_ = {{"lucid", {}}})
+      : text(text_),
+        token_specs(token_specs_),
+        has_labels(true),
+        label_specs_map(label_specs_map_) {}
+
+  DocumentSpec(
+      const std::string& text_, const std::vector<TokenSpec> token_specs_,
+      const std::map<std::string, std::vector<LabelSpec>> label_specs_map_,
+      bool has_labels_)
+      : text(text_),
+        token_specs(token_specs_),
+        has_labels(has_labels_),
+        label_specs_map(label_specs_map_) {}
 };
 
 // Creates a documents wrapper with documents each containing the specified
@@ -57,6 +83,20 @@ bert_annotator::Documents ConstructBertDocument(
       token->set_end(token_spec.end);
       token->set_word(token_spec.text);
     }
+
+    if (document_spec.has_labels) {
+      std::map<std::string, bert_annotator::LabeledSpans> label_map = {};
+      bert_annotator::LabeledSpans labeled_spans = {};
+      for (auto& label_pair : document_spec.label_specs_map) {
+        for (auto& label_spec : label_pair.second) {
+          auto labeled_span = labeled_spans.add_labeled_span();
+          labeled_span->set_label(label_spec.label);
+          labeled_span->set_token_start(label_spec.start);
+          labeled_span->set_token_end(label_spec.end);
+        }
+        (*document->mutable_labeled_spans())[label_pair.first] = labeled_spans;
+      }
+    }
   }
 
   return documents;
@@ -65,9 +105,12 @@ bert_annotator::Documents ConstructBertDocument(
 TEST(AugmenterTest, NoAugmentation) {
   bert_annotator::Documents documents = ConstructBertDocument(
       {DocumentSpec("Text with some InterWordCapitalization", {})});
-  Augmenter augmenter = Augmenter(documents);
+  MockRandomSampler address_sampler;
+  MockRandomSampler phones_sampler;
+  Augmenter augmenter = Augmenter(documents, &address_sampler, &phones_sampler);
 
-  augmenter.Augment(/*augmentations=*/0, /*lowercase_percentage=*/0.0);
+  augmenter.Augment(/*total=*/0, /*lowercase=*/0, /*addresses=*/0,
+                    /*phones=*/0);
 
   EXPECT_EQ(augmenter.documents().documents_size(), 1);
 }
@@ -75,20 +118,26 @@ TEST(AugmenterTest, NoAugmentation) {
 TEST(AugmenterTest, AugmentsAreAdded) {
   bert_annotator::Documents documents = ConstructBertDocument(
       {DocumentSpec("Text with some InterWordCapitalization", {})});
-  Augmenter augmenter = Augmenter(documents);
+  MockRandomSampler address_sampler;
+  MockRandomSampler phones_sampler;
+  Augmenter augmenter = Augmenter(documents, &address_sampler, &phones_sampler);
 
-  augmenter.Augment(/*augmentations=*/1, /*lowercase_percentage=*/0.0);
+  augmenter.Augment(/*total=*/1, /*lowercase=*/0, /*addresses=*/0,
+                    /*phones=*/0);
 
   EXPECT_EQ(augmenter.documents().documents_size(), 2);
 }
 
-TEST(AugmenterTest, NoLowercasingForZeroPercent) {
+TEST(AugmenterTest, NoLowercasing) {
   bert_annotator::Documents documents = ConstructBertDocument(
       {DocumentSpec("Text with some InterWordCapitalization", {})});
-  Augmenter augmenter = Augmenter(documents);
+  MockRandomSampler address_sampler;
+  MockRandomSampler phones_sampler;
+  Augmenter augmenter = Augmenter(documents, &address_sampler, &phones_sampler);
 
   const int augmentations = 10;
-  augmenter.Augment(augmentations, /*lowercase_percentage=*/0.0);
+  augmenter.Augment(/*total=*/augmentations, /*lowercase=*/0, /*addresses=*/0,
+                    /*phones=*/0);
 
   for (int i = 0; i < augmentations + 1; ++i) {
     EXPECT_STREQ(augmenter.documents().documents(i).text().c_str(),
@@ -96,16 +145,19 @@ TEST(AugmenterTest, NoLowercasingForZeroPercent) {
   }
 }
 
-TEST(AugmenterTest, CompleteLowercasingForHundredPercent) {
+TEST(AugmenterTest, CompleteLowercasing) {
   bert_annotator::Documents documents = ConstructBertDocument(
       {DocumentSpec("Text with some InterWordCapitalization",
                     {TokenSpec("Text", 0, 3), TokenSpec("with", 5, 8),
                      TokenSpec("some", 10, 13),
                      TokenSpec("InterWordCapitalization", 15, 37)})});
-  Augmenter augmenter = Augmenter(documents);
+  MockRandomSampler address_sampler;
+  MockRandomSampler phones_sampler;
+  Augmenter augmenter = Augmenter(documents, &address_sampler, &phones_sampler);
 
   const int augmentations = 10;
-  augmenter.Augment(augmentations, /*lowercase_percentage=*/1.0);
+  augmenter.Augment(/*total=*/augmentations, /*lowercase=*/augmentations,
+                    /*addresses=*/0, /*phones=*/0);
 
   EXPECT_STREQ(augmenter.documents().documents(0).text().c_str(),
                "Text with some InterWordCapitalization");
@@ -147,6 +199,11 @@ TEST(AugmenterTest, RandomizedLowercasing) {
                      TokenSpec("InterWordCapitalization", 15, 37)})});
 
   absl::MockingBitGen bitgen;
+  EXPECT_CALL(absl::MockUniform<int>(), Call(bitgen, 0, 2))
+      .WillOnce(testing::Return(0))
+      .WillOnce(testing::Return(1))
+      .WillOnce(testing::Return(2))
+      .WillOnce(testing::Return(0));
   testing::InSequence s;
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 2.0 / 4))
       .WillOnce(testing::Return(true));
@@ -156,9 +213,13 @@ TEST(AugmenterTest, RandomizedLowercasing) {
       .WillOnce(testing::Return(false));
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 1.0 / 1))
       .WillOnce(testing::Return(true));
-  Augmenter augmenter = Augmenter(documents, bitgen);
+  MockRandomSampler address_sampler;
+  MockRandomSampler phones_sampler;
+  Augmenter augmenter =
+      Augmenter(documents, &address_sampler, &phones_sampler, bitgen);
 
-  augmenter.Augment(/*augmentations=*/4, /*lowercase_percentage=*/0.5);
+  augmenter.Augment(/*total=*/4, /*lowercase=*/2, /*addresses=*/0,
+                    /*phones=*/0);
 
   ASSERT_EQ(augmenter.documents().documents_size(), 7);
   EXPECT_STREQ(augmenter.documents().documents(3).text().c_str(),
@@ -177,9 +238,12 @@ TEST(AugmenterTest, DontLowercaseNonTokens) {
                     {TokenSpec("Text", 6, 9), TokenSpec("with", 11, 14),
                      TokenSpec("some", 16, 19),
                      TokenSpec("InterWordCapitalization", 21, 43)})});
-  Augmenter augmenter = Augmenter(documents);
+  MockRandomSampler address_sampler;
+  MockRandomSampler phones_sampler;
+  Augmenter augmenter = Augmenter(documents, &address_sampler, &phones_sampler);
 
-  augmenter.Augment(/*augmentations=*/1, /*lowercase_percentage=*/1.0);
+  augmenter.Augment(/*total=*/1, /*lowercase=*/1, /*addresses=*/0,
+                    /*phones=*/0);
 
   EXPECT_STREQ(augmenter.documents().documents(1).text().c_str(),
                "[BOS] text with some interwordcapitalization [EOS]");

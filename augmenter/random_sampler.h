@@ -34,7 +34,7 @@ namespace augmenter {
 // Can be used to draw replacements for the augmentation.
 class RandomSampler {
  public:
-  explicit RandomSampler(std::istringstream& input_stream);
+  explicit RandomSampler(std::istream& input_stream);
   virtual const std::string& Sample();
   const std::vector<RandomItem>& items() const;
 
