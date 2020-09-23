@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "absl/strings/ascii.h"
+#include "augmenter/label_boundaries.h"
 #include "augmenter/random_sampler.h"
 #include "protocol_buffer/document.pb.h"
 #include "protocol_buffer/documents.pb.h"
@@ -108,13 +109,13 @@ bool Augmenter::MaybeReplaceLabel(bert_annotator::Document* const document,
                                   const double likelihood,
                                   RandomSampler* const sampler,
                                   const std::string& replacement_label) {
-  const std::vector<std::pair<int, int>>& boundary_list =
+  const std::vector<LabelBoundaries>& boundary_list =
       LabelBoundaryList(*document, label_list);
   const bool do_replace = absl::Bernoulli(bitgenref_, likelihood);
   if (do_replace && !boundary_list.empty()) {
     const int boundary_index = absl::Uniform(bitgenref_, static_cast<size_t>(0),
-                                       boundary_list.size() - 1);
-    const std::pair<int, int> boundaries = boundary_list[boundary_index];
+                                             boundary_list.size() - 1);
+    const LabelBoundaries boundaries = boundary_list[boundary_index];
     const std::string replacement = sampler->Sample();
     ReplaceTokens(document, boundaries, replacement, replacement_label);
     return true;
@@ -123,11 +124,11 @@ bool Augmenter::MaybeReplaceLabel(bert_annotator::Document* const document,
 }
 
 void Augmenter::ReplaceTokens(bert_annotator::Document* const document,
-                              const std::pair<int, int>& boundaries,
+                              const LabelBoundaries& boundaries,
                               const std::string& replacement,
                               const std::string& replacement_label) const {
-  const int address_string_start = document->token(boundaries.first).start();
-  const int address_string_end = document->token(boundaries.second).end();
+  const int address_string_start = document->token(boundaries.start).start();
+  const int address_string_end = document->token(boundaries.end).end();
 
   // Replace the content of document->text().
   std::vector<char> new_text_bytes = std::vector<char>();
@@ -147,14 +148,14 @@ void Augmenter::ReplaceTokens(bert_annotator::Document* const document,
 
   // Replace the tokens. The first one summarizes the new content, all remaining
   // ones can be deleted. This introduces tokens longer than one word.
-  document->mutable_token(boundaries.first)
-      ->set_end(document->token(boundaries.second).end());
-  document->mutable_token(boundaries.first)->set_word(replacement);
-  if (boundaries.first != boundaries.second) {
+  document->mutable_token(boundaries.start)
+      ->set_end(document->token(boundaries.end).end());
+  document->mutable_token(boundaries.start)->set_word(replacement);
+  if (boundaries.start != boundaries.end) {
     document->mutable_token()->erase(
-        document->mutable_token()->begin() + boundaries.first + 1,
-        document->mutable_token()->begin() + boundaries.second +
-            1);  // boundaries.second is inclusive.
+        document->mutable_token()->begin() + boundaries.start + 1,
+        document->mutable_token()->begin() + boundaries.end +
+            1);  // boundaries.end is inclusive.
   }
 
   // Update the start end end bytes of all tokens following the replaced
@@ -176,21 +177,21 @@ void Augmenter::ReplaceTokens(bert_annotator::Document* const document,
   int delete_end = 0;
   auto labeled_spans =
       document->mutable_labeled_spans()->at("lucid").mutable_labeled_span();
-  int label_count_decrease = boundaries.second - boundaries.first;
+  int label_count_decrease = boundaries.end - boundaries.start;
   for (int i = 0; i < labeled_spans->size(); ++i) {
     auto labeled_span = labeled_spans->Mutable(i);
-    if (labeled_span->token_start() == boundaries.first) {
+    if (labeled_span->token_start() == boundaries.start) {
       labeled_span->set_label(replacement_label);
       delete_start = i + 1;
     }
-    if (labeled_span->token_start() <= boundaries.second) {
+    if (labeled_span->token_start() <= boundaries.end) {
       delete_end = i + 1;
     }
-    if (labeled_span->token_start() > boundaries.first) {
+    if (labeled_span->token_start() > boundaries.start) {
       labeled_span->set_token_start(labeled_span->token_start() -
                                     label_count_decrease);
     }
-    if (labeled_span->token_end() >= boundaries.second) {
+    if (labeled_span->token_end() >= boundaries.end) {
       labeled_span->set_token_end(labeled_span->token_end() -
                                   label_count_decrease);
     }
@@ -200,7 +201,7 @@ void Augmenter::ReplaceTokens(bert_annotator::Document* const document,
       labeled_spans->begin() + delete_end);  // delete_end is exclusive.
 }
 
-const std::vector<std::pair<int, int>> Augmenter::LabelBoundaryList(
+const std::vector<LabelBoundaries> Augmenter::LabelBoundaryList(
     const bert_annotator::Document& document,
     const std::vector<std::string>& labels) const {
   if (document.labeled_spans().find("lucid") ==
@@ -212,18 +213,18 @@ const std::vector<std::pair<int, int>> Augmenter::LabelBoundaryList(
 
   // First, select only spans labeled as an address. Then, join subsequent
   // spans.
-  std::vector<std::pair<int, int>> boundary_list = {};
+  std::vector<LabelBoundaries> boundary_list = {};
   for (int i = 0; i < labeled_spans.size(); ++i) {
     const auto labeled_span = labeled_spans[i];
     if (std::find(labels.begin(), labels.end(), labeled_span.label()) !=
         labels.end()) {
-      boundary_list.push_back(std::pair<int, int>(labeled_span.token_start(),
-                                                  labeled_span.token_end()));
+      boundary_list.push_back(LabelBoundaries(labeled_span.token_start(),
+                                              labeled_span.token_end()));
     }
   }
   for (int i = boundary_list.size() - 2; i >= 0; --i) {
-    if (boundary_list[i].second + 1 == boundary_list[i + 1].first) {
-      boundary_list[i].second = boundary_list[i + 1].second;
+    if (boundary_list[i].end + 1 == boundary_list[i + 1].start) {
+      boundary_list[i].end = boundary_list[i + 1].end;
       boundary_list.erase(boundary_list.begin() + i + 1);
     }
   }

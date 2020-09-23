@@ -1,11 +1,18 @@
 load("@rules_cc//cc:defs.bzl", "cc_library", "cc_binary", "cc_test")
 
 cc_library(
+  name = "label_boundaries",
+  srcs = ["label_boundaries.cc"],
+  hdrs = ["label_boundaries.h"],
+)
+
+cc_library(
   name = "augmenter",
   srcs = ["augmenter.cc"],
   hdrs = ["augmenter.h"],
   deps = [
     ":random_sampler",
+    ":label_boundaries",
     "//protocol_buffer:documents_cc_proto",
     "@com_google_absl//absl/random",
     "@com_google_absl//absl/random:bit_gen_ref",

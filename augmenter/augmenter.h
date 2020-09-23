@@ -24,6 +24,7 @@
 #include "absl/random/bit_gen_ref.h"
 #include "absl/random/random.h"
 #include "augmenter/random_sampler.h"
+#include "augmenter/label_boundaries.h"
 #include "protocol_buffer/documents.pb.h"
 
 namespace augmenter {
@@ -45,11 +46,11 @@ class Augmenter {
                          const std::vector<std::string>& label_list,
                          const double likelihood, RandomSampler* const sampler,
                          const std::string& replacement_label);
-  const std::vector<std::pair<int, int>> LabelBoundaryList(
+  const std::vector<LabelBoundaries> LabelBoundaryList(
       const bert_annotator::Document& document,
       const std::vector<std::string>& labels) const;
   void ReplaceTokens(bert_annotator::Document* const document,
-                     const std::pair<int, int>& boundaries,
+                     const LabelBoundaries& boundaries,
                      const std::string& replacement,
                      const std::string& replacement_label) const;
   void Lowercase(bert_annotator::Document* const document) const;
