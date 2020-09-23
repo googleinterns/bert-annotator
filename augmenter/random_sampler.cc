@@ -67,11 +67,13 @@ RandomSampler::RandomSampler(std::istringstream& input_stream) {
 
 RandomSampler::RandomSampler() {}
 
-const std::string RandomSampler::Sample() {
-  size_t sampled_index = discrete_distribution_(bitgen_);
+const std::string& RandomSampler::Sample() {
+  const size_t sampled_index = discrete_distribution_(bitgen_);
   return random_items_[sampled_index].text();
 }
 
-std::vector<RandomItem> RandomSampler::items() { return random_items_; }
+const std::vector<RandomItem>& RandomSampler::items() const {
+  return random_items_;
+}
 
 }  // namespace augmenter

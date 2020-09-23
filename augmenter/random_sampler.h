@@ -35,8 +35,8 @@ namespace augmenter {
 class RandomSampler {
  public:
   explicit RandomSampler(std::istringstream& input_stream);
-  virtual const std::string Sample();
-  std::vector<RandomItem> items();
+  virtual const std::string& Sample();
+  const std::vector<RandomItem>& items() const;
 
  protected:
   // Should not be used to construct normal sampler objects, necessary for
@@ -52,7 +52,7 @@ class RandomSampler {
 class MockRandomSampler : public RandomSampler {
  public:
   MockRandomSampler() : RandomSampler() {}
-  MOCK_METHOD(const std::string, Sample, (), (override));
+  MOCK_METHOD(const std::string&, Sample, (), (override));
 };
 
 }  // namespace augmenter

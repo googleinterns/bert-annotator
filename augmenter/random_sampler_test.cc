@@ -25,7 +25,7 @@ namespace augmenter {
 
 using ::testing::Return;
 
-RandomSampler ConstructRandomSampler(const std::string text) {
+RandomSampler ConstructRandomSampler(const std::string& text) {
   std::istringstream dummy_stream(text);
   return RandomSampler(dummy_stream);
 }
