@@ -19,8 +19,8 @@ cc_test (
     ":augmenter",
     "//protocol_buffer:documents_cc_proto",
     "@com_google_absl//absl/flags:flag",
-    "@gtest//:gtest",
-    "@gtest//:gtest_main",
+    "@com_google_googletest//:gtest",
+    "@com_google_googletest//:gtest_main",
   ],
   size = "small"
 )
@@ -32,6 +32,38 @@ cc_library(
   deps = [
     "//protocol_buffer:documents_cc_proto",
   ]
+)
+
+cc_library(
+  name = "random_item",
+  srcs = ["random_item.cc"],
+  hdrs = ["random_item.h"],
+)
+
+cc_library(
+  name = "random_sampler",
+  srcs = ["random_sampler.cc"],
+  hdrs = ["random_sampler.h"],
+  deps = [
+    ":random_item",
+    "@com_google_absl//absl/random",
+    "@com_google_absl//absl/random:bit_gen_ref",
+    "@com_google_googletest//:gtest",
+  ],
+)
+
+cc_test (
+  name = "random_sampler_test",
+  srcs = [
+    "random_sampler_test.cc"
+  ],
+  deps = [
+    ":random_sampler",
+    "@com_google_absl//absl/random:mock_distributions",
+    "@com_google_googletest//:gtest",
+    "@com_google_googletest//:gtest_main",
+  ],
+  size = "small"
 )
 
 cc_binary(
