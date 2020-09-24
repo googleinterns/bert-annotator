@@ -23,8 +23,9 @@
 
 #include "absl/random/bit_gen_ref.h"
 #include "absl/random/random.h"
-#include "augmenter/random_sampler.h"
+#include "absl/strings/string_view.h"
 #include "augmenter/label_boundaries.h"
+#include "augmenter/random_sampler.h"
 #include "protocol_buffer/documents.pb.h"
 
 namespace augmenter {
@@ -42,25 +43,36 @@ class Augmenter {
   const bert_annotator::Documents documents() const;
 
  private:
+  template <std::size_t SIZE>
   bool MaybeReplaceLabel(bert_annotator::Document* const document,
-                         const std::vector<std::string>& label_list,
+                         const std::array<absl::string_view, SIZE>& label_list,
                          const double probability, RandomSampler* const sampler,
-                         const std::string& replacement_label);
+                         const absl::string_view replacement_label);
+  template <std::size_t SIZE>
   const std::vector<LabelBoundaries> LabelBoundaryList(
       const bert_annotator::Document& document,
-      const std::vector<std::string>& labels) const;
+      const std::array<absl::string_view, SIZE>& labels) const;
   void ReplaceTokens(bert_annotator::Document* const document,
                      const LabelBoundaries& boundaries,
                      const std::string& replacement,
-                     const std::string& replacement_label) const;
+                     const absl::string_view replacement_label) const;
   void Lowercase(bert_annotator::Document* const document) const;
   bert_annotator::Documents documents_;
   RandomSampler* const address_sampler_;
   RandomSampler* const phone_sampler_;
-  const std::vector<std::string> address_labels_;
-  const std::string address_replacement_label_;
-  const std::vector<std::string> phone_labels_;
-  const std::string phone_replacement_label_;
+  static constexpr std::array<absl::string_view, 8> kAddressLabels = {
+      "LOCALITY",
+      "COUNTRY",
+      "ADMINISTRATIVE_AREA",
+      "THOROUGHFARE",
+      "THOROUGHFARE_NUMBER",
+      "PREMISE",
+      "POSTAL_CODE",
+      "PREMISE_LEVEL"};
+  static constexpr absl::string_view kAddressReplacementLabel = "ADDRESS";
+  static constexpr std::array<absl::string_view, 1> kPhoneLabels = {
+      "TELEPHONE"};
+  static constexpr absl::string_view kPhoneReplacementLabel = "TELEPHONE";
   absl::BitGenRef bitgenref_;
   absl::BitGen bitgen_;
 };
