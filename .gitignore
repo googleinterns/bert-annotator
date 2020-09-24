@@ -1,6 +1,7 @@
 # Project specific
-protocol_buffer/document.*
-!protocol_buffer/document.proto.test
+protocol_buffer/*
+!protocol_buffer/document.proto
+!protocol_buffer/documents.proto
 data/input/preprocessed
 data/input/raw/*
 !data/input/raw/.keep
