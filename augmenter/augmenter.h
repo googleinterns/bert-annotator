@@ -48,6 +48,9 @@ class Augmenter {
                          const std::array<absl::string_view, SIZE>& label_list,
                          const double probability, RandomSampler* const sampler,
                          const absl::string_view replacement_label);
+  // Finds all token sequences labeled according to the given label list. If
+  // multiple sequential tokens have different labels, but all are given in the
+  // list, they are concidered to be part of the same sequence.
   template <std::size_t SIZE>
   const std::vector<LabelBoundaries> LabelBoundaryList(
       const bert_annotator::Document& document,
@@ -56,6 +59,8 @@ class Augmenter {
                      const LabelBoundaries& boundaries,
                      const std::string& replacement,
                      const absl::string_view replacement_label) const;
+  // Transforms the text to lowercase. Only explicitly listed tokens are
+  // transformed.
   void Lowercase(bert_annotator::Document* const document) const;
   bert_annotator::Documents documents_;
   RandomSampler* const address_sampler_;

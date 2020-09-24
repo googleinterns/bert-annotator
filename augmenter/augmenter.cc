@@ -151,7 +151,7 @@ void Augmenter::ReplaceTokens(bert_annotator::Document* const document,
             1);  // boundaries.end is inclusive.
   }
 
-  // Update the start end end bytes of all tokens following the replaced
+  // Update the start and end bytes of all tokens following the replaced
   // sequence.
   const int length_increase =
       replacement.size() - (string_end - string_start + 1);
@@ -227,8 +227,6 @@ const std::vector<LabelBoundaries> Augmenter::LabelBoundaryList(
   return boundary_list;
 }
 
-// Transforms the text to lowercase.
-// Only explicitly listed tokens are transformed.
 void Augmenter::Lowercase(
     bert_annotator::Document* const augmented_document) const {
   std::string* const text = augmented_document->mutable_text();
