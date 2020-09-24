@@ -37,5 +37,14 @@ bash data/input/preprocess.sh [corpus]
 The augmenter can be run using
 
 ```sh
-./bazel-bin/augmenter/main [corpus]
+./bazel-bin/augmenter/main [FLAGS]
 ```
+
+Valid flags are:
+ - `--corpora="[corpora]"`
+ - `--total=[total augmentations]`
+ - `--lowercase=[augmentations by lowercasing]`
+ - `--addresses_path=[path to address file]`
+ - `--addresses=[augmentations by address replacement]`
+ - `--phones_path=[path to phone number file]`
+ - `--phones=[augmentations by phone number replacement]`
