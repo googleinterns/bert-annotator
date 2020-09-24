@@ -127,21 +127,19 @@ void Augmenter::ReplaceTokens(bert_annotator::Document* const document,
                               const LabelBoundaries& boundaries,
                               const std::string& replacement,
                               const std::string& replacement_label) const {
-  const int address_string_start = document->token(boundaries.start).start();
-  const int address_string_end = document->token(boundaries.end).end();
+  const int string_start = document->token(boundaries.start).start();
+  const int string_end = document->token(boundaries.end).end();
 
   // Replace the content of document->text().
   std::vector<char> new_text_bytes = std::vector<char>();
-  new_text_bytes.insert(
-      new_text_bytes.end(), document->mutable_text()->begin(),
-      document->mutable_text()->begin() + address_string_start);
+  new_text_bytes.insert(new_text_bytes.end(), document->mutable_text()->begin(),
+                        document->mutable_text()->begin() + string_start);
   new_text_bytes.insert(new_text_bytes.end(), replacement.begin(),
                         replacement.end());
-  if (static_cast<int>(document->text().size()) > address_string_end) {
-    new_text_bytes.insert(
-        new_text_bytes.end(),
-        document->mutable_text()->begin() + address_string_end + 1,
-        document->mutable_text()->end());
+  if (static_cast<int>(document->text().size()) > string_end) {
+    new_text_bytes.insert(new_text_bytes.end(),
+                          document->mutable_text()->begin() + string_end + 1,
+                          document->mutable_text()->end());
   }
   const std::string new_text(new_text_bytes.begin(), new_text_bytes.end());
   document->set_text(new_text);
@@ -161,12 +159,12 @@ void Augmenter::ReplaceTokens(bert_annotator::Document* const document,
   // Update the start end end bytes of all tokens following the replaced
   // sequence.
   const int length_increase =
-      replacement.size() - (address_string_end - address_string_start + 1);
+      replacement.size() - (string_end - string_start + 1);
   for (auto& token : *document->mutable_token()) {
-    if (token.start() > address_string_start) {
+    if (token.start() > string_start) {
       token.set_start(token.start() + length_increase);
     }
-    if (token.end() >= address_string_end) {
+    if (token.end() >= string_end) {
       token.set_end(token.end() + length_increase);
     }
   }
@@ -211,8 +209,8 @@ const std::vector<LabelBoundaries> Augmenter::LabelBoundaryList(
   const auto labeled_spans =
       document.labeled_spans().at("lucid").labeled_span();
 
-  // First, select only spans labeled as an address. Then, join subsequent
-  // spans.
+  // First, select only spans labeled as one of the given labels. Then, join
+  // subsequent spans.
   std::vector<LabelBoundaries> boundary_list = {};
   for (int i = 0; i < labeled_spans.size(); ++i) {
     const auto labeled_span = labeled_spans[i];
