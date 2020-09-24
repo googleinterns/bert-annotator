@@ -212,8 +212,9 @@ const std::vector<LabelBoundaries> Augmenter::LabelBoundaryList(
     const auto labeled_span = labeled_spans[i];
     if (std::find(labels.begin(), labels.end(), labeled_span.label()) !=
         labels.end()) {
-      boundary_list.push_back(LabelBoundaries(labeled_span.token_start(),
-                                              labeled_span.token_end()));
+      boundary_list.push_back(
+          LabelBoundaries{.start = labeled_span.token_start(),
+                          .end = labeled_span.token_end()});
     }
   }
   for (int i = boundary_list.size() - 2; i >= 0; --i) {

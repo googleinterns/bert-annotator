@@ -20,10 +20,8 @@
 namespace augmenter {
 
 struct LabelBoundaries {
- public:
   int start;
   int end;
-  LabelBoundaries(int start_, int end_);
 };
 
 }  // namespace augmenter

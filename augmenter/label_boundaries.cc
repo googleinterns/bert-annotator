@@ -16,9 +16,4 @@
 
 #include "augmenter/label_boundaries.h"
 
-namespace augmenter {
-
-LabelBoundaries::LabelBoundaries(int start_, int end_)
-    : start(start_), end(end_) {}
-
-}  // namespace augmenter
+namespace augmenter {}  // namespace augmenter
