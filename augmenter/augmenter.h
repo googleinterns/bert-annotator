@@ -44,7 +44,7 @@ class Augmenter {
  private:
   bool MaybeReplaceLabel(bert_annotator::Document* const document,
                          const std::vector<std::string>& label_list,
-                         const double likelihood, RandomSampler* const sampler,
+                         const double probability, RandomSampler* const sampler,
                          const std::string& replacement_label);
   const std::vector<LabelBoundaries> LabelBoundaryList(
       const bert_annotator::Document& document,

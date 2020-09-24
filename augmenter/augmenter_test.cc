@@ -234,7 +234,7 @@ TEST(AugmenterTest, RandomizedLowercasing) {
       .WillOnce(Return(1))
       .WillOnce(Return(2))
       .WillOnce(Return(0));
-  // Phone/Address replacement likelihood.
+  // Phone/Address replacement probability.
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
       .WillRepeatedly(Return(false));
   // Lowercasing.

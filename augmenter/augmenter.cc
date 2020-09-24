@@ -106,12 +106,12 @@ void Augmenter::Augment(int augmentations_total, int augmentations_lowercase,
 
 bool Augmenter::MaybeReplaceLabel(bert_annotator::Document* const document,
                                   const std::vector<std::string>& label_list,
-                                  const double likelihood,
+                                  const double probability,
                                   RandomSampler* const sampler,
                                   const std::string& replacement_label) {
   const std::vector<LabelBoundaries>& boundary_list =
       LabelBoundaryList(*document, label_list);
-  const bool do_replace = absl::Bernoulli(bitgenref_, likelihood);
+  const bool do_replace = absl::Bernoulli(bitgenref_, probability);
   if (do_replace && !boundary_list.empty()) {
     const int boundary_index = absl::Uniform(bitgenref_, static_cast<size_t>(0),
                                              boundary_list.size() - 1);
