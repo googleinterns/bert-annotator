@@ -126,17 +126,14 @@ void Augmenter::ReplaceTokens(bert_annotator::Document* const document,
   const int string_end = document->token(boundaries.end).end();
 
   // Replace the content of document->text().
-  std::vector<char> new_text_bytes = std::vector<char>();
-  new_text_bytes.insert(new_text_bytes.end(), document->mutable_text()->begin(),
-                        document->mutable_text()->begin() + string_start);
-  new_text_bytes.insert(new_text_bytes.end(), replacement.begin(),
-                        replacement.end());
+  std::string new_text;
+  new_text.append(document->mutable_text()->begin(),
+                  document->mutable_text()->begin() + string_start);
+  new_text.append(replacement);
   if (static_cast<int>(document->text().size()) > string_end) {
-    new_text_bytes.insert(new_text_bytes.end(),
-                          document->mutable_text()->begin() + string_end + 1,
-                          document->mutable_text()->end());
+    new_text.append(document->mutable_text()->begin() + string_end + 1,
+                    document->mutable_text()->end());
   }
-  const std::string new_text(new_text_bytes.begin(), new_text_bytes.end());
   document->set_text(new_text);
 
   // Replace the tokens. The first one summarizes the new content, all remaining
@@ -230,7 +227,7 @@ const std::vector<LabelBoundaries> Augmenter::LabelBoundaryList(
 void Augmenter::Lowercase(
     bert_annotator::Document* const augmented_document) const {
   std::string* const text = augmented_document->mutable_text();
-  std::vector<char> new_text_bytes = std::vector<char>();
+  std::string new_text;
   int text_index = 0;
   for (int j = 0; j < augmented_document->token_size(); ++j) {
     bert_annotator::Token* const token = augmented_document->mutable_token(j);
@@ -239,19 +236,16 @@ void Augmenter::Lowercase(
     const int token_start = token->start();
     const int token_end = token->end();
     if (text_index < token_start) {
-      new_text_bytes.insert(new_text_bytes.end(), text->begin() + text_index,
-                            text->begin() + token_start);
+      new_text.append(text->begin() + text_index, text->begin() + token_start);
     }
 
     // Transforms the token to lowercase.
     std::string* const word = token->mutable_word();
     absl::AsciiStrToLower(word);
-    new_text_bytes.insert(new_text_bytes.end(), word->begin(), word->end());
+    new_text.append(*word);
     text_index = token_end + 1;
   }
-  new_text_bytes.insert(new_text_bytes.end(), text->begin() + text_index,
-                        text->end());
-  const std::string new_text(new_text_bytes.begin(), new_text_bytes.end());
+  new_text.append(text->begin() + text_index, text->end());
   augmented_document->set_text(new_text);
 }
 
