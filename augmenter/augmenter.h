@@ -18,6 +18,7 @@
 #define AUGMENTER_AUGMENTER_H_
 
 #include <string>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -43,18 +44,15 @@ class Augmenter {
   const bert_annotator::Documents documents() const;
 
  private:
-  template <std::size_t SIZE>
   bool MaybeReplaceLabel(bert_annotator::Document* const document,
-                         const std::array<absl::string_view, SIZE>& label_list,
                          const double probability, RandomSampler* const sampler,
                          const absl::string_view replacement_label);
   // Finds all token sequences labeled according to the given label list. If
   // multiple sequential tokens have different labels, but all are given in the
   // list, they are concidered to be part of the same sequence.
-  template <std::size_t SIZE>
   const std::vector<LabelBoundaries> LabelBoundaryList(
       const bert_annotator::Document& document,
-      const std::array<absl::string_view, SIZE>& labels) const;
+      const absl::string_view label) const;
   void ReplaceTokens(bert_annotator::Document* const document,
                      const LabelBoundaries& boundaries,
                      const std::string& replacement,
@@ -65,18 +63,9 @@ class Augmenter {
   bert_annotator::Documents documents_;
   RandomSampler* const address_sampler_;
   RandomSampler* const phone_sampler_;
-  static constexpr std::array<absl::string_view, 8> kAddressLabels = {
-      "LOCALITY",
-      "COUNTRY",
-      "ADMINISTRATIVE_AREA",
-      "THOROUGHFARE",
-      "THOROUGHFARE_NUMBER",
-      "PREMISE",
-      "POSTAL_CODE",
-      "PREMISE_LEVEL"};
+  static const std::unordered_set<std::string> kAddressLabels;
   static constexpr absl::string_view kAddressReplacementLabel = "ADDRESS";
-  static constexpr std::array<absl::string_view, 1> kPhoneLabels = {
-      "TELEPHONE"};
+  static const std::unordered_set<std::string> kPhoneLabels;
   static constexpr absl::string_view kPhoneReplacementLabel = "TELEPHONE";
   absl::BitGenRef bitgenref_;
   absl::BitGen bitgen_;

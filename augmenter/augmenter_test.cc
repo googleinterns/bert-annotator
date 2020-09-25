@@ -624,7 +624,42 @@ TEST(AugmenterTest, DontReplaceAddress) {
                     /*phones=*/0);
 
   ASSERT_EQ(augmenter.documents().documents_size(), 2);
-  ExpectEq(documents.documents(0), augmenter.documents().documents(1));
+  const auto augmented = augmenter.documents().documents(1);
+  const auto expected =
+      ConstructBertDocument(
+          {DocumentSpec("Visit Zurich! Thanks.",
+                        {TokenSpec("Visit", 0, 4), TokenSpec("Zurich", 6, 11),
+                         TokenSpec("Thanks", 13, 18)},
+                        {{"lucid", {LabelSpec("ADDRESS", 1, 1)}}})})
+          .documents(0);
+  ExpectEq(augmented, expected);
+}
+
+// Replacing addresses is very similiar to replacing phone numbers, so not all
+// respective tests are repeated here.
+TEST(AugmenterTest, UpdateLabels) {
+  bert_annotator::Documents documents = ConstructBertDocument(
+      {DocumentSpec("Visit Zurich! Thanks.",
+                    {TokenSpec("Visit", 0, 4), TokenSpec("Zurich", 6, 11),
+                     TokenSpec("Thanks", 13, 18)},
+                    {{"lucid", {LabelSpec("LOCALITY", 1, 1)}}})});
+  MockRandomSampler address_sampler;
+  MockRandomSampler phone_sampler;
+  Augmenter augmenter = Augmenter(documents, &address_sampler, &phone_sampler);
+
+  augmenter.Augment(/*total=*/0, /*lowercase=*/0, /*addresses=*/0,
+                    /*phones=*/0);
+
+  ASSERT_EQ(augmenter.documents().documents_size(), 1);
+  const auto augmented = augmenter.documents().documents(0);
+  const auto expected =
+      ConstructBertDocument(
+          {DocumentSpec("Visit Zurich! Thanks.",
+                        {TokenSpec("Visit", 0, 4), TokenSpec("Zurich", 6, 11),
+                         TokenSpec("Thanks", 13, 18)},
+                        {{"lucid", {LabelSpec("ADDRESS", 1, 1)}}})})
+          .documents(0);
+  ExpectEq(augmented, expected);
 }
 
 TEST(AugmenterTest, ReplaceAddressSameLength) {

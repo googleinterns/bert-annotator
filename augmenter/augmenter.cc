@@ -17,6 +17,7 @@
 #include "augmenter/augmenter.h"
 
 #include <string>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -35,7 +36,24 @@ Augmenter::Augmenter(const bert_annotator::Documents& documents,
     : documents_(documents),
       address_sampler_(address_sampler),
       phone_sampler_(phone_sampler),
-      bitgenref_(bitgenref) {}
+      bitgenref_(bitgenref) {
+  // The input uses more detailed address labels. To have a consistent output,
+  // all those labels have to be switched to the generall "ADDRESS" label.
+  for (auto& document : *documents_.mutable_documents()) {
+    if (document.labeled_spans().find("lucid") ==
+        document.labeled_spans().end()) {
+      continue;
+    }
+    auto labeled_spans =
+        document.mutable_labeled_spans()->at("lucid").mutable_labeled_span();
+    for (auto& labeled_span : *labeled_spans) {
+      if (Augmenter::kAddressLabels.count(labeled_span.label())) {
+        labeled_span.set_label(
+            std::string(Augmenter::kAddressReplacementLabel));
+      }
+    }
+  }
+}
 
 Augmenter::Augmenter(const bert_annotator::Documents& documents,
                      RandomSampler* const address_sampler,
@@ -57,7 +75,7 @@ void Augmenter::Augment(int augmentations_total, int augmentations_lowercase,
     augmented_document->CopyFrom(original_document);
 
     const bool replaced_address = MaybeReplaceLabel(
-        augmented_document, Augmenter::kAddressLabels,
+        augmented_document,
         static_cast<double>(augmentations_address) /
             augmentations_remaining_total,
         address_sampler_, Augmenter::kAddressReplacementLabel);
@@ -67,7 +85,7 @@ void Augmenter::Augment(int augmentations_total, int augmentations_lowercase,
     }
 
     const bool replaced_phone =
-        MaybeReplaceLabel(augmented_document, Augmenter::kPhoneLabels,
+        MaybeReplaceLabel(augmented_document,
                           static_cast<double>(augmentations_phone) /
                               augmentations_remaining_total,
                           phone_sampler_, Augmenter::kPhoneReplacementLabel);
@@ -98,21 +116,19 @@ void Augmenter::Augment(int augmentations_total, int augmentations_lowercase,
   }
 }
 
-template <std::size_t SIZE>
-bool Augmenter::MaybeReplaceLabel(
-    bert_annotator::Document* const document,
-    const std::array<absl::string_view, SIZE>& label_list,
-    const double probability, RandomSampler* const sampler,
-    const absl::string_view replacement_label) {
+bool Augmenter::MaybeReplaceLabel(bert_annotator::Document* const document,
+                                  const double probability,
+                                  RandomSampler* const sampler,
+                                  const absl::string_view label) {
   const std::vector<LabelBoundaries>& boundary_list =
-      LabelBoundaryList(*document, label_list);
+      LabelBoundaryList(*document, label);
   const bool do_replace = absl::Bernoulli(bitgenref_, probability);
   if (do_replace && !boundary_list.empty()) {
     const int boundary_index = absl::Uniform(bitgenref_, static_cast<size_t>(0),
                                              boundary_list.size() - 1);
     const LabelBoundaries boundaries = boundary_list[boundary_index];
     const std::string replacement = sampler->Sample();
-    ReplaceTokens(document, boundaries, replacement, replacement_label);
+    ReplaceTokens(document, boundaries, replacement, label);
     return true;
   }
   return false;
@@ -191,10 +207,9 @@ void Augmenter::ReplaceTokens(bert_annotator::Document* const document,
       labeled_spans->begin() + delete_end);  // delete_end is exclusive.
 }
 
-template <std::size_t SIZE>
 const std::vector<LabelBoundaries> Augmenter::LabelBoundaryList(
     const bert_annotator::Document& document,
-    const std::array<absl::string_view, SIZE>& labels) const {
+    const absl::string_view label) const {
   if (document.labeled_spans().find("lucid") ==
       document.labeled_spans().end()) {
     return {};
@@ -207,8 +222,7 @@ const std::vector<LabelBoundaries> Augmenter::LabelBoundaryList(
   std::vector<LabelBoundaries> boundary_list = {};
   for (int i = 0; i < labeled_spans.size(); ++i) {
     const auto labeled_span = labeled_spans[i];
-    if (std::find(labels.begin(), labels.end(), labeled_span.label()) !=
-        labels.end()) {
+    if (labeled_span.label().compare(std::string(label)) == 0) {
       boundary_list.push_back(
           LabelBoundaries{.start = labeled_span.token_start(),
                           .end = labeled_span.token_end()});
@@ -253,11 +267,19 @@ const bert_annotator::Documents Augmenter::documents() const {
   return documents_;
 }
 
-constexpr std::array<absl::string_view, 8> Augmenter::kAddressLabels;
+const std::unordered_set<std::string> Augmenter::kAddressLabels = {
+    "LOCALITY",
+    "COUNTRY",
+    "ADMINISTRATIVE_AREA",
+    "THOROUGHFARE",
+    "THOROUGHFARE_NUMBER",
+    "PREMISE",
+    "POSTAL_CODE",
+    "PREMISE_LEVEL"};
 
 constexpr absl::string_view Augmenter::kAddressReplacementLabel;
 
-constexpr std::array<absl::string_view, 1> Augmenter::kPhoneLabels;
+const std::unordered_set<std::string> Augmenter::kPhoneLabels = {"TELEPHONE"};
 
 constexpr absl::string_view Augmenter::kPhoneReplacementLabel;
 
