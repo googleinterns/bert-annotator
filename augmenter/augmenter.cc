@@ -145,20 +145,18 @@ bool Augmenter::MaybeReplaceLabel(bert_annotator::Document* const document,
                                              boundary_list.size() - 1);
     const LabelBoundaries boundaries = boundary_list[boundary_index];
     const std::string replacement = sampler->Sample();
-    ReplaceTokens(document, boundaries, replacement, label);
+    Replace(document, boundaries, replacement, label);
     return true;
   }
   return false;
 }
 
-void Augmenter::ReplaceTokens(bert_annotator::Document* const document,
-                              const LabelBoundaries& boundaries,
-                              const std::string& replacement,
-                              const absl::string_view replacement_label) const {
+// Replace the content of document->text().
+void Augmenter::ReplaceText(bert_annotator::Document* const document,
+                            const LabelBoundaries& boundaries,
+                            const std::string& replacement) const {
   const int string_start = document->token(boundaries.start).start();
   const int string_end = document->token(boundaries.end).end();
-
-  // Replace the content of document->text().
   std::string new_text;
   new_text.append(document->mutable_text()->begin(),
                   document->mutable_text()->begin() + string_start);
@@ -168,9 +166,13 @@ void Augmenter::ReplaceTokens(bert_annotator::Document* const document,
                     document->mutable_text()->end());
   }
   document->set_text(new_text);
+}
 
-  // Replace the tokens. The first one summarizes the new content, all remaining
-  // ones can be deleted. This introduces tokens longer than one word.
+// Replace the tokens. The first one summarizes the new content, all remaining
+// ones can be deleted. This introduces tokens longer than one word.
+void Augmenter::ReplaceTokens(bert_annotator::Document* const document,
+                              const LabelBoundaries& boundaries,
+                              const std::string& replacement) const {
   document->mutable_token(boundaries.start)
       ->set_end(document->token(boundaries.end).end());
   document->mutable_token(boundaries.start)->set_word(replacement);
@@ -180,9 +182,15 @@ void Augmenter::ReplaceTokens(bert_annotator::Document* const document,
         document->mutable_token()->begin() + boundaries.end +
             1);  // boundaries.end is inclusive.
   }
+}
 
-  // Update the start and end bytes of all tokens following the replaced
-  // sequence.
+// Update the start and end bytes of all tokens following the replaced
+// sequence.
+void Augmenter::UpdateTokenBoundaries(bert_annotator::Document* const document,
+                                      const LabelBoundaries& boundaries,
+                                      const std::string& replacement) const {
+  const int string_start = document->token(boundaries.start).start();
+  const int string_end = document->token(boundaries.start).end();
   const int length_increase =
       replacement.size() - (string_end - string_start + 1);
   for (auto& token : *document->mutable_token()) {
@@ -193,9 +201,13 @@ void Augmenter::ReplaceTokens(bert_annotator::Document* const document,
       token.set_end(token.end() + length_increase);
     }
   }
+}
 
-  // Replace the labeled spans. The first one summarizes the new content, all
-  // remaining ones can be deleted.
+// Replace the labeled spans. The first one summarizes the new content, all
+// remaining ones can be deleted.
+void Augmenter::ReplaceLabeledSpans(
+    bert_annotator::Document* const document, const LabelBoundaries& boundaries,
+    const absl::string_view replacement_label) const {
   int delete_start = 0;
   int delete_end = 0;
   auto labeled_spans =
@@ -222,6 +234,16 @@ void Augmenter::ReplaceTokens(bert_annotator::Document* const document,
   labeled_spans->erase(
       labeled_spans->begin() + delete_start,
       labeled_spans->begin() + delete_end);  // delete_end is exclusive.
+}
+
+void Augmenter::Replace(bert_annotator::Document* const document,
+                        const LabelBoundaries& boundaries,
+                        const std::string& replacement,
+                        const absl::string_view replacement_label) const {
+  ReplaceText(document, boundaries, replacement);
+  ReplaceTokens(document, boundaries, replacement);
+  UpdateTokenBoundaries(document, boundaries, replacement);
+  ReplaceLabeledSpans(document, boundaries, replacement_label);
 }
 
 const std::vector<LabelBoundaries> Augmenter::LabelBoundaryList(

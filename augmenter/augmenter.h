@@ -56,10 +56,22 @@ class Augmenter {
   const std::vector<LabelBoundaries> LabelBoundaryList(
       const bert_annotator::Document& document,
       const absl::string_view label) const;
+  void ReplaceText(bert_annotator::Document* const document,
+                   const LabelBoundaries& boundaries,
+                   const std::string& replacement) const;
   void ReplaceTokens(bert_annotator::Document* const document,
                      const LabelBoundaries& boundaries,
-                     const std::string& replacement,
-                     const absl::string_view replacement_label) const;
+                     const std::string& replacement) const;
+  void UpdateTokenBoundaries(bert_annotator::Document* const document,
+                             const LabelBoundaries& boundaries,
+                             const std::string& replacement) const;
+  void ReplaceLabeledSpans(bert_annotator::Document* const document,
+                           const LabelBoundaries& boundaries,
+                           const absl::string_view replacement_label) const;
+  void Replace(bert_annotator::Document* const document,
+               const LabelBoundaries& boundaries,
+               const std::string& replacement,
+               const absl::string_view replacement_label) const;
   // Transforms the text to lowercase. Only explicitly listed tokens are
   // transformed.
   void Lowercase(bert_annotator::Document* const document) const;
