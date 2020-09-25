@@ -68,9 +68,9 @@ Augmenter::Augmenter(const bert_annotator::Documents& documents,
 bool Augmenter::AugmentAddress(
     bert_annotator::Document* const augmented_document) {
   const bool replaced_address = MaybeReplaceLabel(
-      augmented_document,
       static_cast<double>(augmentations_.address) / augmentations_.total,
-      address_sampler_, Augmenter::kAddressReplacementLabel);
+      address_sampler_, Augmenter::kAddressReplacementLabel,
+      augmented_document);
   if (replaced_address) {
     --augmentations_.address;
     return true;
@@ -81,9 +81,8 @@ bool Augmenter::AugmentAddress(
 bool Augmenter::AugmentPhone(
     bert_annotator::Document* const augmented_document) {
   const bool replaced_phone = MaybeReplaceLabel(
-      augmented_document,
       static_cast<double>(augmentations_.phone) / augmentations_.total,
-      phone_sampler_, Augmenter::kPhoneReplacementLabel);
+      phone_sampler_, Augmenter::kPhoneReplacementLabel, augmented_document);
   if (replaced_phone) {
     --augmentations_.phone;
     return true;
@@ -133,10 +132,10 @@ void Augmenter::Augment() {
   }
 }
 
-bool Augmenter::MaybeReplaceLabel(bert_annotator::Document* const document,
-                                  const double probability,
+bool Augmenter::MaybeReplaceLabel(const double probability,
                                   RandomSampler* const sampler,
-                                  const absl::string_view label) {
+                                  const absl::string_view label,
+                                  bert_annotator::Document* const document) {
   const std::vector<LabelBoundaries>& boundary_list =
       LabelBoundaryList(*document, label);
   const bool do_replace = absl::Bernoulli(bitgenref_, probability);
@@ -145,15 +144,15 @@ bool Augmenter::MaybeReplaceLabel(bert_annotator::Document* const document,
                                              boundary_list.size() - 1);
     const LabelBoundaries boundaries = boundary_list[boundary_index];
     const std::string replacement = sampler->Sample();
-    Replace(document, boundaries, replacement, label);
+    Replace(boundaries, replacement, label, document);
     return true;
   }
   return false;
 }
 
-void Augmenter::ReplaceText(bert_annotator::Document* const document,
-                            const LabelBoundaries& boundaries,
-                            const std::string& replacement) const {
+void Augmenter::ReplaceText(const LabelBoundaries& boundaries,
+                            const std::string& replacement,
+                            bert_annotator::Document* const document) const {
   const int string_start = document->token(boundaries.start).start();
   const int string_end = document->token(boundaries.end).end();
   std::string new_text;
@@ -167,9 +166,9 @@ void Augmenter::ReplaceText(bert_annotator::Document* const document,
   document->set_text(new_text);
 }
 
-void Augmenter::ReplaceTokens(bert_annotator::Document* const document,
-                              const LabelBoundaries& boundaries,
-                              const std::string& replacement) const {
+void Augmenter::ReplaceTokens(const LabelBoundaries& boundaries,
+                              const std::string& replacement,
+                              bert_annotator::Document* const document) const {
   document->mutable_token(boundaries.start)
       ->set_end(document->token(boundaries.end).end());
   document->mutable_token(boundaries.start)->set_word(replacement);
@@ -181,9 +180,9 @@ void Augmenter::ReplaceTokens(bert_annotator::Document* const document,
   }
 }
 
-void Augmenter::UpdateTokenBoundaries(bert_annotator::Document* const document,
-                                      const LabelBoundaries& boundaries,
-                                      const std::string& replacement) const {
+void Augmenter::UpdateTokenBoundaries(
+    const LabelBoundaries& boundaries, const std::string& replacement,
+    bert_annotator::Document* const document) const {
   const int string_start = document->token(boundaries.start).start();
   const int string_end = document->token(boundaries.start).end();
   const int length_increase =
@@ -199,8 +198,9 @@ void Augmenter::UpdateTokenBoundaries(bert_annotator::Document* const document,
 }
 
 void Augmenter::ReplaceLabeledSpans(
-    bert_annotator::Document* const document, const LabelBoundaries& boundaries,
-    const absl::string_view replacement_label) const {
+    const LabelBoundaries& boundaries,
+    const absl::string_view replacement_label,
+    bert_annotator::Document* const document) const {
   int delete_start = 0;
   int delete_end = 0;
   auto labeled_spans =
@@ -229,14 +229,14 @@ void Augmenter::ReplaceLabeledSpans(
       labeled_spans->begin() + delete_end);  // delete_end is exclusive.
 }
 
-void Augmenter::Replace(bert_annotator::Document* const document,
-                        const LabelBoundaries& boundaries,
+void Augmenter::Replace(const LabelBoundaries& boundaries,
                         const std::string& replacement,
-                        const absl::string_view replacement_label) const {
-  ReplaceText(document, boundaries, replacement);
-  ReplaceTokens(document, boundaries, replacement);
-  UpdateTokenBoundaries(document, boundaries, replacement);
-  ReplaceLabeledSpans(document, boundaries, replacement_label);
+                        const absl::string_view replacement_label,
+                        bert_annotator::Document* const document) const {
+  ReplaceText(boundaries, replacement, document);
+  ReplaceTokens(boundaries, replacement, document);
+  UpdateTokenBoundaries(boundaries, replacement, document);
+  ReplaceLabeledSpans(boundaries, replacement_label, document);
 }
 
 const std::vector<LabelBoundaries> Augmenter::LabelBoundaryList(

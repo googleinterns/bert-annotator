@@ -47,32 +47,32 @@ class Augmenter {
   bool AugmentAddress(bert_annotator::Document* const augmented_document);
   bool AugmentPhone(bert_annotator::Document* const augmented_document);
   bool AugmentLowercase(bert_annotator::Document* const augmented_document);
-  bool MaybeReplaceLabel(bert_annotator::Document* const document,
-                         const double probability, RandomSampler* const sampler,
-                         const absl::string_view replacement_label);
+  bool MaybeReplaceLabel(const double probability, RandomSampler* const sampler,
+                         const absl::string_view replacement_label,
+                         bert_annotator::Document* const document);
   // Finds all token sequences labeled according to the given label list. If
   // multiple sequential tokens have different labels, but all are given in
   // the list, they are concidered to be part of the same sequence.
   const std::vector<LabelBoundaries> LabelBoundaryList(
       const bert_annotator::Document& document,
       const absl::string_view label) const;
-  void ReplaceText(bert_annotator::Document* const document,
-                   const LabelBoundaries& boundaries,
-                   const std::string& replacement) const;
+  void ReplaceText(const LabelBoundaries& boundaries,
+                   const std::string& replacement,
+                   bert_annotator::Document* const document) const;
   // May introduce tokens longer than one word.
-  void ReplaceTokens(bert_annotator::Document* const document,
-                     const LabelBoundaries& boundaries,
-                     const std::string& replacement) const;
-  void UpdateTokenBoundaries(bert_annotator::Document* const document,
-                             const LabelBoundaries& boundaries,
-                             const std::string& replacement) const;
-  void ReplaceLabeledSpans(bert_annotator::Document* const document,
-                           const LabelBoundaries& boundaries,
-                           const absl::string_view replacement_label) const;
-  void Replace(bert_annotator::Document* const document,
-               const LabelBoundaries& boundaries,
+  void ReplaceTokens(const LabelBoundaries& boundaries,
+                     const std::string& replacement,
+                     bert_annotator::Document* const document) const;
+  void UpdateTokenBoundaries(const LabelBoundaries& boundaries,
+                             const std::string& replacement,
+                             bert_annotator::Document* const document) const;
+  void ReplaceLabeledSpans(const LabelBoundaries& boundaries,
+                           const absl::string_view replacement_label,
+                           bert_annotator::Document* const document) const;
+  void Replace(const LabelBoundaries& boundaries,
                const std::string& replacement,
-               const absl::string_view replacement_label) const;
+               const absl::string_view replacement_label,
+               bert_annotator::Document* const document) const;
   // Transforms the text to lowercase. Only explicitly listed tokens are
   // transformed.
   void Lowercase(bert_annotator::Document* const document) const;
