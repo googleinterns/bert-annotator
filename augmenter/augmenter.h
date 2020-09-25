@@ -27,8 +27,8 @@
 #include "absl/random/random.h"
 #include "absl/strings/string_view.h"
 #include "augmenter/augmentations.h"
-#include "augmenter/label_boundaries.h"
 #include "augmenter/random_sampler.h"
+#include "augmenter/token_sequence.h"
 #include "protocol_buffer/documents.pb.h"
 
 namespace augmenter {
@@ -54,23 +54,23 @@ class Augmenter {
   // Finds all token sequences labeled according to the given label list. If
   // multiple sequential tokens have different labels, but all are given in
   // the list, they are concidered to be part of the same sequence.
-  const std::vector<LabelBoundaries> LabelBoundaryList(
+  const std::vector<TokenSequence> LabelBoundaryList(
       const bert_annotator::Document& document,
       const absl::string_view label) const;
-  void ReplaceText(const LabelBoundaries& boundaries,
+  void ReplaceText(const TokenSequence& boundaries,
                    const std::string& replacement,
                    bert_annotator::Document* const document) const;
   // May introduce tokens longer than one word.
-  void ReplaceTokens(const LabelBoundaries& boundaries,
+  void ReplaceTokens(const TokenSequence& boundaries,
                      const std::string& replacement,
                      bert_annotator::Document* const document) const;
-  void UpdateTokenBoundaries(const LabelBoundaries& boundaries,
+  void UpdateTokenBoundaries(const TokenSequence& boundaries,
                              const std::string& replacement,
                              bert_annotator::Document* const document) const;
-  void ReplaceLabeledSpans(const LabelBoundaries& boundaries,
+  void ReplaceLabeledSpans(const TokenSequence& boundaries,
                            const absl::string_view replacement_label,
                            bert_annotator::Document* const document) const;
-  void Replace(const LabelBoundaries& boundaries,
+  void Replace(const TokenSequence& boundaries,
                const std::string& replacement,
                const absl::string_view replacement_label,
                bert_annotator::Document* const document) const;

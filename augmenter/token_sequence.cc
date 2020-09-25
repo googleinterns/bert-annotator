@@ -14,6 +14,6 @@
 // limitations under the License.
 //
 
-#include "augmenter/label_boundaries.h"
+#include "augmenter/token_sequence.h"
 
 namespace augmenter {}  // namespace augmenter

@@ -24,7 +24,7 @@
 #include "absl/container/flat_hash_set.h"
 #include "absl/strings/ascii.h"
 #include "augmenter/augmentations.h"
-#include "augmenter/label_boundaries.h"
+#include "augmenter/token_sequence.h"
 #include "augmenter/random_sampler.h"
 #include "protocol_buffer/document.pb.h"
 #include "protocol_buffer/documents.pb.h"
@@ -137,13 +137,13 @@ bool Augmenter::MaybeReplaceLabel(const double probability,
                                   RandomSampler* const sampler,
                                   const absl::string_view label,
                                   bert_annotator::Document* const document) {
-  const std::vector<LabelBoundaries>& boundary_list =
+  const std::vector<TokenSequence>& boundary_list =
       LabelBoundaryList(*document, label);
   const bool do_replace = absl::Bernoulli(bitgenref_, probability);
   if (do_replace && !boundary_list.empty()) {
     const int boundary_index = absl::Uniform(bitgenref_, static_cast<size_t>(0),
                                              boundary_list.size() - 1);
-    const LabelBoundaries boundaries = boundary_list[boundary_index];
+    const TokenSequence boundaries = boundary_list[boundary_index];
     const std::string replacement = sampler->Sample();
     Replace(boundaries, replacement, label, document);
     return true;
@@ -151,7 +151,7 @@ bool Augmenter::MaybeReplaceLabel(const double probability,
   return false;
 }
 
-void Augmenter::ReplaceText(const LabelBoundaries& boundaries,
+void Augmenter::ReplaceText(const TokenSequence& boundaries,
                             const std::string& replacement,
                             bert_annotator::Document* const document) const {
   const int string_start = document->token(boundaries.start).start();
@@ -167,7 +167,7 @@ void Augmenter::ReplaceText(const LabelBoundaries& boundaries,
   document->set_text(new_text);
 }
 
-void Augmenter::ReplaceTokens(const LabelBoundaries& boundaries,
+void Augmenter::ReplaceTokens(const TokenSequence& boundaries,
                               const std::string& replacement,
                               bert_annotator::Document* const document) const {
   document->mutable_token(boundaries.start)
@@ -182,7 +182,7 @@ void Augmenter::ReplaceTokens(const LabelBoundaries& boundaries,
 }
 
 void Augmenter::UpdateTokenBoundaries(
-    const LabelBoundaries& boundaries, const std::string& replacement,
+    const TokenSequence& boundaries, const std::string& replacement,
     bert_annotator::Document* const document) const {
   const int string_start = document->token(boundaries.start).start();
   const int string_end = document->token(boundaries.start).end();
@@ -199,7 +199,7 @@ void Augmenter::UpdateTokenBoundaries(
 }
 
 void Augmenter::ReplaceLabeledSpans(
-    const LabelBoundaries& boundaries,
+    const TokenSequence& boundaries,
     const absl::string_view replacement_label,
     bert_annotator::Document* const document) const {
   int delete_start = 0;
@@ -230,7 +230,7 @@ void Augmenter::ReplaceLabeledSpans(
       labeled_spans->begin() + delete_end);  // delete_end is exclusive.
 }
 
-void Augmenter::Replace(const LabelBoundaries& boundaries,
+void Augmenter::Replace(const TokenSequence& boundaries,
                         const std::string& replacement,
                         const absl::string_view replacement_label,
                         bert_annotator::Document* const document) const {
@@ -240,7 +240,7 @@ void Augmenter::Replace(const LabelBoundaries& boundaries,
   ReplaceLabeledSpans(boundaries, replacement_label, document);
 }
 
-const std::vector<LabelBoundaries> Augmenter::LabelBoundaryList(
+const std::vector<TokenSequence> Augmenter::LabelBoundaryList(
     const bert_annotator::Document& document,
     const absl::string_view label) const {
   if (document.labeled_spans().find("lucid") ==
@@ -252,12 +252,12 @@ const std::vector<LabelBoundaries> Augmenter::LabelBoundaryList(
 
   // First, select only spans labeled as one of the given labels. Then, join
   // subsequent spans.
-  std::vector<LabelBoundaries> boundary_list = {};
+  std::vector<TokenSequence> boundary_list = {};
   for (int i = 0; i < labeled_spans.size(); ++i) {
     const auto labeled_span = labeled_spans[i];
     if (labeled_span.label().compare(std::string(label)) == 0) {
       boundary_list.push_back(
-          LabelBoundaries{.start = labeled_span.token_start(),
+          TokenSequence{.start = labeled_span.token_start(),
                           .end = labeled_span.token_end()});
     }
   }

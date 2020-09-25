@@ -14,16 +14,16 @@
 // limitations under the License.
 //
 
-#ifndef AUGMENTER_LABEL_BOUNDARIES_H_
-#define AUGMENTER_LABEL_BOUNDARIES_H_
+#ifndef AUGMENTER_TOKEN_SEQUENCE_H_
+#define AUGMENTER_TOKEN_SEQUENCE_H_
 
 namespace augmenter {
 
-struct LabelBoundaries {
+struct TokenSequence {
   int start;
   int end;
 };
 
 }  // namespace augmenter
 
-#endif  // AUGMENTER_LABEL_BOUNDARIES_H_
+#endif  // AUGMENTER_TOKEN_SEQUENCE_H_
