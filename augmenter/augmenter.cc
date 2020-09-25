@@ -65,12 +65,48 @@ Augmenter::Augmenter(const bert_annotator::Documents& documents,
     : Augmenter(documents, augmentations, address_sampler, phone_sampler,
                 bitgen_) {}
 
+bool Augmenter::AugmentAddress(
+    bert_annotator::Document* const augmented_document) {
+  const bool replaced_address = MaybeReplaceLabel(
+      augmented_document,
+      static_cast<double>(augmentations_.address) / augmentations_.total,
+      address_sampler_, Augmenter::kAddressReplacementLabel);
+  if (replaced_address) {
+    --augmentations_.address;
+    return true;
+  }
+  return false;
+}
+
+bool Augmenter::AugmentPhone(
+    bert_annotator::Document* const augmented_document) {
+  const bool replaced_phone = MaybeReplaceLabel(
+      augmented_document,
+      static_cast<double>(augmentations_.phone) / augmentations_.total,
+      phone_sampler_, Augmenter::kPhoneReplacementLabel);
+  if (replaced_phone) {
+    --augmentations_.phone;
+    return true;
+  }
+  return false;
+}
+
+bool Augmenter::AugmentLowercase(
+    bert_annotator::Document* const augmented_document) {
+  const bool perform_lowercasing = absl::Bernoulli(
+      bitgenref_,
+      static_cast<double>(augmentations_.lowercase) / augmentations_.total);
+  if (perform_lowercasing) {
+    Lowercase(augmented_document);
+    --augmentations_.lowercase;
+    return true;
+  }
+  return false;
+}
+
 void Augmenter::Augment() {
   const int original_document_number = documents_.documents_size();
-  for (int i = 0; i < augmentations_.total; ++i) {
-    const int augmentations_remaining_total = augmentations_.total - i;
-    bool augmentation_performed = false;
-
+  while (augmentations_.total > 0) {
     const int document_id =
         absl::Uniform(bitgenref_, 0, original_document_number - 1);
     const bert_annotator::Document& original_document =
@@ -78,44 +114,21 @@ void Augmenter::Augment() {
     bert_annotator::Document* augmented_document = documents_.add_documents();
     augmented_document->CopyFrom(original_document);
 
-    const bool replaced_address = MaybeReplaceLabel(
-        augmented_document,
-        static_cast<double>(augmentations_.address) /
-            augmentations_remaining_total,
-        address_sampler_, Augmenter::kAddressReplacementLabel);
-    if (replaced_address) {
-      augmentation_performed = true;
-      --augmentations_.address;
-    }
-
-    const bool replaced_phone =
-        MaybeReplaceLabel(augmented_document,
-                          static_cast<double>(augmentations_.phone) /
-                              augmentations_remaining_total,
-                          phone_sampler_, Augmenter::kPhoneReplacementLabel);
-    if (replaced_phone) {
-      augmentation_performed = true;
-      --augmentations_.phone;
-    }
-
-    const bool perform_lowercasing = absl::Bernoulli(
-        bitgenref_, static_cast<double>(augmentations_.lowercase) /
-                        augmentations_remaining_total);
-    if (perform_lowercasing) {
-      Lowercase(augmented_document);
-      --augmentations_.lowercase;
-      augmentation_performed = true;
-    }
+    bool augmentation_performed = false;
+    augmentation_performed |= AugmentAddress(augmented_document);
+    augmentation_performed |= AugmentPhone(augmented_document);
+    augmentation_performed |= AugmentLowercase(augmented_document);
 
     // If no action was performed and all remaining augmentations have to
     // perform at least one action, drop this sample. It's identical to the
     // original document. Repeat this augmentation iteration.
     if (!augmentation_performed &&
-        augmentations_remaining_total == augmentations_.lowercase +
-                                             augmentations_.address +
-                                             augmentations_.phone) {
+        augmentations_.total == augmentations_.lowercase +
+                                    augmentations_.address +
+                                    augmentations_.phone) {
       documents_.mutable_documents()->RemoveLast();
-      --i;
+    } else {
+      --augmentations_.total;
     }
   }
 }

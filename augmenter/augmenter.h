@@ -44,12 +44,15 @@ class Augmenter {
   const bert_annotator::Documents documents() const;
 
  private:
+  bool AugmentAddress(bert_annotator::Document* const augmented_document);
+  bool AugmentPhone(bert_annotator::Document* const augmented_document);
+  bool AugmentLowercase(bert_annotator::Document* const augmented_document);
   bool MaybeReplaceLabel(bert_annotator::Document* const document,
                          const double probability, RandomSampler* const sampler,
                          const absl::string_view replacement_label);
   // Finds all token sequences labeled according to the given label list. If
-  // multiple sequential tokens have different labels, but all are given in the
-  // list, they are concidered to be part of the same sequence.
+  // multiple sequential tokens have different labels, but all are given in
+  // the list, they are concidered to be part of the same sequence.
   const std::vector<LabelBoundaries> LabelBoundaryList(
       const bert_annotator::Document& document,
       const absl::string_view label) const;
