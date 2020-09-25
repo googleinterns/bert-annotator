@@ -59,6 +59,7 @@ class Augmenter {
   void ReplaceText(bert_annotator::Document* const document,
                    const LabelBoundaries& boundaries,
                    const std::string& replacement) const;
+  // May introduce tokens longer than one word.
   void ReplaceTokens(bert_annotator::Document* const document,
                      const LabelBoundaries& boundaries,
                      const std::string& replacement) const;

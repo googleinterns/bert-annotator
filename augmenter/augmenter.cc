@@ -151,7 +151,6 @@ bool Augmenter::MaybeReplaceLabel(bert_annotator::Document* const document,
   return false;
 }
 
-// Replace the content of document->text().
 void Augmenter::ReplaceText(bert_annotator::Document* const document,
                             const LabelBoundaries& boundaries,
                             const std::string& replacement) const {
@@ -168,8 +167,6 @@ void Augmenter::ReplaceText(bert_annotator::Document* const document,
   document->set_text(new_text);
 }
 
-// Replace the tokens. The first one summarizes the new content, all remaining
-// ones can be deleted. This introduces tokens longer than one word.
 void Augmenter::ReplaceTokens(bert_annotator::Document* const document,
                               const LabelBoundaries& boundaries,
                               const std::string& replacement) const {
@@ -184,8 +181,6 @@ void Augmenter::ReplaceTokens(bert_annotator::Document* const document,
   }
 }
 
-// Update the start and end bytes of all tokens following the replaced
-// sequence.
 void Augmenter::UpdateTokenBoundaries(bert_annotator::Document* const document,
                                       const LabelBoundaries& boundaries,
                                       const std::string& replacement) const {
@@ -203,8 +198,6 @@ void Augmenter::UpdateTokenBoundaries(bert_annotator::Document* const document,
   }
 }
 
-// Replace the labeled spans. The first one summarizes the new content, all
-// remaining ones can be deleted.
 void Augmenter::ReplaceLabeledSpans(
     bert_annotator::Document* const document, const LabelBoundaries& boundaries,
     const absl::string_view replacement_label) const {
