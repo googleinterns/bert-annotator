@@ -7,10 +7,17 @@ cc_library(
 )
 
 cc_library(
+  name = "augmentations",
+  srcs = ["augmentations.cc"],
+  hdrs = ["augmentations.h"],
+)
+
+cc_library(
   name = "augmenter",
   srcs = ["augmenter.cc"],
   hdrs = ["augmenter.h"],
   deps = [
+    ':augmentations',
     ":random_sampler",
     ":label_boundaries",
     "//protocol_buffer:documents_cc_proto",
@@ -26,6 +33,7 @@ cc_test (
     "augmenter_test.cc"
   ],
   deps = [
+    ':augmentations',
     ":augmenter",
     "//protocol_buffer:documents_cc_proto",
     "@com_google_absl//absl/flags:flag",
@@ -81,6 +89,7 @@ cc_binary(
   name = "main",
   srcs = ["main.cc"],
   deps = [
+    ':augmentations',
     ":augmenter",
     ":random_sampler",
     ":textproto_io",

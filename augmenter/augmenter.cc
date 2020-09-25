@@ -22,6 +22,7 @@
 #include <vector>
 
 #include "absl/strings/ascii.h"
+#include "augmenter/augmentations.h"
 #include "augmenter/label_boundaries.h"
 #include "augmenter/random_sampler.h"
 #include "protocol_buffer/document.pb.h"
@@ -30,12 +31,14 @@
 namespace augmenter {
 
 Augmenter::Augmenter(const bert_annotator::Documents& documents,
+                     Augmentations augmentations,
                      RandomSampler* const address_sampler,
                      RandomSampler* const phone_sampler,
                      absl::BitGenRef bitgenref)
     : documents_(documents),
       address_sampler_(address_sampler),
       phone_sampler_(phone_sampler),
+      augmentations_(augmentations),
       bitgenref_(bitgenref) {
   // The input uses more detailed address labels. To have a consistent output,
   // all those labels have to be switched to the generall "ADDRESS" label.
@@ -56,15 +59,16 @@ Augmenter::Augmenter(const bert_annotator::Documents& documents,
 }
 
 Augmenter::Augmenter(const bert_annotator::Documents& documents,
+                     Augmentations augmentations,
                      RandomSampler* const address_sampler,
                      RandomSampler* const phone_sampler)
-    : Augmenter(documents, address_sampler, phone_sampler, bitgen_) {}
+    : Augmenter(documents, augmentations, address_sampler, phone_sampler,
+                bitgen_) {}
 
-void Augmenter::Augment(int augmentations_total, int augmentations_lowercase,
-                        int augmentations_address, int augmentations_phone) {
+void Augmenter::Augment() {
   const int original_document_number = documents_.documents_size();
-  for (int i = 0; i < augmentations_total; ++i) {
-    const int augmentations_remaining_total = augmentations_total - i;
+  for (int i = 0; i < augmentations_.total; ++i) {
+    const int augmentations_remaining_total = augmentations_.total - i;
     bool augmentation_performed = false;
 
     const int document_id =
@@ -76,30 +80,30 @@ void Augmenter::Augment(int augmentations_total, int augmentations_lowercase,
 
     const bool replaced_address = MaybeReplaceLabel(
         augmented_document,
-        static_cast<double>(augmentations_address) /
+        static_cast<double>(augmentations_.address) /
             augmentations_remaining_total,
         address_sampler_, Augmenter::kAddressReplacementLabel);
     if (replaced_address) {
       augmentation_performed = true;
-      --augmentations_address;
+      --augmentations_.address;
     }
 
     const bool replaced_phone =
         MaybeReplaceLabel(augmented_document,
-                          static_cast<double>(augmentations_phone) /
+                          static_cast<double>(augmentations_.phone) /
                               augmentations_remaining_total,
                           phone_sampler_, Augmenter::kPhoneReplacementLabel);
     if (replaced_phone) {
       augmentation_performed = true;
-      --augmentations_phone;
+      --augmentations_.phone;
     }
 
     const bool perform_lowercasing = absl::Bernoulli(
-        bitgenref_, static_cast<double>(augmentations_lowercase) /
+        bitgenref_, static_cast<double>(augmentations_.lowercase) /
                         augmentations_remaining_total);
     if (perform_lowercasing) {
       Lowercase(augmented_document);
-      --augmentations_lowercase;
+      --augmentations_.lowercase;
       augmentation_performed = true;
     }
 
@@ -107,9 +111,9 @@ void Augmenter::Augment(int augmentations_total, int augmentations_lowercase,
     // perform at least one action, drop this sample. It's identical to the
     // original document. Repeat this augmentation iteration.
     if (!augmentation_performed &&
-        augmentations_remaining_total == augmentations_lowercase +
-                                             augmentations_address +
-                                             augmentations_phone) {
+        augmentations_remaining_total == augmentations_.lowercase +
+                                             augmentations_.address +
+                                             augmentations_.phone) {
       documents_.mutable_documents()->RemoveLast();
       --i;
     }

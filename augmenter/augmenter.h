@@ -25,6 +25,7 @@
 #include "absl/random/bit_gen_ref.h"
 #include "absl/random/random.h"
 #include "absl/strings/string_view.h"
+#include "augmenter/augmentations.h"
 #include "augmenter/label_boundaries.h"
 #include "augmenter/random_sampler.h"
 #include "protocol_buffer/documents.pb.h"
@@ -34,13 +35,12 @@ namespace augmenter {
 class Augmenter {
  public:
   Augmenter(const bert_annotator::Documents& documents,
-            RandomSampler* const address_sampler,
+            Augmentations augmentations, RandomSampler* const address_sampler,
             RandomSampler* const phone_sampler);
   Augmenter(const bert_annotator::Documents& documents,
-            RandomSampler* const address_sampler,
+            Augmentations augmentations, RandomSampler* const address_sampler,
             RandomSampler* const phone_sampler, absl::BitGenRef bitgen);
-  void Augment(const int augmentations_total, const int augmentations_lowercase,
-               const int augmentations_address, const int augmentations_phone);
+  void Augment();
   const bert_annotator::Documents documents() const;
 
  private:
@@ -63,6 +63,7 @@ class Augmenter {
   bert_annotator::Documents documents_;
   RandomSampler* const address_sampler_;
   RandomSampler* const phone_sampler_;
+  Augmentations augmentations_;
   static const std::unordered_set<std::string> kAddressLabels;
   static constexpr absl::string_view kAddressReplacementLabel = "ADDRESS";
   static const std::unordered_set<std::string> kPhoneLabels;
