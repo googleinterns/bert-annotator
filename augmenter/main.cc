@@ -36,6 +36,9 @@ ABSL_FLAG(std::string, phones_path, "",
           "Path to list of alternative phone number");
 ABSL_FLAG(int, phones, 0,
           "Number of augmentations by phone number replacement");
+ABSL_FLAG(int, context, 0,
+          "Number of augmentations by dropping some (leading and/or trailing) "
+          "context");
 
 // Augments the dataset by applying configurable actions, see defined flags.
 int main(int argc, char* argv[]) {
@@ -52,6 +55,7 @@ int main(int argc, char* argv[]) {
   const int augmentations_addresses = absl::GetFlag(FLAGS_addresses);
   const std::string phones_path = absl::GetFlag(FLAGS_phones_path);
   const int augmentations_phones = absl::GetFlag(FLAGS_phones);
+  const int augmentations_context = absl::GetFlag(FLAGS_context);
 
   for (const std::string& corpus : corpora) {
     augmenter::TextprotoIO textproto_io = augmenter::TextprotoIO();
@@ -89,9 +93,10 @@ int main(int argc, char* argv[]) {
     augmenter::RandomSampler phones_sampler(phones_stream);
 
     augmenter::Augmentations augmentations{.total = augmentations_total,
-                                .lowercase = augmentations_lowercase,
-                                .address = augmentations_addresses,
-                                .phone = augmentations_phones};
+                                           .lowercase = augmentations_lowercase,
+                                           .address = augmentations_addresses,
+                                           .phone = augmentations_phones,
+                                           .context = augmentations_context};
     augmenter::Augmenter augmenter =
         augmenter::Augmenter(textproto_io.documents(), augmentations,
                              &address_sampler, &phones_sampler);

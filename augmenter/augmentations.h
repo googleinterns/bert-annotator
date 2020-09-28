@@ -24,6 +24,7 @@ struct Augmentations {
   int lowercase;
   int address;
   int phone;
+  int context;
 };
 
 }  // namespace augmenter
