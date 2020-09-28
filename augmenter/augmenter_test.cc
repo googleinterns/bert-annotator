@@ -1031,4 +1031,89 @@ TEST(AugmenterTest, DropContextMultipleSequences) {
   ExpectEq(augmented, expected);
 }
 
+TEST(AugmenterTest, DropContextRemoveBeginningOfLabel) {
+  bert_annotator::Documents documents =
+      ConstructBertDocument({DocumentSpec({DocumentSpec(
+          "Prefix tokens 0123456789 Postfix tokens.",
+          {TokenSpec("Prefix", 0, 5), TokenSpec("tokens", 7, 12),
+           TokenSpec("0123456789", 14, 23), TokenSpec("Postfix", 25, 31),
+           TokenSpec("tokens", 33, 38)},
+          {{"lucid",
+            {LabelSpec("OTHER", 0, 1), LabelSpec("TELEPHONE", 2, 2)}}})})});
+  Augmentations augmentations = {
+      .total = 1, .lowercase = 0, .address = 0, .phone = 0, .context = 1};
+  MockRandomSampler address_sampler;
+  MockRandomSampler phone_sampler;
+  absl::MockingBitGen bitgen;
+  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
+      .Times(3)  // 1 x phone, 1 x addresss, 1 x lowercasing.
+      .WillRepeatedly(Return(false));
+  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 1))
+      .WillOnce(Return(true));  // 1 x context.
+  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0.5))
+      .WillOnce(Return(false))  // Do not drop from second sequence.
+      .WillOnce(Return(true));  //  Drop from first sequence.
+  EXPECT_CALL(absl::MockUniform<int>(), Call(bitgen, 0, 1))
+      .WillOnce(Return(1));  // Drop first word of the first sequence.
+
+  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+                                  &phone_sampler, bitgen);
+
+  augmenter.Augment();
+
+  const bert_annotator::Document augmented = augmenter.documents().documents(1);
+  const bert_annotator::Document expected =
+      ConstructBertDocument(
+          {DocumentSpec({DocumentSpec(
+              "tokens 0123456789 Postfix tokens.",
+              {TokenSpec("tokens", 0, 5), TokenSpec("0123456789", 7, 16),
+               TokenSpec("Postfix", 18, 24), TokenSpec("tokens", 26, 31)},
+              {{"lucid", {LabelSpec("TELEPHONE", 1, 1)}}})})})
+          .documents(0);
+  ExpectEq(augmented, expected);
+}
+
+TEST(AugmenterTest, DropContextRemoveEndOfLabel) {
+  bert_annotator::Documents documents =
+      ConstructBertDocument({DocumentSpec({DocumentSpec(
+          "Prefix tokens 0123456789 Postfix tokens.",
+          {TokenSpec("Prefix", 0, 5), TokenSpec("tokens", 7, 12),
+           TokenSpec("0123456789", 14, 23), TokenSpec("Postfix", 25, 31),
+           TokenSpec("tokens", 33, 38)},
+          {{"lucid",
+            {LabelSpec("OTHER", 0, 1), LabelSpec("TELEPHONE", 2, 2)}}})})});
+  Augmentations augmentations = {
+      .total = 1, .lowercase = 0, .address = 0, .phone = 0, .context = 1};
+  MockRandomSampler address_sampler;
+  MockRandomSampler phone_sampler;
+  absl::MockingBitGen bitgen;
+  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
+      .Times(3)  // 1 x phone, 1 x addresss, 1 x lowercasing.
+      .WillRepeatedly(Return(false));
+  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 1))
+      .WillOnce(Return(true));  // 1 x context.
+  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0.5))
+      .WillOnce(Return(false))  // Do not drop from second sequence.
+      .WillOnce(Return(true));  //  Drop from first sequence.
+  EXPECT_CALL(absl::MockUniform<int>(), Call(bitgen, 0, 1))
+      .WillOnce(Return(0))   // Do not drop the beginning of the first sequence.
+      .WillOnce(Return(1));  // Drop last word of the first sequence.
+
+  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+                                  &phone_sampler, bitgen);
+
+  augmenter.Augment();
+
+  const bert_annotator::Document augmented = augmenter.documents().documents(1);
+  const bert_annotator::Document expected =
+      ConstructBertDocument(
+          {DocumentSpec({DocumentSpec(
+              "Prefix 0123456789 Postfix tokens.",
+              {TokenSpec("Prefix", 0, 5), TokenSpec("0123456789", 7, 16),
+               TokenSpec("Postfix", 18, 24), TokenSpec("tokens", 26, 31)},
+              {{"lucid", {LabelSpec("TELEPHONE", 1, 1)}}})})})
+          .documents(0);
+  ExpectEq(augmented, expected);
+}
+
 }  // namespace augmenter

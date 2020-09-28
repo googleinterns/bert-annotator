@@ -357,7 +357,7 @@ void Augmenter::ReplaceLabeledSpan(
 }
 
 void Augmenter::UpdateLabeledSpansForDroppedTokens(
-    const TokenSequence& boundaries,
+    const TokenSequence& removed_tokens,
     bert_annotator::Document* const document) const {
   if (document->labeled_spans().find("lucid") ==
       document->labeled_spans().end()) {
@@ -369,31 +369,18 @@ void Augmenter::UpdateLabeledSpansForDroppedTokens(
   for (int i = labeled_spans->size() - 1; i >= 0; --i) {
     auto labeled_span = labeled_spans->Mutable(i);
     if (labeled_span->token_end() <
-        boundaries.start) {  // Label not affected by removed tokens.
+        removed_tokens.start) {  // Label not affected by removed tokens.
       continue;
-    } else if (labeled_span->token_start() < boundaries.start &&
-               labeled_span->token_end() <=
-                   boundaries.end) {  // Beginning of label remains.
-      labeled_span->set_token_end(boundaries.start - 1);
-    } else if (labeled_span->token_start() < boundaries.start &&
-               labeled_span->token_end() >
-                   boundaries.end) {  // Beginning and end remain, middle was
-                                      // removed.
-      labeled_span->set_token_end(labeled_span->token_end() -
-                                  (boundaries.end - boundaries.start + 1));
-    } else if (labeled_span->token_start() >= boundaries.start &&
-               labeled_span->token_end() <=
-                   boundaries.end) {  // Complete label removed.
+    } else if (labeled_span->token_start() <=
+               removed_tokens.end) {  // Complete label removed.
       labeled_spans->erase(labeled_spans->begin() + i);
-    } else if (labeled_span->token_start() <= boundaries.end &&
-               labeled_span->token_end() >
-                   boundaries.end) {  // End of label remains.
-      labeled_span->set_token_end(boundaries.start - 1);
     } else {  // Label remains but needs to be shifted.
-      labeled_span->set_token_start(labeled_span->token_start() -
-                                    (boundaries.end - boundaries.start + 1));
-      labeled_span->set_token_end(labeled_span->token_end() -
-                                  (boundaries.end - boundaries.start + 1));
+      labeled_span->set_token_start(
+          labeled_span->token_start() -
+          (removed_tokens.end - removed_tokens.start + 1));
+      labeled_span->set_token_end(
+          labeled_span->token_end() -
+          (removed_tokens.end - removed_tokens.start + 1));
     }
   }
 }

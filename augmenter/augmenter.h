@@ -78,7 +78,7 @@ class Augmenter {
                           const absl::string_view replacement_label,
                           bert_annotator::Document* const document) const;
   void UpdateLabeledSpansForDroppedTokens(
-      const TokenSequence& boundaries,
+      const TokenSequence& removed_tokens,
       bert_annotator::Document* const document) const;
   void ReplaceLabeledTokens(const TokenSequence& boundaries,
                             const std::string& replacement,
