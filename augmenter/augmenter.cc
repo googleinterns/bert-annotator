@@ -66,36 +66,6 @@ Augmenter::Augmenter(const bert_annotator::Documents& documents,
     : Augmenter(documents, augmentations, address_sampler, phone_sampler,
                 bitgen_) {}
 
-void Augmenter::Augment() {
-  const int original_document_number = documents_.documents_size();
-  while (augmentations_.total > 0) {
-    const int document_id =
-        absl::Uniform(bitgenref_, 0, original_document_number - 1);
-    const bert_annotator::Document& original_document =
-        documents_.documents(document_id);
-    bert_annotator::Document* augmented_document = documents_.add_documents();
-    augmented_document->CopyFrom(original_document);
-
-    bool augmentation_performed = false;
-    augmentation_performed |= AugmentAddress(augmented_document);
-    augmentation_performed |= AugmentPhone(augmented_document);
-    augmentation_performed |= AugmentLowercase(augmented_document);
-    augmentation_performed |= AugmentContext(augmented_document);
-
-    // If no action was performed and all remaining augmentations have to
-    // perform at least one action, drop this sample. It's identical to the
-    // original document. Repeat this augmentation iteration.
-    if (!augmentation_performed &&
-        augmentations_.total == augmentations_.lowercase +
-                                    augmentations_.address +
-                                    augmentations_.phone) {
-      documents_.mutable_documents()->RemoveLast();
-    } else {
-      --augmentations_.total;
-    }
-  }
-}
-
 bool Augmenter::AugmentAddress(
     bert_annotator::Document* const augmented_document) {
   const bool replaced_address = MaybeReplaceLabel(
@@ -132,6 +102,36 @@ bool Augmenter::AugmentLowercase(
     return true;
   }
   return false;
+}
+
+void Augmenter::Augment() {
+  const int original_document_number = documents_.documents_size();
+  while (augmentations_.total > 0) {
+    const int document_id =
+        absl::Uniform(bitgenref_, 0, original_document_number - 1);
+    const bert_annotator::Document& original_document =
+        documents_.documents(document_id);
+    bert_annotator::Document* augmented_document = documents_.add_documents();
+    augmented_document->CopyFrom(original_document);
+
+    bool augmentation_performed = false;
+    augmentation_performed |= AugmentAddress(augmented_document);
+    augmentation_performed |= AugmentPhone(augmented_document);
+    augmentation_performed |= AugmentLowercase(augmented_document);
+    augmentation_performed |= AugmentContext(augmented_document);
+
+    // If no action was performed and all remaining augmentations have to
+    // perform at least one action, drop this sample. It's identical to the
+    // original document. Repeat this augmentation iteration.
+    if (!augmentation_performed &&
+        augmentations_.total == augmentations_.lowercase +
+                                    augmentations_.address +
+                                    augmentations_.phone) {
+      documents_.mutable_documents()->RemoveLast();
+    } else {
+      --augmentations_.total;
+    }
+  }
 }
 
 bool Augmenter::AugmentContext(
@@ -270,31 +270,6 @@ bool Augmenter::MaybeReplaceLabel(const double probability,
     return true;
   }
   return false;
-}
-
-void Augmenter::Lowercase(
-    bert_annotator::Document* const augmented_document) const {
-  std::string* const text = augmented_document->mutable_text();
-  std::string new_text;
-  int text_index = 0;
-  for (int j = 0; j < augmented_document->token_size(); ++j) {
-    bert_annotator::Token* const token = augmented_document->mutable_token(j);
-
-    // Adds the string inbetween two tokens as it is.
-    const int token_start = token->start();
-    const int token_end = token->end();
-    if (text_index < token_start) {
-      new_text.append(text->begin() + text_index, text->begin() + token_start);
-    }
-
-    // Transforms the token to lowercase.
-    std::string* const word = token->mutable_word();
-    absl::AsciiStrToLower(word);
-    new_text.append(*word);
-    text_index = token_end + 1;
-  }
-  new_text.append(text->begin() + text_index, text->end());
-  augmented_document->set_text(new_text);
 }
 
 const int Augmenter::ReplaceText(
@@ -466,6 +441,31 @@ const std::vector<TokenSequence> Augmenter::LabelBoundaryList(
   }
 
   return boundary_list;
+}
+
+void Augmenter::Lowercase(
+    bert_annotator::Document* const augmented_document) const {
+  std::string* const text = augmented_document->mutable_text();
+  std::string new_text;
+  int text_index = 0;
+  for (int j = 0; j < augmented_document->token_size(); ++j) {
+    bert_annotator::Token* const token = augmented_document->mutable_token(j);
+
+    // Adds the string inbetween two tokens as it is.
+    const int token_start = token->start();
+    const int token_end = token->end();
+    if (text_index < token_start) {
+      new_text.append(text->begin() + text_index, text->begin() + token_start);
+    }
+
+    // Transforms the token to lowercase.
+    std::string* const word = token->mutable_word();
+    absl::AsciiStrToLower(word);
+    new_text.append(*word);
+    text_index = token_end + 1;
+  }
+  new_text.append(text->begin() + text_index, text->end());
+  augmented_document->set_text(new_text);
 }
 
 const bert_annotator::Documents Augmenter::documents() const {
