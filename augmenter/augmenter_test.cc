@@ -1478,11 +1478,11 @@ TEST(AugmenterTest, DropContextDropLabelsSuffix) {
 }
 
 TEST(AugmenterTest, DropContextRemoveSeparatorTokens) {
-  bert_annotator::Documents documents = ConstructBertDocument({DocumentSpec(
-      {DocumentSpec("Text, more ... text.",
+  bert_annotator::Documents documents = ConstructBertDocument(
+      {DocumentSpec("Text, more ... t.e.x.t.!",
                     {TokenSpec("Text", 0, 3), TokenSpec(",", 4, 4),
                      TokenSpec("more", 6, 9), TokenSpec("...", 11, 13),
-                     TokenSpec("text", 15, 17), TokenSpec(".", 18, 18)})})});
+                     TokenSpec("t.e.x.t.", 15, 22), TokenSpec("!", 23, 23)})});
   Augmentations augmentations = {.num_total = 1,
                                  .num_lowercasings = 0,
                                  .num_address_replacements = 0,
@@ -1501,10 +1501,9 @@ TEST(AugmenterTest, DropContextRemoveSeparatorTokens) {
   const bert_annotator::Document augmented = augmenter.documents().documents(0);
   const bert_annotator::Document expected =
       ConstructBertDocument(
-          {DocumentSpec(
-              {DocumentSpec("Text, more ... text.",
-                            {TokenSpec("Text", 0, 3), TokenSpec("more", 6, 9),
-                             TokenSpec("text", 15, 17)})})})
+          {DocumentSpec("Text, more ... t.e.x.t.!",
+                        {TokenSpec("Text", 0, 3), TokenSpec("more", 6, 9),
+                         TokenSpec("t.e.x.t.", 15, 22)})})
           .documents(0);
   ExpectEq(augmented, expected);
 }
