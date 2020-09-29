@@ -1477,4 +1477,36 @@ TEST(AugmenterTest, DropContextDropLabelsSuffix) {
   ExpectEq(augmented, expected);
 }
 
+TEST(AugmenterTest, DropContextRemoveSeparatorTokens) {
+  bert_annotator::Documents documents = ConstructBertDocument({DocumentSpec(
+      {DocumentSpec("Text, more ... text.",
+                    {TokenSpec("Text", 0, 3), TokenSpec(",", 4, 4),
+                     TokenSpec("more", 6, 9), TokenSpec("...", 11, 13),
+                     TokenSpec("text", 15, 17), TokenSpec(".", 18, 18)})})});
+  Augmentations augmentations = {.num_total = 1,
+                                 .num_lowercasings = 0,
+                                 .num_address_replacements = 0,
+                                 .num_phone_replacements = 0,
+                                 .num_context_drops_between_labels = 0,
+                                 .num_context_drops_outside_one_label = 0};
+  MockRandomSampler address_sampler;
+  MockRandomSampler phone_sampler;
+  absl::MockingBitGen bitgen;
+
+  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+                                  &phone_sampler, bitgen);
+
+  augmenter.Augment();
+
+  const bert_annotator::Document augmented = augmenter.documents().documents(0);
+  const bert_annotator::Document expected =
+      ConstructBertDocument(
+          {DocumentSpec(
+              {DocumentSpec("Text, more ... text.",
+                            {TokenSpec("Text", 0, 3), TokenSpec("more", 6, 9),
+                             TokenSpec("text", 15, 17)})})})
+          .documents(0);
+  ExpectEq(augmented, expected);
+}
+
 }  // namespace augmenter
