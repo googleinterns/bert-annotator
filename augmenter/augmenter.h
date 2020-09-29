@@ -56,6 +56,8 @@ class Augmenter {
       const bert_annotator::Document& document);
   void DropTokens(TokenSequence boundaries,
                   bert_annotator::Document* const augmented_document) const;
+  // Drops some context. For sentences without labels, the end of the sentence
+  // is dropped.
   bool MaybeDropContext(const double probability,
                         bert_annotator::Document* const augmented_document);
   // Finds all token sequences labeled according to the given label list. If

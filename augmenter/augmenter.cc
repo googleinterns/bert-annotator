@@ -124,9 +124,9 @@ void Augmenter::Augment() {
     // perform at least one action, drop this sample. It's identical to the
     // original document. Repeat this augmentation iteration.
     if (!augmentation_performed &&
-        augmentations_.total == augmentations_.lowercase +
-                                    augmentations_.address +
-                                    augmentations_.phone) {
+        augmentations_.total ==
+            augmentations_.lowercase + augmentations_.address +
+                augmentations_.phone + augmentations_.context) {
       documents_.mutable_documents()->RemoveLast();
     } else {
       --augmentations_.total;
@@ -207,19 +207,32 @@ bool Augmenter::MaybeDropContext(
 
     dropped_context = true;
 
-    // The first token to drop can be anyone, the second must be chosen such
-    // that at least one token of the sequence remains.
-    const int drop_tokens_start =
-        absl::Uniform(absl::IntervalClosed, bitgenref_, dropable_sequence.start,
-                      dropable_sequence.end);
+    int drop_tokens_start;
     int drop_tokens_end;
-    if (drop_tokens_start == dropable_sequence.start) {
+    if (dropable_sequence.end == augmented_document->token_size() -
+                                     1) {  // For context after the last label,
+                                           // drop a postfix of the sentence.
+      drop_tokens_start =
+          absl::Uniform(absl::IntervalClosed, bitgenref_,
+                        dropable_sequence.start + 1, dropable_sequence.end);
+      drop_tokens_end = dropable_sequence.end;
+    } else if (dropable_sequence.start ==
+               0) {  // For context before the first label, drop a prefix of the
+                     // sentence.
+      drop_tokens_start = 0;
+      drop_tokens_end = absl::Uniform(absl::IntervalClosed, bitgenref_, 0,
+                                      dropable_sequence.end - 1);
+    } else {  // For context between two labels, drop a subsequence.
+      if (dropable_sequence.end - dropable_sequence.start == 1) {
+        continue;
+      }
+
+      drop_tokens_start =
+          absl::Uniform(absl::IntervalClosed, bitgenref_,
+                        dropable_sequence.start + 1, dropable_sequence.end - 1);
       drop_tokens_end =
           absl::Uniform(absl::IntervalClosed, bitgenref_, drop_tokens_start,
                         dropable_sequence.end - 1);
-    } else {
-      drop_tokens_end = absl::Uniform(absl::IntervalClosed, bitgenref_,
-                                      drop_tokens_start, dropable_sequence.end);
     }
 
     const TokenSequence boundaries =
