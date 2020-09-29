@@ -319,7 +319,7 @@ void Augmenter::ReplaceToken(const int token_id, const std::string& replacement,
   token->set_end(token->start() + replacement.size() - 1);
 }
 
-void Augmenter::DropTokens(TokenSequence boundaries,
+void Augmenter::DropTokens(const TokenSequence boundaries,
                            bert_annotator::Document* const document) const {
   document->mutable_token()->erase(
       document->mutable_token()->begin() + boundaries.start,
