@@ -49,3 +49,4 @@ Valid flags are:
  - `--addresses=[augmentations by address replacement]`
  - `--phones_path=[path to phone number file]`
  - `--phones=[augmentations by phone number replacement]`
+ - `--context=[augmentations by dropping context]`

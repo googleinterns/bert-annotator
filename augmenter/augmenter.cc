@@ -194,20 +194,16 @@ bool Augmenter::MaybeDropContext(
   // the indices in dropable_sequences.
   for (int i = dropable_sequences.size() - 1; i >= 0; --i) {
     auto dropable_sequence = dropable_sequences.at(i);
-    std::cerr << "A (" << std::to_string(dropable_sequence.start) << " - "
-              << std::to_string(dropable_sequence.end) << ")" << std::endl;
     bool do_drop = absl::Bernoulli(bitgenref_, 0.5);
     if (!do_drop) {
       continue;
     }
-    std::cerr << "B" << std::endl;
 
     // At least one token should be dropped, so the sequence needs to be at
     // least two tokens long.
     if (dropable_sequence.end == dropable_sequence.start) {
       continue;
     }
-    std::cerr << "C" << std::endl;
 
     dropped_context = true;
 
@@ -234,8 +230,6 @@ bool Augmenter::MaybeDropContext(
                          augmented_document);
     UpdateLabeledSpansForDroppedTokens(boundaries, augmented_document);
   }
-
-  std::cerr << "E" << std::endl;
 
   return dropped_context;
 }
