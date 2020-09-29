@@ -22,6 +22,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/container/flat_hash_set.h"
 #include "absl/random/bit_gen_ref.h"
 #include "absl/random/random.h"
 #include "absl/strings/string_view.h"
@@ -80,9 +81,9 @@ class Augmenter {
   RandomSampler* const address_sampler_;
   RandomSampler* const phone_sampler_;
   Augmentations augmentations_;
-  static const std::unordered_set<std::string> kAddressLabels;
+  ABSL_CONST_INIT static absl::flat_hash_set<absl::string_view> kAddressLabels;
   static constexpr absl::string_view kAddressReplacementLabel = "ADDRESS";
-  static const std::unordered_set<std::string> kPhoneLabels;
+  ABSL_CONST_INIT static absl::flat_hash_set<absl::string_view> kPhoneLabels;
   static constexpr absl::string_view kPhoneReplacementLabel = "TELEPHONE";
   absl::BitGenRef bitgenref_;
   absl::BitGen bitgen_;

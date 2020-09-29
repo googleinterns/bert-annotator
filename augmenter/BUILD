@@ -21,6 +21,7 @@ cc_library(
     ":random_sampler",
     ":label_boundaries",
     "//protocol_buffer:documents_cc_proto",
+    "@com_google_absl//absl/container:flat_hash_set",
     "@com_google_absl//absl/random",
     "@com_google_absl//absl/random:bit_gen_ref",
     "@com_google_absl//absl/strings:strings",

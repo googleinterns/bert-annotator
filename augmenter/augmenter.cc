@@ -21,6 +21,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/container/flat_hash_set.h"
 #include "absl/strings/ascii.h"
 #include "augmenter/augmentations.h"
 #include "augmenter/label_boundaries.h"
@@ -50,7 +51,7 @@ Augmenter::Augmenter(const bert_annotator::Documents& documents,
     auto labeled_spans =
         document.mutable_labeled_spans()->at("lucid").mutable_labeled_span();
     for (auto& labeled_span : *labeled_spans) {
-      if (Augmenter::kAddressLabels.count(labeled_span.label())) {
+      if (kAddressLabels.count(labeled_span.label())) {
         labeled_span.set_label(
             std::string(Augmenter::kAddressReplacementLabel));
       }
@@ -299,7 +300,7 @@ const bert_annotator::Documents Augmenter::documents() const {
   return documents_;
 }
 
-const std::unordered_set<std::string> Augmenter::kAddressLabels = {
+absl::flat_hash_set<absl::string_view> Augmenter::kAddressLabels = {
     "LOCALITY",
     "COUNTRY",
     "ADMINISTRATIVE_AREA",
@@ -311,7 +312,7 @@ const std::unordered_set<std::string> Augmenter::kAddressLabels = {
 
 constexpr absl::string_view Augmenter::kAddressReplacementLabel;
 
-const std::unordered_set<std::string> Augmenter::kPhoneLabels = {"TELEPHONE"};
+absl::flat_hash_set<absl::string_view> Augmenter::kPhoneLabels = {"TELEPHONE"};
 
 constexpr absl::string_view Augmenter::kPhoneReplacementLabel;
 
