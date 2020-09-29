@@ -54,8 +54,8 @@ class Augmenter {
   bool AugmentContext(bert_annotator::Document* const augmented_document);
   std::vector<TokenSequence> DropableSequences(
       const bert_annotator::Document& document);
-  void DropTokens(bert_annotator::Document* const augmented_document,
-                  TokenSequence boundaries) const;
+  void DropTokens(TokenSequence boundaries,
+                  bert_annotator::Document* const augmented_document) const;
   bool MaybeDropContext(const double probability,
                         bert_annotator::Document* const augmented_document);
   // Finds all token sequences labeled according to the given label list. If
@@ -67,6 +67,9 @@ class Augmenter {
   const int ReplaceText(const TokenSequence& boundaries,
                         const std::string& replacement,
                         bert_annotator::Document* const document) const;
+  // Returns the number of dropped characters.
+  // Also removed non-tokens between the first dropped tokens and the preceeding
+  // last non-dropped token.
   const int DropText(const TokenSequence& boundaries,
                      bert_annotator::Document* const document) const;
   // May introduce tokens longer than one word.
@@ -77,6 +80,8 @@ class Augmenter {
   void ReplaceLabeledSpan(const int token_id,
                           const absl::string_view replacement_label,
                           bert_annotator::Document* const document) const;
+  // Drops labeled spans if associated tokens were dropped. Otherwise updates
+  // the start and end indices to reflect the new token ids.
   void UpdateLabeledSpansForDroppedTokens(
       const TokenSequence& removed_tokens,
       bert_annotator::Document* const document) const;

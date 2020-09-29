@@ -159,7 +159,7 @@ std::vector<TokenSequence> Augmenter::DropableSequences(
   const auto labeled_spans =
       document.labeled_spans().at("lucid").labeled_span();
   for (int i = 0; i < labeled_spans.size(); ++i) {
-    auto labeled_span = labeled_spans.at(i);
+    const auto& labeled_span = labeled_spans.at(i);
     if (labeled_span.label().compare(
             std::string(Augmenter::kAddressReplacementLabel)) == 0 ||
         labeled_span.label().compare(
@@ -193,8 +193,8 @@ bool Augmenter::MaybeDropContext(
   // Tokens will be dropped, so iterating backwards avoids the need to update
   // the indices in dropable_sequences.
   for (int i = dropable_sequences.size() - 1; i >= 0; --i) {
-    auto dropable_sequence = dropable_sequences.at(i);
-    bool do_drop = absl::Bernoulli(bitgenref_, 0.5);
+    const auto& dropable_sequence = dropable_sequences.at(i);
+    const bool do_drop = absl::Bernoulli(bitgenref_, 0.5);
     if (!do_drop) {
       continue;
     }
@@ -209,7 +209,7 @@ bool Augmenter::MaybeDropContext(
 
     // The first token to drop can be anyone, the second must be chosen such
     // that at least one token of the sequence remains.
-    int drop_tokens_start =
+    const int drop_tokens_start =
         absl::Uniform(absl::IntervalClosed, bitgenref_, dropable_sequence.start,
                       dropable_sequence.end);
     int drop_tokens_end;
@@ -222,10 +222,10 @@ bool Augmenter::MaybeDropContext(
                                       drop_tokens_start, dropable_sequence.end);
     }
 
-    TokenSequence boundaries =
+    const TokenSequence boundaries =
         TokenSequence{.start = drop_tokens_start, .end = drop_tokens_end};
     const int removed_characters = DropText(boundaries, augmented_document);
-    DropTokens(augmented_document, boundaries);
+    DropTokens(boundaries, augmented_document);
     ShiftTokenBoundaries(boundaries.start, -removed_characters,
                          augmented_document);
     UpdateLabeledSpansForDroppedTokens(boundaries, augmented_document);
@@ -306,8 +306,8 @@ void Augmenter::ReplaceToken(const int token_id, const std::string& replacement,
   token->set_end(token->start() + replacement.size() - 1);
 }
 
-void Augmenter::DropTokens(bert_annotator::Document* const document,
-                           TokenSequence boundaries) const {
+void Augmenter::DropTokens(TokenSequence boundaries,
+                           bert_annotator::Document* const document) const {
   document->mutable_token()->erase(
       document->mutable_token()->begin() + boundaries.start,
       document->mutable_token()->begin() + boundaries.end +
@@ -327,9 +327,9 @@ void Augmenter::ShiftTokenBoundaries(
 void Augmenter::ReplaceLabeledSpan(
     const int token_id, const absl::string_view replacement_label,
     bert_annotator::Document* const document) const {
-  auto labeled_spans =
+  const auto& labeled_spans =
       document->mutable_labeled_spans()->at("lucid").mutable_labeled_span();
-  for (auto labeled_span : *labeled_spans) {
+  for (auto& labeled_span : *labeled_spans) {
     if (labeled_span.token_start() == token_id) {
       labeled_span.set_label(std::string(replacement_label));
       labeled_span.set_token_end(labeled_span.token_start());
@@ -345,7 +345,7 @@ void Augmenter::UpdateLabeledSpansForDroppedTokens(
     return;
   }
 
-  auto labeled_spans =
+  const auto& labeled_spans =
       document->mutable_labeled_spans()->at("lucid").mutable_labeled_span();
   for (int i = labeled_spans->size() - 1; i >= 0; --i) {
     auto labeled_span = labeled_spans->Mutable(i);
@@ -372,8 +372,9 @@ void Augmenter::ReplaceLabeledTokens(
     bert_annotator::Document* const document) const {
   const int text_shift = ReplaceText(boundaries, replacement, document);
   ReplaceToken(boundaries.start, replacement, document);
-  DropTokens(document, TokenSequence{.start = boundaries.start + 1,
-                                     .end = boundaries.end});
+  DropTokens(
+      TokenSequence{.start = boundaries.start + 1, .end = boundaries.end},
+      document);
   ShiftTokenBoundaries(boundaries.start + 1, text_shift, document);
   ReplaceLabeledSpan(boundaries.start, replacement_label, document);
   UpdateLabeledSpansForDroppedTokens(
