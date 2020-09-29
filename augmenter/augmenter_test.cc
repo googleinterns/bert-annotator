@@ -236,7 +236,8 @@ TEST(AugmenterTest, RandomizedLowercasing) {
 
   absl::MockingBitGen bitgen;
   // Document sampling.
-  EXPECT_CALL(absl::MockUniform<int>(), Call(bitgen, 0, 2))
+  EXPECT_CALL(absl::MockUniform<int>(),
+              Call(absl::IntervalClosed, bitgen, 0, 2))
       .WillOnce(Return(0))
       .WillOnce(Return(1))
       .WillOnce(Return(2))
@@ -510,7 +511,8 @@ TEST(AugmenterTest, ReplacePhoneChooseLabel) {
       .Times(2)  // 2 x phone.
       .WillRepeatedly(Return(true));
   // Token selection.
-  EXPECT_CALL(absl::MockUniform<size_t>(), Call(bitgen, 0, 1))
+  EXPECT_CALL(absl::MockUniform<size_t>(),
+              Call(absl::IntervalClosed, bitgen, 0, 1))
       .WillOnce(Return(0))
       .WillOnce(Return(1));
 
@@ -562,7 +564,8 @@ TEST(AugmenterTest, ReplacePhoneChooseDocument) {
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0.5))
       .WillOnce(Return(true));  // Replace phone in first document.
   // Token selection.
-  EXPECT_CALL(absl::MockUniform<size_t>(), Call(bitgen, 0, 0))
+  EXPECT_CALL(absl::MockUniform<size_t>(),
+              Call(absl::IntervalClosed, bitgen, 0, 0))
       .WillOnce(Return(0));
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
@@ -600,7 +603,8 @@ TEST(AugmenterTest, ReplacePhoneMissingLucid) {
   EXPECT_CALL(phone_sampler, Sample()).WillOnce(ReturnRef(replacement));
   absl::MockingBitGen bitgen;
   // Document sampling.
-  EXPECT_CALL(absl::MockUniform<int>(), Call(bitgen, 0, 1))
+  EXPECT_CALL(absl::MockUniform<int>(),
+              Call(absl::IntervalClosed, bitgen, 0, 1))
       .WillOnce(Return(0))
       .WillOnce(Return(1));
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
@@ -796,12 +800,15 @@ TEST(AugmenterTest, DropContextStart) {
   bert_annotator::Documents documents = ConstructBertDocument({DocumentSpec(
       "Long text without labels.",
       {TokenSpec("Long", 0, 3), TokenSpec("text", 5, 8),
-       TokenSpec("without", 10, 16), TokenSpec("labeles", 18, 24)})});
+       TokenSpec("without", 10, 16), TokenSpec("labels", 18, 23)})});
   Augmentations augmentations = {
       .total = 1, .lowercase = 0, .address = 0, .phone = 0, .context = 1};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
+  EXPECT_CALL(absl::MockUniform<int>(),
+              Call(absl::IntervalClosed, bitgen, 0, 0))
+      .WillOnce(Return(0));  // Use first document.
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
       .Times(3)  // 1 x phone, 1 x addresss, 1 x lowercasing.
       .WillRepeatedly(Return(false));
@@ -809,10 +816,12 @@ TEST(AugmenterTest, DropContextStart) {
       .WillOnce(Return(true));  // 1 x context.
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0.5))
       .WillOnce(Return(true));  // Drop from first (and only) sequence.
-  EXPECT_CALL(absl::MockUniform<int>(), Call(bitgen, 0, 3))
-      .WillOnce(Return(2));  // Drop first two tokens.
-  EXPECT_CALL(absl::MockUniform<int>(), Call(bitgen, 0, 1))
-      .WillOnce(Return(0));  // Do not drop tokens at the end.
+  EXPECT_CALL(absl::MockUniform<int>(),
+              Call(absl::IntervalClosed, bitgen, 0, 3))
+      .WillOnce(Return(0));  // Drop from first tokens.
+  EXPECT_CALL(absl::MockUniform<int>(),
+              Call(absl::IntervalClosed, bitgen, 0, 2))
+      .WillOnce(Return(1));  // Drop until second token.
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
                                   &phone_sampler, bitgen);
@@ -823,7 +832,7 @@ TEST(AugmenterTest, DropContextStart) {
   const bert_annotator::Document expected =
       ConstructBertDocument(
           {DocumentSpec("without labels.", {TokenSpec("without", 0, 6),
-                                            TokenSpec("labeles", 8, 14)})})
+                                            TokenSpec("labels", 8, 13)})})
           .documents(0);
   ExpectEq(augmented, expected);
 }
@@ -832,12 +841,15 @@ TEST(AugmenterTest, DropContextEnd) {
   bert_annotator::Documents documents = ConstructBertDocument({DocumentSpec(
       "Long text without labels.",
       {TokenSpec("Long", 0, 3), TokenSpec("text", 5, 8),
-       TokenSpec("without", 10, 16), TokenSpec("labeles", 18, 24)})});
+       TokenSpec("without", 10, 16), TokenSpec("labels", 18, 23)})});
   Augmentations augmentations = {
       .total = 1, .lowercase = 0, .address = 0, .phone = 0, .context = 1};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
+  EXPECT_CALL(absl::MockUniform<int>(),
+              Call(absl::IntervalClosed, bitgen, 0, 0))
+      .WillOnce(Return(0));  // Use first document.
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
       .Times(3)  // 1 x phone, 1 x addresss, 1 x lowercasing.
       .WillRepeatedly(Return(false));
@@ -845,9 +857,12 @@ TEST(AugmenterTest, DropContextEnd) {
       .WillOnce(Return(true));  // 1 x context.
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0.5))
       .WillOnce(Return(true));  // Drop from first (and only) sequence.
-  EXPECT_CALL(absl::MockUniform<int>(), Call(bitgen, 0, 3))
-      .WillOnce(Return(0))   // Do not drop tokens at the start.
-      .WillOnce(Return(2));  // Droplast two tokens.
+  EXPECT_CALL(absl::MockUniform<int>(),
+              Call(absl::IntervalClosed, bitgen, 0, 3))
+      .WillOnce(Return(2));  // Drop from third tokens.
+  EXPECT_CALL(absl::MockUniform<int>(),
+              Call(absl::IntervalClosed, bitgen, 2, 3))
+      .WillOnce(Return(3));  // Drop until fourth token.
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
                                   &phone_sampler, bitgen);
@@ -857,22 +872,25 @@ TEST(AugmenterTest, DropContextEnd) {
   const bert_annotator::Document augmented = augmenter.documents().documents(1);
   const bert_annotator::Document expected =
       ConstructBertDocument(
-          {DocumentSpec("Long text",
+          {DocumentSpec("Long text.",
                         {TokenSpec("Long", 0, 3), TokenSpec("text", 5, 8)})})
           .documents(0);
   ExpectEq(augmented, expected);
 }
 
-TEST(AugmenterTest, DropContextStartAndEnd) {
+TEST(AugmenterTest, DropContextMiddle) {
   bert_annotator::Documents documents = ConstructBertDocument({DocumentSpec(
       "Long text without labels.",
       {TokenSpec("Long", 0, 3), TokenSpec("text", 5, 8),
-       TokenSpec("without", 10, 16), TokenSpec("labeles", 18, 24)})});
+       TokenSpec("without", 10, 16), TokenSpec("labels", 18, 23)})});
   Augmentations augmentations = {
       .total = 1, .lowercase = 0, .address = 0, .phone = 0, .context = 1};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
+  EXPECT_CALL(absl::MockUniform<int>(),
+              Call(absl::IntervalClosed, bitgen, 0, 0))
+      .WillOnce(Return(0));  // Use first document.
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
       .Times(3)  // 1 x phone, 1 x addresss, 1 x lowercasing.
       .WillRepeatedly(Return(false));
@@ -880,10 +898,12 @@ TEST(AugmenterTest, DropContextStartAndEnd) {
       .WillOnce(Return(true));  // 1 x context.
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0.5))
       .WillOnce(Return(true));  // Drop from first (and only) sequence.
-  EXPECT_CALL(absl::MockUniform<int>(), Call(bitgen, 0, 3))
-      .WillOnce(Return(1));  // Drop first token.
-  EXPECT_CALL(absl::MockUniform<int>(), Call(bitgen, 0, 2))
-      .WillOnce(Return(1));  // Drop last token.
+  EXPECT_CALL(absl::MockUniform<int>(),
+              Call(absl::IntervalClosed, bitgen, 0, 3))
+      .WillOnce(Return(1));  // Drop from second tokens.
+  EXPECT_CALL(absl::MockUniform<int>(),
+              Call(absl::IntervalClosed, bitgen, 1, 3))
+      .WillOnce(Return(2));  // Drop until third token.
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
                                   &phone_sampler, bitgen);
@@ -893,8 +913,8 @@ TEST(AugmenterTest, DropContextStartAndEnd) {
   const bert_annotator::Document augmented = augmenter.documents().documents(1);
   const bert_annotator::Document expected =
       ConstructBertDocument(
-          {DocumentSpec("text without", {TokenSpec("text", 0, 3),
-                                         TokenSpec("without", 5, 11)})})
+          {DocumentSpec("Long labels.",
+                        {TokenSpec("Long", 0, 3), TokenSpec("labels", 5, 10)})})
           .documents(0);
   ExpectEq(augmented, expected);
 }
@@ -911,6 +931,9 @@ TEST(AugmenterTest, DropContextDetectMultipleDroppableSequences) {
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
+  EXPECT_CALL(absl::MockUniform<int>(),
+              Call(absl::IntervalClosed, bitgen, 0, 0))
+      .WillOnce(Return(0));  // Use first document.
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
       .Times(3)  // 1 x phone, 1 x addresss, 1 x lowercasing.
       .WillRepeatedly(Return(false));
@@ -919,68 +942,11 @@ TEST(AugmenterTest, DropContextDetectMultipleDroppableSequences) {
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0.5))
       .Times(2)
       .WillRepeatedly(Return(true));  // Drop from both sequences.
-  EXPECT_CALL(absl::MockUniform<int>(), Call(bitgen, 0, 1))
-      .Times(4)
-      .WillRepeatedly(Return(0));  // Do not drop tokens.
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
                                   &phone_sampler, bitgen);
 
   augmenter.Augment();
-
-  const bert_annotator::Document augmented = augmenter.documents().documents(1);
-  const bert_annotator::Document expected =
-      ConstructBertDocument(
-          {DocumentSpec(
-              "Prefix tokens 0123456789 Postfix tokens.",
-              {TokenSpec("Prefix", 0, 5), TokenSpec("tokens", 7, 12),
-               TokenSpec("0123456789", 14, 23), TokenSpec("Postfix", 25, 31),
-               TokenSpec("tokens", 33, 38)},
-              {{"lucid", {LabelSpec("TELEPHONE", 2, 2)}}})})
-          .documents(0);
-  ExpectEq(augmented, expected);
-}
-
-TEST(AugmenterTest, DropContextLeaveOneToken) {
-  bert_annotator::Documents documents = ConstructBertDocument(
-      {DocumentSpec("Prefix tokens 0123456789 Postfix tokens.",
-                    {TokenSpec("Prefix", 0, 5), TokenSpec("tokens", 7, 12),
-                     TokenSpec("0123456789", 14, 23),
-                     TokenSpec("Postfix", 25, 31), TokenSpec("tokens", 33, 38)},
-                    {{"lucid", {LabelSpec("TELEPHONE", 2, 2)}}})});
-  Augmentations augmentations = {
-      .total = 1, .lowercase = 0, .address = 0, .phone = 0, .context = 1};
-  MockRandomSampler address_sampler;
-  MockRandomSampler phone_sampler;
-  absl::MockingBitGen bitgen;
-  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
-      .Times(3)  // 1 x phone, 1 x addresss, 1 x lowercasing.
-      .WillRepeatedly(Return(false));
-  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 1))
-      .WillOnce(Return(true));  // 1 x context.
-  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0.5))
-      .Times(2)
-      .WillRepeatedly(Return(true));  // Drop from both sequences.
-  EXPECT_CALL(absl::MockUniform<int>(), Call(bitgen, 0, 1))
-      .WillOnce(Return(1))  // Drop first word of the second sequence.
-      .WillOnce(Return(0))  // Do not drop from beginning of the first sequence.
-      .WillOnce(Return(1));  // Drop last word of the first sequence.
-
-  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
-                                  &phone_sampler, bitgen);
-
-  augmenter.Augment();
-
-  const bert_annotator::Document augmented = augmenter.documents().documents(1);
-  const bert_annotator::Document expected =
-      ConstructBertDocument(
-          {DocumentSpec(
-              "Prefix 0123456789 tokens.",
-              {TokenSpec("Prefix", 0, 5), TokenSpec("0123456789", 7, 16),
-               TokenSpec("tokens", 18, 23)},
-              {{"lucid", {LabelSpec("TELEPHONE", 1, 1)}}})})
-          .documents(0);
-  ExpectEq(augmented, expected);
 }
 
 TEST(AugmenterTest, DropContextMultipleSequences) {
@@ -997,6 +963,9 @@ TEST(AugmenterTest, DropContextMultipleSequences) {
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
+  EXPECT_CALL(absl::MockUniform<int>(),
+              Call(absl::IntervalClosed, bitgen, 0, 0))
+      .WillOnce(Return(0));  // Use first document.
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
       .Times(3)  // 1 x phone, 1 x addresss, 1 x lowercasing.
       .WillRepeatedly(Return(false));
@@ -1005,11 +974,27 @@ TEST(AugmenterTest, DropContextMultipleSequences) {
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0.5))
       .Times(3)
       .WillRepeatedly(Return(true));  // Drop from all three sequences.
-  EXPECT_CALL(absl::MockUniform<int>(), Call(bitgen, 0, 1))
-      .WillOnce(Return(0))   // Do not drop first word of the third sequence.
-      .WillOnce(Return(1))   // Drop last word of the third sequence.
-      .WillOnce(Return(1))   // Drop first word of the second sequence.
-      .WillOnce(Return(1));  // Drop first word of the first sequence.
+  // Drop "tokens" (last).
+  EXPECT_CALL(absl::MockUniform<int>(),
+              Call(absl::IntervalClosed, bitgen, 6, 7))
+      .WillOnce(Return(7));
+  EXPECT_CALL(absl::MockUniform<int>(),
+              Call(absl::IntervalClosed, bitgen, 7, 7))
+      .WillOnce(Return(75));
+  // Drop "Middle".
+  EXPECT_CALL(absl::MockUniform<int>(),
+              Call(absl::IntervalClosed, bitgen, 3, 4))
+      .WillOnce(Return(3));
+  EXPECT_CALL(absl::MockUniform<int>(),
+              Call(absl::IntervalClosed, bitgen, 3, 3000))
+      .WillOnce(Return(3));
+  // Drop "Prefix".
+  EXPECT_CALL(absl::MockUniform<int>(),
+              Call(absl::IntervalClosed, bitgen, 0, 1))
+      .WillOnce(Return(0));
+  EXPECT_CALL(absl::MockUniform<int>(),
+              Call(absl::IntervalClosed, bitgen, 0, 0))
+      .WillOnce(Return(0));
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
                                   &phone_sampler, bitgen);
@@ -1045,6 +1030,9 @@ TEST(AugmenterTest, DropContextRemoveBeginningOfLabel) {
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
+  EXPECT_CALL(absl::MockUniform<int>(),
+              Call(absl::IntervalClosed, bitgen, 0, 0))
+      .WillOnce(Return(0));  // Use first document.
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
       .Times(3)  // 1 x phone, 1 x addresss, 1 x lowercasing.
       .WillRepeatedly(Return(false));
@@ -1053,7 +1041,8 @@ TEST(AugmenterTest, DropContextRemoveBeginningOfLabel) {
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0.5))
       .WillOnce(Return(false))  // Do not drop from second sequence.
       .WillOnce(Return(true));  //  Drop from first sequence.
-  EXPECT_CALL(absl::MockUniform<int>(), Call(bitgen, 0, 1))
+  EXPECT_CALL(absl::MockUniform<int>(),
+              Call(absl::IntervalClosed, bitgen, 0, 1))
       .WillOnce(Return(1));  // Drop first word of the first sequence.
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
@@ -1087,6 +1076,9 @@ TEST(AugmenterTest, DropContextRemoveEndOfLabel) {
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
+  EXPECT_CALL(absl::MockUniform<int>(),
+              Call(absl::IntervalClosed, bitgen, 0, 0))
+      .WillOnce(Return(0));  // Use first document.
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
       .Times(3)  // 1 x phone, 1 x addresss, 1 x lowercasing.
       .WillRepeatedly(Return(false));
@@ -1095,7 +1087,8 @@ TEST(AugmenterTest, DropContextRemoveEndOfLabel) {
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0.5))
       .WillOnce(Return(false))  // Do not drop from second sequence.
       .WillOnce(Return(true));  //  Drop from first sequence.
-  EXPECT_CALL(absl::MockUniform<int>(), Call(bitgen, 0, 1))
+  EXPECT_CALL(absl::MockUniform<int>(),
+              Call(absl::IntervalClosed, bitgen, 0, 1))
       .WillOnce(Return(0))   // Do not drop the beginning of the first sequence.
       .WillOnce(Return(1));  // Drop last word of the first sequence.
 

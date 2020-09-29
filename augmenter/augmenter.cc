@@ -107,8 +107,8 @@ bool Augmenter::AugmentLowercase(
 void Augmenter::Augment() {
   const int original_document_number = documents_.documents_size();
   while (augmentations_.total > 0) {
-    const int document_id =
-        absl::Uniform(bitgenref_, 0, original_document_number - 1);
+    const int document_id = absl::Uniform(absl::IntervalClosed, bitgenref_, 0,
+                                          original_document_number - 1);
     const bert_annotator::Document& original_document =
         documents_.documents(document_id);
     bert_annotator::Document* augmented_document = documents_.add_documents();
@@ -211,45 +211,31 @@ bool Augmenter::MaybeDropContext(
 
     dropped_context = true;
 
-    // Drop some words from the left side, drop some from the right side.
-    // This ensures that at least one token remains, while making the specific
-    // choice which one remains random.
-    int tokens_to_drop_left = absl::Uniform(
-        bitgenref_, 0, dropable_sequence.end - dropable_sequence.start);
-
-    if (tokens_to_drop_left > 0) {
-      TokenSequence boundaries_left = TokenSequence{
-          .start = dropable_sequence.start,
-          .end = dropable_sequence.start + tokens_to_drop_left - 1};
-      const int removed_characters_left =
-          DropText(boundaries_left, augmented_document);
-      DropTokens(augmented_document, boundaries_left);
-      ShiftTokenBoundaries(boundaries_left.start, -removed_characters_left,
-                           augmented_document);
-      UpdateLabeledSpansForDroppedTokens(boundaries_left, augmented_document);
-      dropable_sequence.end -= tokens_to_drop_left;
+    // The first token to drop can be anyone, the second must be chosen such
+    // that at least one token of the sequence remains.
+    int drop_tokens_start =
+        absl::Uniform(absl::IntervalClosed, bitgenref_, dropable_sequence.start,
+                      dropable_sequence.end);
+    int drop_tokens_end;
+    if (drop_tokens_start == dropable_sequence.start) {
+      drop_tokens_end =
+          absl::Uniform(absl::IntervalClosed, bitgenref_, drop_tokens_start,
+                        dropable_sequence.end - 1);
+    } else {
+      drop_tokens_end = absl::Uniform(absl::IntervalClosed, bitgenref_,
+                                      drop_tokens_start, dropable_sequence.end);
     }
 
-    if (dropable_sequence.end == dropable_sequence.start) {
-      continue;
-    }
-    std::cerr << "D" << std::endl;
-
-    int tokens_to_drop_right = absl::Uniform(
-        bitgenref_, 0, dropable_sequence.end - dropable_sequence.start);
-    if (tokens_to_drop_right > 0) {
-      TokenSequence boundaries_right = TokenSequence{
-          .start = dropable_sequence.end - tokens_to_drop_right + 1,
-          .end = dropable_sequence.end};
-      const int removed_characters_right =
-          DropText(boundaries_right, augmented_document);
-      DropTokens(augmented_document, boundaries_right);
-      ShiftTokenBoundaries(boundaries_right.start, -removed_characters_right,
-                           augmented_document);
-      UpdateLabeledSpansForDroppedTokens(boundaries_right, augmented_document);
-    }
-    std::cerr << "E" << std::endl;
+    TokenSequence boundaries =
+        TokenSequence{.start = drop_tokens_start, .end = drop_tokens_end};
+    const int removed_characters = DropText(boundaries, augmented_document);
+    DropTokens(augmented_document, boundaries);
+    ShiftTokenBoundaries(boundaries.start, -removed_characters,
+                         augmented_document);
+    UpdateLabeledSpansForDroppedTokens(boundaries, augmented_document);
   }
+
+  std::cerr << "E" << std::endl;
 
   return dropped_context;
 }
@@ -262,8 +248,9 @@ bool Augmenter::MaybeReplaceLabel(const double probability,
       LabelBoundaryList(*document, label);
   const bool do_replace = absl::Bernoulli(bitgenref_, probability);
   if (do_replace && !boundary_list.empty()) {
-    const int boundary_index = absl::Uniform(bitgenref_, static_cast<size_t>(0),
-                                             boundary_list.size() - 1);
+    const int boundary_index =
+        absl::Uniform(absl::IntervalClosed, bitgenref_, static_cast<size_t>(0),
+                      boundary_list.size() - 1);
     const TokenSequence boundaries = boundary_list[boundary_index];
     const std::string replacement = sampler->Sample();
     ReplaceLabeledTokens(boundaries, replacement, label, document);
