@@ -323,7 +323,7 @@ bool Augmenter::MaybeDropContextDropLabels(
       absl::Uniform(bitgenref_, 0, static_cast<int>(labeled_sequences.size()));
   TokenSequence labeled_sequence = labeled_sequences[label_id];
   if (labeled_sequence.end < token_count - 2) {
-    TokenSequence drop_sequence{.end = token_count - 1};
+    TokenSequence drop_sequence{.start = 0, .end = token_count - 1};
     const bool drop_right = absl::Bernoulli(bitgenref_, 0.5);
     if (drop_right) {
       drop_sequence.start =
@@ -339,7 +339,7 @@ bool Augmenter::MaybeDropContextDropLabels(
     }
   }
   if (labeled_sequence.start > 1) {
-    TokenSequence drop_sequence{.start = 0};
+    TokenSequence drop_sequence{.start = 0, .end = 0};
     const bool drop_left = absl::Bernoulli(bitgenref_, 0.5);
     if (drop_left) {
       drop_sequence.end = absl::Uniform(absl::IntervalClosed, bitgenref_, 0,
