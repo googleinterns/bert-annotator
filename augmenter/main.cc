@@ -37,7 +37,7 @@ ABSL_FLAG(std::string, phones_path, "",
 ABSL_FLAG(int, phones, 0,
           "Number of augmentations by phone number replacement");
 ABSL_FLAG(int, context_keep_labels, 0,
-          "Number of augmentations by dropping some context inbetween labels");
+          "Number of augmentations by dropping some context in between labels");
 ABSL_FLAG(
     int, context_drop_labels, 0,
     "Number of augmentations by dropping some context (may drop other labels)");

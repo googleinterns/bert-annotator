@@ -543,7 +543,7 @@ void Augmenter::Lowercase(
   for (int j = 0; j < augmented_document->token_size(); ++j) {
     bert_annotator::Token* const token = augmented_document->mutable_token(j);
 
-    // Adds the string inbetween two tokens as it is.
+    // Adds the string in between two tokens as it is.
     const int token_start = token->start();
     const int token_end = token->end();
     if (text_index < token_start) {
