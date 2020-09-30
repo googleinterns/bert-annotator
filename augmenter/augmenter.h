@@ -110,6 +110,9 @@ class Augmenter {
       bert_annotator::Document* document,
       google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>*
           defaults_to) const;
+  // Masks all digits with zero.
+  void MaskDigits(std::string* text) const;
+  void MaskDigits(bert_annotator::Document* const document) const;
   bert_annotator::Documents documents_;
   RandomSampler* const address_sampler_;
   RandomSampler* const phone_sampler_;
