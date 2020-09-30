@@ -49,4 +49,5 @@ Valid flags are:
  - `--addresses=[augmentations by address replacement]`
  - `--phones_path=[path to phone number file]`
  - `--phones=[augmentations by phone number replacement]`
- - `--context=[augmentations by dropping context]`
+ - `--context_keep_labels=[augmentations by dropping context while keeping all address/phone labels]`
+ - `--context_drop_labels=[augmentations by dropping context and potentially dropping other labels]`
