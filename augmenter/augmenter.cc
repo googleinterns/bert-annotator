@@ -256,7 +256,7 @@ bool Augmenter::MaybeDropContextKeepLabels(
 
     int drop_tokens_start;
     int drop_tokens_end;
-    if (i == dropable_sequences.size() - 1 &&
+    if (i == static_cast<int>(dropable_sequences.size()) - 1 &&
         dropable_sequence.end == augmented_document->token_size() -
                                      1) {  // For context after the last label,
                                            // drop a postfix of the sentence.
