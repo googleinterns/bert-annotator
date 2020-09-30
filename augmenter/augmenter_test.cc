@@ -90,7 +90,6 @@ bert_annotator::Documents ConstructBertDocument(
     }
 
     if (document_spec.has_labels) {
-      std::map<std::string, bert_annotator::LabeledSpans> label_map = {};
       bert_annotator::LabeledSpans labeled_spans = {};
       for (auto& label_pair : document_spec.label_specs_map) {
         for (auto& label_spec : label_pair.second) {
@@ -1613,6 +1612,69 @@ TEST(AugmenterTest, MaskDigits) {
                TokenSpec("Addr. 0", 10, 16), TokenSpec("num_0000_bers", 18, 30),
                TokenSpec("00", 32, 33)},
               {{"lucid", {LabelSpec("ADDRESS", 2, 2)}}})})
+          .documents(0);
+  ExpectEq(augmented, expected);
+}
+
+TEST(AugmenterTest, ContextlessAddress) {
+  bert_annotator::Documents documents = ConstructBertDocument({});
+  Augmentations augmentations = {.num_total = 1,
+                                 .num_lowercasings = 0,
+                                 .num_address_replacements = 0,
+                                 .num_phone_replacements = 0,
+                                 .num_context_drops_between_labels = 0,
+                                 .num_context_drops_outside_one_label = 0,
+                                 .num_contextless_addresses = 1,
+                                 .num_contextless_phones = 0,
+                                 .mask_digits = true};
+  MockRandomSampler address_sampler;
+  MockRandomSampler phone_sampler;
+  std::string replacement = "Sample Address 1";
+  EXPECT_CALL(address_sampler, Sample()).WillOnce(ReturnRef(replacement));
+  absl::MockingBitGen bitgen;
+
+  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+                                  &phone_sampler, bitgen);
+
+  augmenter.Augment();
+
+  const bert_annotator::Document augmented = augmenter.documents().documents(0);
+  const bert_annotator::Document expected =
+      ConstructBertDocument(
+          {DocumentSpec("Sample Address 1",
+                        {TokenSpec("Sample Address 1", 0, 15)},
+                        {{"lucid", {LabelSpec("ADDRESS", 0, 0)}}})})
+          .documents(0);
+  ExpectEq(augmented, expected);
+}
+
+TEST(AugmenterTest, ContextlessPhone) {
+  bert_annotator::Documents documents = ConstructBertDocument({});
+  Augmentations augmentations = {.num_total = 1,
+                                 .num_lowercasings = 0,
+                                 .num_address_replacements = 0,
+                                 .num_phone_replacements = 0,
+                                 .num_context_drops_between_labels = 0,
+                                 .num_context_drops_outside_one_label = 0,
+                                 .num_contextless_addresses = 0,
+                                 .num_contextless_phones = 1,
+                                 .mask_digits = true};
+  MockRandomSampler address_sampler;
+  MockRandomSampler phone_sampler;
+  std::string replacement = "0123456789";
+  EXPECT_CALL(phone_sampler, Sample()).WillOnce(ReturnRef(replacement));
+  absl::MockingBitGen bitgen;
+
+  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+                                  &phone_sampler, bitgen);
+
+  augmenter.Augment();
+
+  const bert_annotator::Document augmented = augmenter.documents().documents(0);
+  const bert_annotator::Document expected =
+      ConstructBertDocument(
+          {DocumentSpec("0123456789", {TokenSpec("0123456789", 0, 9)},
+                        {{"lucid", {LabelSpec("TELEPHONE", 0, 0)}}})})
           .documents(0);
   ExpectEq(augmented, expected);
 }

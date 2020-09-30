@@ -137,8 +137,47 @@ bool Augmenter::AugmentLowercase(
   return false;
 }
 
+void Augmenter::AugmentContextless(const absl::string_view label,
+                                   RandomSampler* const sampler,
+                                   bert_annotator::Document* const document) {
+  if (document->text().size() != 0 || document->token_size() != 0 ||
+      document->labeled_spans_size() != 0) {
+    std::cerr
+        << "Contextless augmentation must only be applied to empty documents!"
+        << std::endl;
+    abort();
+  }
+
+  std::string sample = sampler->Sample();
+  document->set_text(sample);
+  auto token = document->add_token();
+  token->set_word(sample);
+  token->set_start(0);
+  token->set_end(sample.size() - 1);
+  bert_annotator::LabeledSpans labeled_spans = {};
+  auto labeled_span = labeled_spans.add_labeled_span();
+  labeled_span->set_label(std::string(label));
+  labeled_span->set_token_start(0);
+  labeled_span->set_token_end(0);
+  (*document->mutable_labeled_spans())["lucid"] = labeled_spans;
+}
+
 void Augmenter::Augment() {
   const int original_document_number = documents_.documents_size();
+
+  for (int i = 0; i < augmentations_.num_contextless_addresses; ++i) {
+    bert_annotator::Document* augmented_document = documents_.add_documents();
+    AugmentContextless(kAddressReplacementLabel, address_sampler_,
+                       augmented_document);
+    --augmentations_.num_total;
+  }
+  for (int i = 0; i < augmentations_.num_contextless_phones; ++i) {
+    bert_annotator::Document* augmented_document = documents_.add_documents();
+    AugmentContextless(kPhoneReplacementLabel, phone_sampler_,
+                       augmented_document);
+    --augmentations_.num_total;
+  }
+
   while (augmentations_.num_total > 0) {
     const int document_id = absl::Uniform(absl::IntervalClosed, bitgenref_, 0,
                                           original_document_number - 1);

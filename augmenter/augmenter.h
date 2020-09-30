@@ -51,6 +51,9 @@ class Augmenter {
   bool AugmentAddress(bert_annotator::Document* const augmented_document);
   bool AugmentPhone(bert_annotator::Document* const augmented_document);
   bool AugmentLowercase(bert_annotator::Document* const augmented_document);
+  void AugmentContextless(const absl::string_view label,
+                          RandomSampler* const sampler,
+                          bert_annotator::Document* const document);
   bool MaybeReplaceLabel(const double probability, RandomSampler* const sampler,
                          const absl::string_view replacement_label,
                          bert_annotator::Document* const document);
@@ -72,12 +75,12 @@ class Augmenter {
   bool MaybeDropContextDropLabels(
       const double probability,
       bert_annotator::Document* const augmented_document);
+  // Returns the length difference (positive = length increase).
   const int ReplaceText(const TokenRange& boundaries,
                         const std::string& replacement,
                         bert_annotator::Document* const document) const;
-  // Returns the number of dropped characters.
   // Also removed non-tokens between the first dropped tokens and the preceeding
-  // last non-dropped token.
+  // last non-dropped token. Returns the number of deleted characters.
   const int DropText(const TokenRange& boundaries,
                      bert_annotator::Document* const document) const;
   // May introduce tokens longer than one word.
