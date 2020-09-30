@@ -300,19 +300,15 @@ const bert_annotator::Documents Augmenter::documents() const {
   return documents_;
 }
 
-absl::flat_hash_set<absl::string_view> Augmenter::kAddressLabels = {
-    "LOCALITY",
-    "COUNTRY",
-    "ADMINISTRATIVE_AREA",
-    "THOROUGHFARE",
-    "THOROUGHFARE_NUMBER",
-    "PREMISE",
-    "POSTAL_CODE",
-    "PREMISE_LEVEL"};
+const absl::flat_hash_set<absl::string_view>& Augmenter::kAddressLabels =
+    *new absl::flat_hash_set<absl::string_view>(
+        {"LOCALITY", "COUNTRY", "ADMINISTRATIVE_AREA", "THOROUGHFARE",
+         "THOROUGHFARE_NUMBER", "PREMISE", "POSTAL_CODE", "PREMISE_LEVEL"});
 
 constexpr absl::string_view Augmenter::kAddressReplacementLabel;
 
-absl::flat_hash_set<absl::string_view> Augmenter::kPhoneLabels = {"TELEPHONE"};
+const absl::flat_hash_set<absl::string_view>& Augmenter::kPhoneLabels = {
+    "TELEPHONE"};
 
 constexpr absl::string_view Augmenter::kPhoneReplacementLabel;
 

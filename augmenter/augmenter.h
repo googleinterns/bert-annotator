@@ -81,9 +81,9 @@ class Augmenter {
   RandomSampler* const address_sampler_;
   RandomSampler* const phone_sampler_;
   Augmentations augmentations_;
-  ABSL_CONST_INIT static absl::flat_hash_set<absl::string_view> kAddressLabels;
+  static const absl::flat_hash_set<absl::string_view>& kAddressLabels;
   static constexpr absl::string_view kAddressReplacementLabel = "ADDRESS";
-  ABSL_CONST_INIT static absl::flat_hash_set<absl::string_view> kPhoneLabels;
+  static const absl::flat_hash_set<absl::string_view>& kPhoneLabels;
   static constexpr absl::string_view kPhoneReplacementLabel = "TELEPHONE";
   absl::BitGenRef bitgenref_;
   absl::BitGen bitgen_;
