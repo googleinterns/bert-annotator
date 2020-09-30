@@ -48,7 +48,7 @@ ABSL_FLAG(double, probability_per_drop, 0.5,
           "Given that context from a sentence will be dropped, how likely is "
           "each sequence to be dropped?");
 ABSL_FLAG(bool, mask_digits, false,
-          "If true, all digits are replaced with zeros");
+          "If set, all digits are replaced with zeros");
 
 // Augments the dataset by applying configurable actions, see defined flags.
 int main(int argc, char* argv[]) {
