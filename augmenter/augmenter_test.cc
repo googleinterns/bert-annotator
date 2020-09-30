@@ -141,6 +141,8 @@ TEST(AugmenterTest, NoAugmentation) {
                                  .num_context_drops_between_labels = 0,
                                  .num_context_drops_outside_one_label = 0,
                                  .probability_per_drop = 0.5,
+                                 .num_contextless_addresses = 0,
+                                 .num_contextless_phones = 0,
                                  .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
@@ -162,6 +164,8 @@ TEST(AugmenterTest, AugmentsAreAdded) {
                                  .num_context_drops_between_labels = 0,
                                  .num_context_drops_outside_one_label = 0,
                                  .probability_per_drop = 0.5,
+                                 .num_contextless_addresses = 0,
+                                 .num_contextless_phones = 0,
                                  .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
@@ -183,6 +187,8 @@ TEST(AugmenterTest, NoAugmentations) {
                                  .num_context_drops_between_labels = 0,
                                  .num_context_drops_outside_one_label = 0,
                                  .probability_per_drop = 0.5,
+                                 .num_contextless_addresses = 0,
+                                 .num_contextless_phones = 0,
                                  .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
@@ -209,6 +215,8 @@ TEST(AugmenterTest, Lowercasing) {
                                  .num_context_drops_between_labels = 0,
                                  .num_context_drops_outside_one_label = 0,
                                  .probability_per_drop = 0.5,
+                                 .num_contextless_addresses = 0,
+                                 .num_contextless_phones = 0,
                                  .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
@@ -284,6 +292,8 @@ TEST(AugmenterTest, RandomizedLowercasing) {
                                  .num_context_drops_between_labels = 0,
                                  .num_context_drops_outside_one_label = 0,
                                  .probability_per_drop = 0.5,
+                                 .num_contextless_addresses = 0,
+                                 .num_contextless_phones = 0,
                                  .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
@@ -327,6 +337,8 @@ TEST(AugmenterTest, DontLowercaseNonTokens) {
                                  .num_context_drops_between_labels = 0,
                                  .num_context_drops_outside_one_label = 0,
                                  .probability_per_drop = 0.5,
+                                 .num_contextless_addresses = 0,
+                                 .num_contextless_phones = 0,
                                  .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
@@ -359,6 +371,8 @@ TEST(AugmenterTest, DontReplacePhone) {
                                  .num_context_drops_between_labels = 0,
                                  .num_context_drops_outside_one_label = 0,
                                  .probability_per_drop = 0.5,
+                                 .num_contextless_addresses = 0,
+                                 .num_contextless_phones = 0,
                                  .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
@@ -385,6 +399,8 @@ TEST(AugmenterTest, ReplacePhoneSameLength) {
                                  .num_context_drops_between_labels = 0,
                                  .num_context_drops_outside_one_label = 0,
                                  .probability_per_drop = 0.5,
+                                 .num_contextless_addresses = 0,
+                                 .num_contextless_phones = 0,
                                  .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
@@ -428,6 +444,8 @@ TEST(AugmenterTest, ReplacePhoneLongerLength) {
                                  .num_context_drops_between_labels = 0,
                                  .num_context_drops_outside_one_label = 0,
                                  .probability_per_drop = 0.5,
+                                 .num_contextless_addresses = 0,
+                                 .num_contextless_phones = 0,
                                  .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
@@ -472,6 +490,8 @@ TEST(AugmenterTest, ReplacePhoneShorterLength) {
                                  .num_context_drops_between_labels = 0,
                                  .num_context_drops_outside_one_label = 0,
                                  .probability_per_drop = 0.5,
+                                 .num_contextless_addresses = 0,
+                                 .num_contextless_phones = 0,
                                  .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
@@ -514,6 +534,8 @@ TEST(AugmenterTest, ReplacePhoneStart) {
                                  .num_context_drops_between_labels = 0,
                                  .num_context_drops_outside_one_label = 0,
                                  .probability_per_drop = 0.5,
+                                 .num_contextless_addresses = 0,
+                                 .num_contextless_phones = 0,
                                  .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
@@ -555,6 +577,8 @@ TEST(AugmenterTest, ReplacePhoneEnd) {
                                  .num_context_drops_between_labels = 0,
                                  .num_context_drops_outside_one_label = 0,
                                  .probability_per_drop = 0.5,
+                                 .num_contextless_addresses = 0,
+                                 .num_contextless_phones = 0,
                                  .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
@@ -599,6 +623,8 @@ TEST(AugmenterTest, ReplacePhoneChooseLabel) {
                                  .num_context_drops_between_labels = 0,
                                  .num_context_drops_outside_one_label = 0,
                                  .probability_per_drop = 0.5,
+                                 .num_contextless_addresses = 0,
+                                 .num_contextless_phones = 0,
                                  .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
@@ -662,6 +688,8 @@ TEST(AugmenterTest, ReplacePhoneChooseDocument) {
                                  .num_context_drops_between_labels = 0,
                                  .num_context_drops_outside_one_label = 0,
                                  .probability_per_drop = 0.5,
+                                 .num_contextless_addresses = 0,
+                                 .num_contextless_phones = 0,
                                  .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
@@ -714,6 +742,8 @@ TEST(AugmenterTest, ReplacePhoneMissingLucid) {
                                  .num_context_drops_between_labels = 0,
                                  .num_context_drops_outside_one_label = 0,
                                  .probability_per_drop = 0.5,
+                                 .num_contextless_addresses = 0,
+                                 .num_contextless_phones = 0,
                                  .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
@@ -766,6 +796,8 @@ TEST(AugmenterTest, DontReplaceAddress) {
                                  .num_context_drops_between_labels = 0,
                                  .num_context_drops_outside_one_label = 0,
                                  .probability_per_drop = 0.5,
+                                 .num_contextless_addresses = 0,
+                                 .num_contextless_phones = 0,
                                  .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
@@ -801,6 +833,8 @@ TEST(AugmenterTest, UpdateLabels) {
                                  .num_context_drops_between_labels = 0,
                                  .num_context_drops_outside_one_label = 0,
                                  .probability_per_drop = 0.5,
+                                 .num_contextless_addresses = 0,
+                                 .num_contextless_phones = 0,
                                  .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
@@ -835,6 +869,8 @@ TEST(AugmenterTest, ReplaceAddressSameLength) {
                                  .num_context_drops_between_labels = 0,
                                  .num_context_drops_outside_one_label = 0,
                                  .probability_per_drop = 0.5,
+                                 .num_contextless_addresses = 0,
+                                 .num_contextless_phones = 0,
                                  .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
@@ -879,6 +915,8 @@ TEST(AugmenterTest, ReplaceAddressFewerTokens) {
                                  .num_context_drops_between_labels = 0,
                                  .num_context_drops_outside_one_label = 0,
                                  .probability_per_drop = 0.5,
+                                 .num_contextless_addresses = 0,
+                                 .num_contextless_phones = 0,
                                  .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
@@ -923,6 +961,8 @@ TEST(AugmenterTest, ReplaceAddressMultiWordReplacement) {
                                  .num_context_drops_between_labels = 0,
                                  .num_context_drops_outside_one_label = 0,
                                  .probability_per_drop = 0.5,
+                                 .num_contextless_addresses = 0,
+                                 .num_contextless_phones = 0,
                                  .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
@@ -967,6 +1007,8 @@ TEST(AugmenterTest, DropContextDetectMultipleDroppableSequences) {
                                  .num_context_drops_between_labels = 1,
                                  .num_context_drops_outside_one_label = 0,
                                  .probability_per_drop = 0.5,
+                                 .num_contextless_addresses = 0,
+                                 .num_contextless_phones = 0,
                                  .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
@@ -1003,6 +1045,8 @@ TEST(AugmenterTest, DropContextStartAndEnd) {
                                  .num_context_drops_between_labels = 1,
                                  .num_context_drops_outside_one_label = 0,
                                  .probability_per_drop = 0.5,
+                                 .num_contextless_addresses = 0,
+                                 .num_contextless_phones = 0,
                                  .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
@@ -1064,6 +1108,8 @@ TEST(AugmenterTest, DropContextRemoveBeginningOfLabel) {
                                  .num_context_drops_between_labels = 1,
                                  .num_context_drops_outside_one_label = 0,
                                  .probability_per_drop = 0.5,
+                                 .num_contextless_addresses = 0,
+                                 .num_contextless_phones = 0,
                                  .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
@@ -1117,6 +1163,8 @@ TEST(AugmenterTest, DropContextRemoveMiddleOfLabel) {
                                  .num_context_drops_between_labels = 1,
                                  .num_context_drops_outside_one_label = 0,
                                  .probability_per_drop = 0.5,
+                                 .num_contextless_addresses = 0,
+                                 .num_contextless_phones = 0,
                                  .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
@@ -1173,6 +1221,8 @@ TEST(AugmenterTest, DropContextRemoveEndOfLabel) {
                                  .num_context_drops_between_labels = 1,
                                  .num_context_drops_outside_one_label = 0,
                                  .probability_per_drop = 0.5,
+                                 .num_contextless_addresses = 0,
+                                 .num_contextless_phones = 0,
                                  .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
@@ -1222,6 +1272,8 @@ TEST(AugmenterTest, DropContextNoLabels) {
                                  .num_context_drops_between_labels = 1,
                                  .num_context_drops_outside_one_label = 0,
                                  .probability_per_drop = 0.5,
+                                 .num_contextless_addresses = 0,
+                                 .num_contextless_phones = 0,
                                  .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
@@ -1271,6 +1323,8 @@ TEST(AugmenterTest, DropContextNoLabelsNoLucid) {
                                  .num_context_drops_between_labels = 1,
                                  .num_context_drops_outside_one_label = 0,
                                  .probability_per_drop = 0.5,
+                                 .num_contextless_addresses = 0,
+                                 .num_contextless_phones = 0,
                                  .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
@@ -1320,6 +1374,8 @@ TEST(AugmenterTest, DropContextDropLabelsNoLabels) {
                                  .num_context_drops_between_labels = 0,
                                  .num_context_drops_outside_one_label = 1,
                                  .probability_per_drop = 0.5,
+                                 .num_contextless_addresses = 0,
+                                 .num_contextless_phones = 0,
                                  .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
@@ -1369,6 +1425,8 @@ TEST(AugmenterTest, DropContextDropLabelsNoLabelsNoLucid) {
                                  .num_context_drops_between_labels = 0,
                                  .num_context_drops_outside_one_label = 1,
                                  .probability_per_drop = 0.5,
+                                 .num_contextless_addresses = 0,
+                                 .num_contextless_phones = 0,
                                  .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
@@ -1424,6 +1482,8 @@ TEST(AugmenterTest, DropContextDropLabelsPrefix) {
                                  .num_context_drops_between_labels = 0,
                                  .num_context_drops_outside_one_label = 1,
                                  .probability_per_drop = 0.5,
+                                 .num_contextless_addresses = 0,
+                                 .num_contextless_phones = 0,
                                  .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
@@ -1486,6 +1546,8 @@ TEST(AugmenterTest, DropContextDropLabelsSuffix) {
                                  .num_context_drops_between_labels = 0,
                                  .num_context_drops_outside_one_label = 1,
                                  .probability_per_drop = 0.5,
+                                 .num_contextless_addresses = 0,
+                                 .num_contextless_phones = 0,
                                  .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
@@ -1537,6 +1599,8 @@ TEST(AugmenterTest, RemoveSeparatorTokens) {
                                  .num_context_drops_between_labels = 0,
                                  .num_context_drops_outside_one_label = 0,
                                  .probability_per_drop = 0.5,
+                                 .num_contextless_addresses = 0,
+                                 .num_contextless_phones = 0,
                                  .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
@@ -1574,6 +1638,8 @@ TEST(AugmenterTest, MaskDigits) {
                                  .num_context_drops_between_labels = 0,
                                  .num_context_drops_outside_one_label = 0,
                                  .probability_per_drop = 0.5,
+                                 .num_contextless_addresses = 0,
+                                 .num_contextless_phones = 0,
                                  .mask_digits = true};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
@@ -1624,6 +1690,7 @@ TEST(AugmenterTest, ContextlessAddress) {
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 0,
                                  .num_context_drops_outside_one_label = 0,
+                                 .probability_per_drop = 0.5,
                                  .num_contextless_addresses = 1,
                                  .num_contextless_phones = 0,
                                  .mask_digits = true};
@@ -1656,6 +1723,7 @@ TEST(AugmenterTest, ContextlessPhone) {
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 0,
                                  .num_context_drops_outside_one_label = 0,
+                                 .probability_per_drop = 0.5,
                                  .num_contextless_addresses = 0,
                                  .num_contextless_phones = 1,
                                  .mask_digits = true};
