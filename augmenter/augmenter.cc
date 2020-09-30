@@ -138,15 +138,8 @@ bool Augmenter::AugmentLowercase(
 }
 
 void Augmenter::AugmentContextless(const absl::string_view label,
-                                   RandomSampler* const sampler,
-                                   bert_annotator::Document* const document) {
-  if (document->text().size() != 0 || document->token_size() != 0 ||
-      document->labeled_spans_size() != 0) {
-    std::cerr
-        << "Contextless augmentation must only be applied to empty documents!"
-        << std::endl;
-    abort();
-  }
+                                   RandomSampler* const sampler) {
+  bert_annotator::Document* document = documents_.add_documents();
 
   std::string sample = sampler->Sample();
   document->set_text(sample);
@@ -166,15 +159,11 @@ void Augmenter::Augment() {
   const int original_document_number = documents_.documents_size();
 
   for (int i = 0; i < augmentations_.num_contextless_addresses; ++i) {
-    bert_annotator::Document* augmented_document = documents_.add_documents();
-    AugmentContextless(kAddressReplacementLabel, address_sampler_,
-                       augmented_document);
+    AugmentContextless(kAddressReplacementLabel, address_sampler_);
     --augmentations_.num_total;
   }
   for (int i = 0; i < augmentations_.num_contextless_phones; ++i) {
-    bert_annotator::Document* augmented_document = documents_.add_documents();
-    AugmentContextless(kPhoneReplacementLabel, phone_sampler_,
-                       augmented_document);
+    AugmentContextless(kPhoneReplacementLabel, phone_sampler_);
     --augmentations_.num_total;
   }
 

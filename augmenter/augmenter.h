@@ -52,8 +52,7 @@ class Augmenter {
   bool AugmentPhone(bert_annotator::Document* const augmented_document);
   bool AugmentLowercase(bert_annotator::Document* const augmented_document);
   void AugmentContextless(const absl::string_view label,
-                          RandomSampler* const sampler,
-                          bert_annotator::Document* const document);
+                          RandomSampler* const sampler);
   bool MaybeReplaceLabel(const double probability, RandomSampler* const sampler,
                          const absl::string_view replacement_label,
                          bert_annotator::Document* const document);
