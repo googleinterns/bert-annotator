@@ -51,7 +51,7 @@ Augmenter::Augmenter(const bert_annotator::Documents& documents,
     auto labeled_spans =
         document.mutable_labeled_spans()->at("lucid").mutable_labeled_span();
     for (auto& labeled_span : *labeled_spans) {
-      if (kAddressLabels.count(labeled_span.label())) {
+      if (kAddressLabels.contains(labeled_span.label())) {
         labeled_span.set_label(
             std::string(Augmenter::kAddressReplacementLabel));
       }
