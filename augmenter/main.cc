@@ -36,9 +36,11 @@ ABSL_FLAG(std::string, phones_path, "",
           "Path to list of alternative phone number");
 ABSL_FLAG(int, phones, 0,
           "Number of augmentations by phone number replacement");
-ABSL_FLAG(int, context, 0,
-          "Number of augmentations by dropping some (leading and/or trailing) "
-          "context");
+ABSL_FLAG(int, context_keep_labels, 0,
+          "Number of augmentations by dropping some context inbetween labels");
+ABSL_FLAG(
+    int, context_drop_labels, 0,
+    "Number of augmentations by dropping some context (may drop other labels)");
 
 // Augments the dataset by applying configurable actions, see defined flags.
 int main(int argc, char* argv[]) {
@@ -48,14 +50,17 @@ int main(int argc, char* argv[]) {
 
   absl::ParseCommandLine(argc, argv);
 
-  const int augmentations_total = absl::GetFlag(FLAGS_total);
   const std::vector<std::string> corpora = absl::GetFlag(FLAGS_corpora);
-  const int augmentations_lowercase = absl::GetFlag(FLAGS_lowercase);
   const std::string addresses_path = absl::GetFlag(FLAGS_addresses_path);
-  const int augmentations_addresses = absl::GetFlag(FLAGS_addresses);
   const std::string phones_path = absl::GetFlag(FLAGS_phones_path);
-  const int augmentations_phones = absl::GetFlag(FLAGS_phones);
-  const int augmentations_context = absl::GetFlag(FLAGS_context);
+
+  augmenter::Augmentations augmentations{
+      .total = absl::GetFlag(FLAGS_total),
+      .lowercase = absl::GetFlag(FLAGS_lowercase),
+      .address = absl::GetFlag(FLAGS_addresses),
+      .phone = absl::GetFlag(FLAGS_phones),
+      .context_keep_labels = absl::GetFlag(FLAGS_context_keep_labels),
+      .context_drop_labels = absl::GetFlag(FLAGS_context_drop_labels)};
 
   for (const std::string& corpus : corpora) {
     augmenter::TextprotoIO textproto_io = augmenter::TextprotoIO();
@@ -92,11 +97,6 @@ int main(int argc, char* argv[]) {
     }
     augmenter::RandomSampler phones_sampler(phones_stream);
 
-    augmenter::Augmentations augmentations{.total = augmentations_total,
-                                           .lowercase = augmentations_lowercase,
-                                           .address = augmentations_addresses,
-                                           .phone = augmentations_phones,
-                                           .context = augmentations_context};
     augmenter::Augmenter augmenter =
         augmenter::Augmenter(textproto_io.documents(), augmentations,
                              &address_sampler, &phones_sampler);

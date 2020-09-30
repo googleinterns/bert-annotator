@@ -54,12 +54,19 @@ class Augmenter {
   bool AugmentContext(bert_annotator::Document* const augmented_document);
   std::vector<TokenSequence> DropableSequences(
       const bert_annotator::Document& document);
+  std::vector<TokenSequence> LabeledSequences(
+      const bert_annotator::Document& document);
   void DropTokens(const TokenSequence boundaries,
                   bert_annotator::Document* const augmented_document) const;
-  // Drops some context. For sentences without labels, the end of the sentence
-  // is dropped.
-  bool MaybeDropContext(const double probability,
-                        bert_annotator::Document* const augmented_document);
+  // Drops context while keeping all labels.
+  bool MaybeDropContextKeepLabels(
+      const double probability,
+      bert_annotator::Document* const augmented_document);
+  // Drops context before/after a chosen label, potentially dropping other
+  // labels.
+  bool MaybeDropContextDropLabels(
+      const double probability,
+      bert_annotator::Document* const augmented_document);
   // Finds all token sequences labeled according to the given label list. If
   // multiple sequential tokens have different labels, but all are given in
   // the list, they are concidered to be part of the same sequence.

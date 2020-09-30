@@ -126,7 +126,8 @@ void Augmenter::Augment() {
     if (!augmentation_performed &&
         augmentations_.total ==
             augmentations_.lowercase + augmentations_.address +
-                augmentations_.phone + augmentations_.context) {
+                augmentations_.phone + augmentations_.context_keep_labels +
+                augmentations_.context_drop_labels) {
       documents_.mutable_documents()->RemoveLast();
     } else {
       --augmentations_.total;
@@ -136,13 +137,24 @@ void Augmenter::Augment() {
 
 bool Augmenter::AugmentContext(
     bert_annotator::Document* const augmented_document) {
-  const bool dropped_context = MaybeDropContext(
-      static_cast<double>(augmentations_.context) / augmentations_.total,
+  const bool dropped_context_keeping_labels = MaybeDropContextKeepLabels(
+      static_cast<double>(augmentations_.context_keep_labels) /
+          augmentations_.total,
       augmented_document);
-  if (dropped_context) {
-    --augmentations_.context;
+  if (dropped_context_keeping_labels) {
+    --augmentations_.context_keep_labels;
     return true;
   }
+
+  const bool dropped_context_dropping_labels = MaybeDropContextDropLabels(
+      static_cast<double>(augmentations_.context_drop_labels) /
+          augmentations_.total,
+      augmented_document);
+  if (dropped_context_dropping_labels) {
+    --augmentations_.context_drop_labels;
+    return true;
+  }
+
   return false;
 }
 
@@ -179,7 +191,32 @@ std::vector<TokenSequence> Augmenter::DropableSequences(
   return dropable_sequences;
 }
 
-bool Augmenter::MaybeDropContext(
+std::vector<TokenSequence> Augmenter::LabeledSequences(
+    const bert_annotator::Document& document) {
+  if (document.labeled_spans().find("lucid") ==
+      document.labeled_spans().end()) {
+    return {TokenSequence{.start = 0, .end = document.token_size() - 1}};
+  }
+
+  std::vector<TokenSequence> labeled_sequences;
+
+  const auto labeled_spans =
+      document.labeled_spans().at("lucid").labeled_span();
+  for (int i = 0; i < labeled_spans.size(); ++i) {
+    const auto& labeled_span = labeled_spans.at(i);
+    if (labeled_span.label().compare(
+            std::string(Augmenter::kAddressReplacementLabel)) == 0 ||
+        labeled_span.label().compare(
+            std::string(Augmenter::kPhoneReplacementLabel)) == 0) {
+      labeled_sequences.push_back(
+          TokenSequence{.start = labeled_span.token_start(),
+                        .end = labeled_span.token_end()});
+    }
+  }
+  return labeled_sequences;
+}
+
+bool Augmenter::MaybeDropContextKeepLabels(
     const double probability,
     bert_annotator::Document* const augmented_document) {
   const bool do_drop_context = absl::Bernoulli(bitgenref_, probability);
@@ -190,8 +227,18 @@ bool Augmenter::MaybeDropContext(
   bool dropped_context = false;
   std::vector<TokenSequence> dropable_sequences =
       DropableSequences(*augmented_document);
-  // Tokens will be dropped, so iterating backwards avoids the need to update
-  // the indices in dropable_sequences.
+  // If there are not labels, we will get a single dropable sequence containing
+  // the whole sentence. To drop from both its start and end, we duplicate it
+  // here.
+  bool no_labels = false;
+  if (dropable_sequences.size() == 1 && dropable_sequences[0].start == 0 &&
+      dropable_sequences[0].end == augmented_document->token_size() - 1) {
+    no_labels = true;
+    dropable_sequences.push_back(dropable_sequences[0]);
+  }
+
+  // Tokens will be dropped, so iterating backwards avoids the need to
+  // update the indices in dropable_sequences.
   for (int i = dropable_sequences.size() - 1; i >= 0; --i) {
     const auto& dropable_sequence = dropable_sequences.at(i);
     const bool do_drop = absl::Bernoulli(bitgenref_, 0.5);
@@ -209,13 +256,19 @@ bool Augmenter::MaybeDropContext(
 
     int drop_tokens_start;
     int drop_tokens_end;
-    if (dropable_sequence.end == augmented_document->token_size() -
+    if (i == dropable_sequences.size() - 1 &&
+        dropable_sequence.end == augmented_document->token_size() -
                                      1) {  // For context after the last label,
                                            // drop a postfix of the sentence.
       drop_tokens_start =
           absl::Uniform(absl::IntervalClosed, bitgenref_,
                         dropable_sequence.start + 1, dropable_sequence.end);
       drop_tokens_end = dropable_sequence.end;
+      // If no labels exist, the sequences was duplicated, so the index needs to
+      // be updated.
+      if (no_labels) {
+        dropable_sequences[0].end = drop_tokens_start;
+      }
     } else if (dropable_sequence.start ==
                0) {  // For context before the first label, drop a prefix of the
                      // sentence.
@@ -223,7 +276,8 @@ bool Augmenter::MaybeDropContext(
       drop_tokens_end = absl::Uniform(absl::IntervalClosed, bitgenref_, 0,
                                       dropable_sequence.end - 1);
     } else {  // For context between two labels, drop a subsequence.
-      if (dropable_sequence.end - dropable_sequence.start == 1) {
+      if (dropable_sequence.end - dropable_sequence.start ==
+          1) {  // At least the first and the last tokens must not be dropped.
         continue;
       }
 
@@ -242,6 +296,62 @@ bool Augmenter::MaybeDropContext(
     ShiftTokenBoundaries(boundaries.start, -removed_characters,
                          augmented_document);
     UpdateLabeledSpansForDroppedTokens(boundaries, augmented_document);
+  }
+
+  return dropped_context;
+}
+
+bool Augmenter::MaybeDropContextDropLabels(
+    const double probability,
+    bert_annotator::Document* const augmented_document) {
+  const int token_count = augmented_document->token_size();
+  std::vector<TokenSequence> labeled_sequences =
+      LabeledSequences(*augmented_document);
+  // MaybeDropContextKeepLabels already implements dropping from sentences
+  // without any labels.
+  if (labeled_sequences.size() == 0) {
+    return MaybeDropContextKeepLabels(probability, augmented_document);
+  }
+
+  const bool do_drop_context = absl::Bernoulli(bitgenref_, probability);
+  if (!do_drop_context || token_count == 1) {
+    return false;
+  }
+
+  bool dropped_context = false;
+  const int label_id =
+      absl::Uniform(bitgenref_, 0, static_cast<int>(labeled_sequences.size()));
+  TokenSequence labeled_sequence = labeled_sequences[label_id];
+  if (labeled_sequence.end < token_count - 2) {
+    TokenSequence drop_sequence{.end = token_count - 1};
+    const bool drop_right = absl::Bernoulli(bitgenref_, 0.5);
+    if (drop_right) {
+      drop_sequence.start =
+          absl::Uniform(absl::IntervalClosed, bitgenref_,
+                        labeled_sequence.end + 2, token_count - 1);
+      const int removed_characters =
+          DropText(drop_sequence, augmented_document);
+      DropTokens(drop_sequence, augmented_document);
+      ShiftTokenBoundaries(drop_sequence.start, -removed_characters,
+                           augmented_document);
+      UpdateLabeledSpansForDroppedTokens(drop_sequence, augmented_document);
+      dropped_context = true;
+    }
+  }
+  if (labeled_sequence.start > 1) {
+    TokenSequence drop_sequence{.start = 0};
+    const bool drop_left = absl::Bernoulli(bitgenref_, 0.5);
+    if (drop_left) {
+      drop_sequence.end = absl::Uniform(absl::IntervalClosed, bitgenref_, 0,
+                                        labeled_sequence.start - 2);
+      const int removed_characters =
+          DropText(drop_sequence, augmented_document);
+      DropTokens(drop_sequence, augmented_document);
+      ShiftTokenBoundaries(drop_sequence.start, -removed_characters,
+                           augmented_document);
+      UpdateLabeledSpansForDroppedTokens(drop_sequence, augmented_document);
+      dropped_context = true;
+    }
   }
 
   return dropped_context;
