@@ -41,14 +41,15 @@ Augmenter::Augmenter(const bert_annotator::Documents& documents,
       phone_sampler_(phone_sampler),
       augmentations_(augmentations),
       bitgenref_(bitgenref) {
-  for (auto& document : *documents_.mutable_documents()) {
+  for (bert_annotator::Document& document :
+       *documents_.mutable_documents()) {
     // Some tokens only contain separator characters like "," or ".". Keeping
     // track of those complicates the identification of longer labels, because
     // those separators may split longer labels into multiple short ones. By
     // ignoring the separators, this can be avoided. It also avoids that
     // context dropping *only* drops punctuation.
     for (int i = document.token_size() - 1; i >= 0; --i) {
-      const auto& token = document.token(i);
+      const bert_annotator::Token& token = document.token(i);
       if (std::none_of(token.word().begin(), token.word().end(),
                        [](unsigned char c) {
                          return std::isdigit(c) || std::isalpha(c);
