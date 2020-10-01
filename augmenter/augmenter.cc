@@ -43,15 +43,15 @@ Augmenter::Augmenter(const bert_annotator::Documents& documents,
       bitgenref_(bitgenref) {
   // The input uses more detailed address labels. To have a consistent output,
   // all those labels have to be switched to the generall "ADDRESS" label.
-  for (auto& document : *documents_.mutable_documents()) {
+  for (bert_annotator::Document& document : *documents_.mutable_documents()) {
     if (document.labeled_spans().find("lucid") ==
         document.labeled_spans().end()) {
       continue;
     }
     auto labeled_spans =
         document.mutable_labeled_spans()->at("lucid").mutable_labeled_span();
-    for (auto& labeled_span : *labeled_spans) {
-      if (kAddressLabels.contains(labeled_span.label())) {
+    for (bert_annotator::LabeledSpan& labeled_span : *labeled_spans) {
+      if (kAddressLabels.count(labeled_span.label())) {
         labeled_span.set_label(
             std::string(Augmenter::kAddressReplacementLabel));
       }
@@ -170,8 +170,7 @@ std::vector<TokenSequence> Augmenter::DropableSequences(
 
   const auto labeled_spans =
       document.labeled_spans().at("lucid").labeled_span();
-  for (int i = 0; i < labeled_spans.size(); ++i) {
-    const auto& labeled_span = labeled_spans.at(i);
+  for (const bert_annotator::LabeledSpan& labeled_span : labeled_spans) {
     if (labeled_span.label().compare(
             std::string(Augmenter::kAddressReplacementLabel)) == 0 ||
         labeled_span.label().compare(
@@ -202,8 +201,7 @@ std::vector<TokenSequence> Augmenter::LabeledSequences(
 
   const auto labeled_spans =
       document.labeled_spans().at("lucid").labeled_span();
-  for (int i = 0; i < labeled_spans.size(); ++i) {
-    const auto& labeled_span = labeled_spans.at(i);
+  for (const bert_annotator::LabeledSpan& labeled_span : labeled_spans) {
     if (labeled_span.label().compare(
             std::string(Augmenter::kAddressReplacementLabel)) == 0 ||
         labeled_span.label().compare(
@@ -240,7 +238,7 @@ bool Augmenter::MaybeDropContextKeepLabels(
   // Tokens will be dropped, so iterating backwards avoids the need to
   // update the indices in dropable_sequences.
   for (int i = dropable_sequences.size() - 1; i >= 0; --i) {
-    const auto& dropable_sequence = dropable_sequences.at(i);
+    const TokenSequence& dropable_sequence = dropable_sequences[i];
     const bool do_drop = absl::Bernoulli(bitgenref_, 0.5);
     if (!do_drop) {
       continue;
@@ -424,7 +422,7 @@ const int Augmenter::DropText(const TokenSequence& boundaries,
 
 void Augmenter::ReplaceToken(const int token_id, const std::string& replacement,
                              bert_annotator::Document* const document) const {
-  auto token = document->mutable_token(token_id);
+  bert_annotator::Token* token = document->mutable_token(token_id);
   token->set_word(replacement);
   token->set_end(token->start() + replacement.size() - 1);
 }
@@ -441,7 +439,7 @@ void Augmenter::ShiftTokenBoundaries(
     const int first_token, const int shift,
     bert_annotator::Document* const document) const {
   for (int i = first_token; i < document->token_size(); ++i) {
-    auto token = document->mutable_token(i);
+    bert_annotator::Token* token = document->mutable_token(i);
     token->set_start(token->start() + shift);
     token->set_end(token->end() + shift);
   }
@@ -452,7 +450,7 @@ void Augmenter::ReplaceLabeledSpan(
     bert_annotator::Document* const document) const {
   const auto& labeled_spans =
       document->mutable_labeled_spans()->at("lucid").mutable_labeled_span();
-  for (auto& labeled_span : *labeled_spans) {
+  for (bert_annotator::LabeledSpan& labeled_span : *labeled_spans) {
     if (labeled_span.token_start() == token_id) {
       labeled_span.set_label(std::string(replacement_label));
       labeled_span.set_token_end(labeled_span.token_start());
@@ -471,7 +469,7 @@ void Augmenter::UpdateLabeledSpansForDroppedTokens(
   const auto& labeled_spans =
       document->mutable_labeled_spans()->at("lucid").mutable_labeled_span();
   for (int i = labeled_spans->size() - 1; i >= 0; --i) {
-    auto labeled_span = labeled_spans->Mutable(i);
+    bert_annotator::LabeledSpan* labeled_span = labeled_spans->Mutable(i);
     if (labeled_span->token_end() <
         removed_tokens.start) {  // Label not affected by removed tokens.
       continue;
@@ -518,8 +516,7 @@ const std::vector<TokenSequence> Augmenter::LabelBoundaryList(
   // First, select only spans labeled as one of the given labels. Then, join
   // subsequent spans.
   std::vector<TokenSequence> boundary_list = {};
-  for (int i = 0; i < labeled_spans.size(); ++i) {
-    const auto labeled_span = labeled_spans[i];
+  for (const bert_annotator::LabeledSpan labeled_span : labeled_spans) {
     if (labeled_span.label().compare(std::string(label)) == 0) {
       boundary_list.push_back(TokenSequence{.start = labeled_span.token_start(),
                                             .end = labeled_span.token_end()});
@@ -540,18 +537,16 @@ void Augmenter::Lowercase(
   std::string* const text = augmented_document->mutable_text();
   std::string new_text;
   int text_index = 0;
-  for (int j = 0; j < augmented_document->token_size(); ++j) {
-    bert_annotator::Token* const token = augmented_document->mutable_token(j);
-
+  for (bert_annotator::Token& token : *augmented_document->mutable_token()) {
     // Adds the string in between two tokens as it is.
-    const int token_start = token->start();
-    const int token_end = token->end();
+    const int token_start = token.start();
+    const int token_end = token.end();
     if (text_index < token_start) {
       new_text.append(text->begin() + text_index, text->begin() + token_start);
     }
 
     // Transforms the token to lowercase.
-    std::string* const word = token->mutable_word();
+    std::string* const word = token.mutable_word();
     absl::AsciiStrToLower(word);
     new_text.append(*word);
     text_index = token_end + 1;
