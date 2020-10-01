@@ -43,6 +43,10 @@ class Augmenter {
             RandomSampler* const phone_sampler, absl::BitGenRef bitgen);
   void Augment();
   const bert_annotator::Documents documents() const;
+  static const absl::flat_hash_set<absl::string_view>& kAddressLabels;
+  static constexpr absl::string_view kAddressReplacementLabel = "ADDRESS";
+  static const absl::flat_hash_set<absl::string_view>& kPhoneLabels;
+  static constexpr absl::string_view kPhoneReplacementLabel = "TELEPHONE";
 
  private:
   bool AugmentAddress(bert_annotator::Document* const augmented_document);
@@ -105,10 +109,6 @@ class Augmenter {
   RandomSampler* const address_sampler_;
   RandomSampler* const phone_sampler_;
   Augmentations augmentations_;
-  static const absl::flat_hash_set<absl::string_view>& kAddressLabels;
-  static constexpr absl::string_view kAddressReplacementLabel = "ADDRESS";
-  static const absl::flat_hash_set<absl::string_view>& kPhoneLabels;
-  static constexpr absl::string_view kPhoneReplacementLabel = "TELEPHONE";
   absl::BitGenRef bitgenref_;
   absl::BitGen bitgen_;
 };
