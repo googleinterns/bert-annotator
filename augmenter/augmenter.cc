@@ -141,14 +141,14 @@ void Augmenter::AugmentContextless(const absl::string_view label,
                                    RandomSampler* const sampler) {
   bert_annotator::Document* document = documents_.add_documents();
 
-  std::string sample = sampler->Sample();
+  const std::string sample = sampler->Sample();
   document->set_text(sample);
-  auto token = document->add_token();
+  bert_annotator::Token* token = document->add_token();
   token->set_word(sample);
   token->set_start(0);
   token->set_end(sample.size() - 1);
   bert_annotator::LabeledSpans labeled_spans = {};
-  auto labeled_span = labeled_spans.add_labeled_span();
+  bert_annotator::LabeledSpan* labeled_span = labeled_spans.add_labeled_span();
   labeled_span->set_label(std::string(label));
   labeled_span->set_token_start(0);
   labeled_span->set_token_end(0);
