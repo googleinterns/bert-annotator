@@ -41,8 +41,7 @@ Augmenter::Augmenter(const bert_annotator::Documents& documents,
       phone_sampler_(phone_sampler),
       augmentations_(augmentations),
       bitgenref_(bitgenref) {
-  for (bert_annotator::Document& document :
-       *documents_.mutable_documents()) {
+  for (bert_annotator::Document& document : *documents_.mutable_documents()) {
     // Some tokens only contain separator characters like "," or ".". Keeping
     // track of those complicates the identification of longer labels, because
     // those separators may split longer labels into multiple short ones. By
@@ -50,10 +49,9 @@ Augmenter::Augmenter(const bert_annotator::Documents& documents,
     // context dropping *only* drops punctuation.
     for (int i = document.token_size() - 1; i >= 0; --i) {
       const bert_annotator::Token& token = document.token(i);
-      if (std::none_of(token.word().begin(), token.word().end(),
-                       [](unsigned char c) {
-                         return std::isdigit(c) || std::isalpha(c);
-                       })) {
+      if (absl::c_none_of(token.word(), [](unsigned char c) {
+            return std::isdigit(c) || std::isalpha(c);
+          })) {
         const TokenRange removed_tokens = TokenRange{.start = i, .end = i};
         DropTokens(removed_tokens, &document);
         UpdateLabeledSpansForDroppedTokens(removed_tokens, &document);
