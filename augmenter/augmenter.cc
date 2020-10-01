@@ -25,7 +25,7 @@
 #include "absl/strings/ascii.h"
 #include "augmenter/augmentations.h"
 #include "augmenter/random_sampler.h"
-#include "augmenter/token_sequence.h"
+#include "augmenter/token_range.h"
 #include "protocol_buffer/document.pb.h"
 #include "protocol_buffer/documents.pb.h"
 
@@ -158,14 +158,14 @@ bool Augmenter::AugmentContext(
   return false;
 }
 
-std::vector<TokenSequence> Augmenter::DroppableSequences(
+std::vector<TokenRange> Augmenter::DroppableSequences(
     const bert_annotator::Document& document) {
   if (document.labeled_spans().find("lucid") ==
       document.labeled_spans().end()) {
-    return {TokenSequence{.start = 0, .end = document.token_size() - 1}};
+    return {TokenRange{.start = 0, .end = document.token_size() - 1}};
   }
 
-  std::vector<TokenSequence> droppable_sequences;
+  std::vector<TokenRange> droppable_sequences;
   int start = 0;
 
   const auto labeled_spans =
@@ -174,7 +174,7 @@ std::vector<TokenSequence> Augmenter::DroppableSequences(
     if (labeled_span.label() == Augmenter::kAddressReplacementLabel ||
         labeled_span.label() == Augmenter::kPhoneReplacementLabel) {
       if (start != labeled_span.token_start()) {
-        droppable_sequences.push_back(TokenSequence{
+        droppable_sequences.push_back(TokenRange{
             .start = start, .end = labeled_span.token_start() - 1});
       }
       start = labeled_span.token_end() + 1;
@@ -182,20 +182,20 @@ std::vector<TokenSequence> Augmenter::DroppableSequences(
   }
   if (start != document.token_size()) {
     droppable_sequences.push_back(
-        TokenSequence{.start = start, .end = document.token_size() - 1});
+        TokenRange{.start = start, .end = document.token_size() - 1});
   }
 
   return droppable_sequences;
 }
 
-std::vector<TokenSequence> Augmenter::LabeledSequences(
+std::vector<TokenRange> Augmenter::LabeledSequences(
     const bert_annotator::Document& document) {
   if (document.labeled_spans().find("lucid") ==
       document.labeled_spans().end()) {
-    return {TokenSequence{.start = 0, .end = document.token_size() - 1}};
+    return {TokenRange{.start = 0, .end = document.token_size() - 1}};
   }
 
-  std::vector<TokenSequence> labeled_sequences;
+  std::vector<TokenRange> labeled_sequences;
 
   const auto labeled_spans =
       document.labeled_spans().at("lucid").labeled_span();
@@ -203,7 +203,7 @@ std::vector<TokenSequence> Augmenter::LabeledSequences(
     if (labeled_span.label() == Augmenter::kAddressReplacementLabel ||
         labeled_span.label() == Augmenter::kPhoneReplacementLabel) {
       labeled_sequences.push_back(
-          TokenSequence{.start = labeled_span.token_start(),
+          TokenRange{.start = labeled_span.token_start(),
                         .end = labeled_span.token_end()});
     }
   }
@@ -219,7 +219,7 @@ bool Augmenter::MaybeDropContextKeepLabels(
   }
 
   bool dropped_context = false;
-  std::vector<TokenSequence> droppable_sequences =
+  std::vector<TokenRange> droppable_sequences =
       DroppableSequences(*augmented_document);
   // If there are no labels, we will get a single droppable sequence containing
   // the whole sentence. To drop from both its start and end, we duplicate it
@@ -234,7 +234,7 @@ bool Augmenter::MaybeDropContextKeepLabels(
   // Tokens will be dropped, so iterating backwards avoids the need to
   // update the indices in droppable_sequences.
   for (int i = droppable_sequences.size() - 1; i >= 0; --i) {
-    const TokenSequence& droppable_sequence = droppable_sequences[i];
+    const TokenRange& droppable_sequence = droppable_sequences[i];
     const bool do_drop = absl::Bernoulli(bitgenref_, 0.5);
     if (!do_drop) {
       continue;
@@ -283,8 +283,8 @@ bool Augmenter::MaybeDropContextKeepLabels(
                         droppable_sequence.end - 1);
     }
 
-    const TokenSequence boundaries =
-        TokenSequence{.start = drop_tokens_start, .end = drop_tokens_end};
+    const TokenRange boundaries =
+        TokenRange{.start = drop_tokens_start, .end = drop_tokens_end};
     const int removed_characters = DropText(boundaries, augmented_document);
     DropTokens(boundaries, augmented_document);
     ShiftTokenBoundaries(boundaries.start, -removed_characters,
@@ -299,7 +299,7 @@ bool Augmenter::MaybeDropContextDropLabels(
     const double probability,
     bert_annotator::Document* const augmented_document) {
   const int token_count = augmented_document->token_size();
-  std::vector<TokenSequence> labeled_sequences =
+  std::vector<TokenRange> labeled_sequences =
       LabeledSequences(*augmented_document);
   // MaybeDropContextKeepLabels already implements dropping from sentences
   // without any labels.
@@ -315,9 +315,9 @@ bool Augmenter::MaybeDropContextDropLabels(
   bool dropped_context = false;
   const int label_id =
       absl::Uniform(bitgenref_, 0, static_cast<int>(labeled_sequences.size()));
-  TokenSequence labeled_sequence = labeled_sequences[label_id];
+  TokenRange labeled_sequence = labeled_sequences[label_id];
   if (labeled_sequence.end < token_count - 2) {
-    TokenSequence drop_sequence{.start = 0, .end = token_count - 1};
+    TokenRange drop_sequence{.start = 0, .end = token_count - 1};
     const bool drop_right = absl::Bernoulli(bitgenref_, 0.5);
     if (drop_right) {
       drop_sequence.start =
@@ -333,7 +333,7 @@ bool Augmenter::MaybeDropContextDropLabels(
     }
   }
   if (labeled_sequence.start > 1) {
-    TokenSequence drop_sequence{.start = 0, .end = 0};
+    TokenRange drop_sequence{.start = 0, .end = 0};
     const bool drop_left = absl::Bernoulli(bitgenref_, 0.5);
     if (drop_left) {
       drop_sequence.end = absl::Uniform(absl::IntervalClosed, bitgenref_, 0,
@@ -355,14 +355,14 @@ bool Augmenter::MaybeReplaceLabel(const double probability,
                                   RandomSampler* const sampler,
                                   const absl::string_view label,
                                   bert_annotator::Document* const document) {
-  const std::vector<TokenSequence>& boundary_list =
+  const std::vector<TokenRange>& boundary_list =
       LabelBoundaryList(*document, label);
   const bool do_replace = absl::Bernoulli(bitgenref_, probability);
   if (do_replace && !boundary_list.empty()) {
     const int boundary_index =
         absl::Uniform(absl::IntervalClosed, bitgenref_, static_cast<size_t>(0),
                       boundary_list.size() - 1);
-    const TokenSequence boundaries = boundary_list[boundary_index];
+    const TokenRange boundaries = boundary_list[boundary_index];
     const std::string replacement = sampler->Sample();
     ReplaceLabeledTokens(boundaries, replacement, label, document);
     return true;
@@ -371,7 +371,7 @@ bool Augmenter::MaybeReplaceLabel(const double probability,
 }
 
 const int Augmenter::ReplaceText(
-    const TokenSequence& boundaries, const std::string& replacement,
+    const TokenRange& boundaries, const std::string& replacement,
     bert_annotator::Document* const document) const {
   const int string_start = document->token(boundaries.start).start();
   const int string_end = document->token(boundaries.end).end();
@@ -388,7 +388,7 @@ const int Augmenter::ReplaceText(
   return replacement.size() - (string_end - string_start + 1);
 }
 
-const int Augmenter::DropText(const TokenSequence& boundaries,
+const int Augmenter::DropText(const TokenRange& boundaries,
                               bert_annotator::Document* const document) const {
   int text_start;
   int text_end;
@@ -423,7 +423,7 @@ void Augmenter::ReplaceToken(const int token_id, const std::string& replacement,
   token->set_end(token->start() + replacement.size() - 1);
 }
 
-void Augmenter::DropTokens(const TokenSequence boundaries,
+void Augmenter::DropTokens(const TokenRange boundaries,
                            bert_annotator::Document* const document) const {
   document->mutable_token()->erase(
       document->mutable_token()->begin() + boundaries.start,
@@ -455,7 +455,7 @@ void Augmenter::ReplaceLabeledSpan(
 }
 
 void Augmenter::UpdateLabeledSpansForDroppedTokens(
-    const TokenSequence& removed_tokens,
+    const TokenRange& removed_tokens,
     bert_annotator::Document* const document) const {
   if (document->labeled_spans().find("lucid") ==
       document->labeled_spans().end()) {
@@ -484,22 +484,22 @@ void Augmenter::UpdateLabeledSpansForDroppedTokens(
 }
 
 void Augmenter::ReplaceLabeledTokens(
-    const TokenSequence& boundaries, const std::string& replacement,
+    const TokenRange& boundaries, const std::string& replacement,
     const absl::string_view replacement_label,
     bert_annotator::Document* const document) const {
   const int text_shift = ReplaceText(boundaries, replacement, document);
   ReplaceToken(boundaries.start, replacement, document);
   DropTokens(
-      TokenSequence{.start = boundaries.start + 1, .end = boundaries.end},
+      TokenRange{.start = boundaries.start + 1, .end = boundaries.end},
       document);
   ShiftTokenBoundaries(boundaries.start + 1, text_shift, document);
   ReplaceLabeledSpan(boundaries.start, replacement_label, document);
   UpdateLabeledSpansForDroppedTokens(
-      TokenSequence{.start = boundaries.start + 1, .end = boundaries.end},
+      TokenRange{.start = boundaries.start + 1, .end = boundaries.end},
       document);
 }
 
-const std::vector<TokenSequence> Augmenter::LabelBoundaryList(
+const std::vector<TokenRange> Augmenter::LabelBoundaryList(
     const bert_annotator::Document& document,
     const absl::string_view label) const {
   if (document.labeled_spans().find("lucid") ==
@@ -511,10 +511,10 @@ const std::vector<TokenSequence> Augmenter::LabelBoundaryList(
 
   // First, select only spans labeled as one of the given labels. Then, join
   // subsequent spans.
-  std::vector<TokenSequence> boundary_list = {};
+  std::vector<TokenRange> boundary_list = {};
   for (const bert_annotator::LabeledSpan labeled_span : labeled_spans) {
     if (labeled_span.label() == label) {
-      boundary_list.push_back(TokenSequence{.start = labeled_span.token_start(),
+      boundary_list.push_back(TokenRange{.start = labeled_span.token_start(),
                                             .end = labeled_span.token_end()});
     }
   }

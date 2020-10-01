@@ -14,16 +14,16 @@
 // limitations under the License.
 //
 
-#ifndef AUGMENTER_TOKEN_SEQUENCE_H_
-#define AUGMENTER_TOKEN_SEQUENCE_H_
+#ifndef AUGMENTER_TOKEN_RANGE_H_
+#define AUGMENTER_TOKEN_RANGE_H_
 
 namespace augmenter {
 
-struct TokenSequence {
+struct TokenRange {
   int start;
   int end;
 };
 
 }  // namespace augmenter
 
-#endif  // AUGMENTER_TOKEN_SEQUENCE_H_
+#endif  // AUGMENTER_TOKEN_RANGE_H_

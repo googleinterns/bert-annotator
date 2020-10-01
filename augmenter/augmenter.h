@@ -28,7 +28,7 @@
 #include "absl/strings/string_view.h"
 #include "augmenter/augmentations.h"
 #include "augmenter/random_sampler.h"
-#include "augmenter/token_sequence.h"
+#include "augmenter/token_range.h"
 #include "protocol_buffer/documents.pb.h"
 
 namespace augmenter {
@@ -56,11 +56,11 @@ class Augmenter {
                          const absl::string_view replacement_label,
                          bert_annotator::Document* const document);
   bool AugmentContext(bert_annotator::Document* const augmented_document);
-  std::vector<TokenSequence> DroppableSequences(
+  std::vector<TokenRange> DroppableSequences(
       const bert_annotator::Document& document);
-  std::vector<TokenSequence> LabeledSequences(
+  std::vector<TokenRange> LabeledSequences(
       const bert_annotator::Document& document);
-  void DropTokens(const TokenSequence boundaries,
+  void DropTokens(const TokenRange boundaries,
                   bert_annotator::Document* const augmented_document) const;
   // Drops context while keeping all labels.
   bool MaybeDropContextKeepLabels(
@@ -74,16 +74,16 @@ class Augmenter {
   // Finds all token sequences labeled according to the given label list. If
   // multiple sequential tokens have different labels, but all are given in
   // the list, they are considered to be part of the same sequence.
-  const std::vector<TokenSequence> LabelBoundaryList(
+  const std::vector<TokenRange> LabelBoundaryList(
       const bert_annotator::Document& document,
       const absl::string_view label) const;
-  const int ReplaceText(const TokenSequence& boundaries,
+  const int ReplaceText(const TokenRange& boundaries,
                         const std::string& replacement,
                         bert_annotator::Document* const document) const;
   // Returns the number of dropped characters.
   // Also removed non-tokens between the first dropped tokens and the preceeding
   // last non-dropped token.
-  const int DropText(const TokenSequence& boundaries,
+  const int DropText(const TokenRange& boundaries,
                      bert_annotator::Document* const document) const;
   // May introduce tokens longer than one word.
   void ReplaceToken(const int token_id, const std::string& replacement,
@@ -96,9 +96,9 @@ class Augmenter {
   // Drops labeled spans if associated tokens were dropped. Otherwise updates
   // the start and end indices to reflect the new token ids.
   void UpdateLabeledSpansForDroppedTokens(
-      const TokenSequence& removed_tokens,
+      const TokenRange& removed_tokens,
       bert_annotator::Document* const document) const;
-  void ReplaceLabeledTokens(const TokenSequence& boundaries,
+  void ReplaceLabeledTokens(const TokenRange& boundaries,
                             const std::string& replacement,
                             const absl::string_view replacement_label,
                             bert_annotator::Document* const document) const;
