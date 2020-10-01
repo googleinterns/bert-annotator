@@ -48,10 +48,21 @@ Augmenter::Augmenter(const bert_annotator::Documents& documents,
         new google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>();
     google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>* const
         labeled_spans = GetLabelListWithDefault(&document, empty_list);
-    for (bert_annotator::LabeledSpan& labeled_span : *labeled_spans) {
-      if (kAddressLabels.count(labeled_span.label())) {
+    for (int i = labeled_spans->size() - 1; i >= 0; --i) {
+      bert_annotator::LabeledSpan& labeled_span = labeled_spans->at(i);
+      if (kAddressLabels.contains(labeled_span.label())) {
         labeled_span.set_label(
             std::string(Augmenter::kAddressReplacementLabel));
+
+        // Consecutive address labels should be merged.
+        if (i <= labeled_spans->size() - 2) {
+          bert_annotator::LabeledSpan& successor_span =
+              labeled_spans->at(i + 1);
+          if (successor_span.label() == Augmenter::kAddressReplacementLabel) {
+            labeled_span.set_token_end(successor_span.token_end());
+            labeled_spans->erase(labeled_spans->begin() + i + 1);
+          }
+        }
       }
     }
   }
@@ -182,13 +193,13 @@ std::vector<TokenRange> Augmenter::DroppableRanges(
 }
 
 std::vector<TokenRange> Augmenter::LabeledRanges(
-    const bert_annotator::Document& document) {
+    const bert_annotator::Document& document,
+    absl::flat_hash_set<absl::string_view> labels) {
   std::vector<TokenRange> labeled_ranges;
   const google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>&
       labeled_spans = GetLabelListWithDefault(document, {});
   for (const bert_annotator::LabeledSpan& labeled_span : labeled_spans) {
-    if (labeled_span.label() == Augmenter::kAddressReplacementLabel ||
-        labeled_span.label() == Augmenter::kPhoneReplacementLabel) {
+    if (labels.contains(labeled_span.label())) {
       labeled_ranges.push_back(TokenRange{.start = labeled_span.token_start(),
                                           .end = labeled_span.token_end()});
     }
@@ -286,7 +297,8 @@ bool Augmenter::MaybeDropContextDropLabels(
     const double probability,
     bert_annotator::Document* const augmented_document) {
   const int token_count = augmented_document->token_size();
-  std::vector<TokenRange> labeled_ranges = LabeledRanges(*augmented_document);
+  std::vector<TokenRange> labeled_ranges = LabeledRanges(
+      *augmented_document, {kAddressReplacementLabel, kPhoneReplacementLabel});
   // MaybeDropContextKeepLabels already implements dropping from sentences
   // without any labels.
   if (labeled_ranges.size() == 0) {
@@ -339,7 +351,7 @@ bool Augmenter::MaybeReplaceLabel(const double probability,
                                   const absl::string_view label,
                                   bert_annotator::Document* const document) {
   const std::vector<TokenRange>& boundary_list =
-      LabelBoundaryList(*document, label);
+      LabeledRanges(*document, {label});
   const bool do_replace = absl::Bernoulli(bitgenref_, probability);
   if (do_replace && !boundary_list.empty()) {
     const int boundary_index =
@@ -478,31 +490,6 @@ void Augmenter::ReplaceLabeledTokens(
   UpdateLabeledSpansForDroppedTokens(
       TokenRange{.start = boundaries.start + 1, .end = boundaries.end},
       document);
-}
-
-const std::vector<TokenRange> Augmenter::LabelBoundaryList(
-    const bert_annotator::Document& document,
-    const absl::string_view label) const {
-  const google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>&
-      labeled_spans = GetLabelListWithDefault(document, {});
-
-  // First, select only spans labeled as one of the given labels. Then, join
-  // subsequent spans.
-  std::vector<TokenRange> boundary_list = {};
-  for (const bert_annotator::LabeledSpan labeled_span : labeled_spans) {
-    if (labeled_span.label() == label) {
-      boundary_list.push_back(TokenRange{.start = labeled_span.token_start(),
-                                         .end = labeled_span.token_end()});
-    }
-  }
-  for (int i = boundary_list.size() - 2; i >= 0; --i) {
-    if (boundary_list[i].end + 1 == boundary_list[i + 1].start) {
-      boundary_list[i].end = boundary_list[i + 1].end;
-      boundary_list.erase(boundary_list.begin() + i + 1);
-    }
-  }
-
-  return boundary_list;
 }
 
 void Augmenter::Lowercase(

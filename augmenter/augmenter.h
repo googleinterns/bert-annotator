@@ -18,7 +18,6 @@
 #define AUGMENTER_AUGMENTER_H_
 
 #include <string>
-#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -59,13 +58,8 @@ class Augmenter {
   std::vector<TokenRange> DroppableRanges(
       const bert_annotator::Document& document);
   std::vector<TokenRange> LabeledRanges(
-      const bert_annotator::Document& document);
-  // Finds all token ranges labeled according to the given label list. If
-  // multiple sequential tokens have different labels, but all are given in
-  // the list, they are considered to be part of the same range.
-  const std::vector<TokenRange> LabelBoundaryList(
       const bert_annotator::Document& document,
-      const absl::string_view label) const;
+      absl::flat_hash_set<absl::string_view> labels);
   void DropTokens(const TokenRange boundaries,
                   bert_annotator::Document* const augmented_document) const;
   // Drops context while keeping all labels.
