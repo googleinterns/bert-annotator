@@ -588,9 +588,8 @@ void Augmenter::MaskDigits(std::string* text) const {
 void Augmenter::MaskDigits(bert_annotator::Document* const document) const {
   MaskDigits(document->mutable_text());
 
-  for (int j = 0; j < document->token_size(); ++j) {
-    bert_annotator::Token* const token = document->mutable_token(j);
-    MaskDigits(token->mutable_word());
+  for (bert_annotator::Token& token : *document->mutable_token()) {
+    MaskDigits(token.mutable_word());
   }
 }
 
