@@ -78,11 +78,12 @@ Augmenter::Augmenter(const bert_annotator::Documents& documents,
 bool Augmenter::AugmentAddress(
     bert_annotator::Document* const augmented_document) {
   const bool replaced_address = MaybeReplaceLabel(
-      static_cast<double>(augmentations_.address) / augmentations_.total,
+      static_cast<double>(augmentations_.num_address_replacements) /
+          augmentations_.num_total,
       address_sampler_, Augmenter::kAddressReplacementLabel,
       augmented_document);
   if (replaced_address) {
-    --augmentations_.address;
+    --augmentations_.num_address_replacements;
     return true;
   }
   return false;
@@ -91,10 +92,11 @@ bool Augmenter::AugmentAddress(
 bool Augmenter::AugmentPhone(
     bert_annotator::Document* const augmented_document) {
   const bool replaced_phone = MaybeReplaceLabel(
-      static_cast<double>(augmentations_.phone) / augmentations_.total,
+      static_cast<double>(augmentations_.num_phone_replacements) /
+          augmentations_.num_total,
       phone_sampler_, Augmenter::kPhoneReplacementLabel, augmented_document);
   if (replaced_phone) {
-    --augmentations_.phone;
+    --augmentations_.num_phone_replacements;
     return true;
   }
   return false;
@@ -103,11 +105,11 @@ bool Augmenter::AugmentPhone(
 bool Augmenter::AugmentLowercase(
     bert_annotator::Document* const augmented_document) {
   const bool perform_lowercasing = absl::Bernoulli(
-      bitgenref_,
-      static_cast<double>(augmentations_.lowercase) / augmentations_.total);
+      bitgenref_, static_cast<double>(augmentations_.num_lowercasings) /
+                      augmentations_.num_total);
   if (perform_lowercasing) {
     Lowercase(augmented_document);
-    --augmentations_.lowercase;
+    --augmentations_.num_lowercasings;
     return true;
   }
   return false;
@@ -115,7 +117,7 @@ bool Augmenter::AugmentLowercase(
 
 void Augmenter::Augment() {
   const int original_document_number = documents_.documents_size();
-  while (augmentations_.total > 0) {
+  while (augmentations_.num_total > 0) {
     const int document_id = absl::Uniform(absl::IntervalClosed, bitgenref_, 0,
                                           original_document_number - 1);
     const bert_annotator::Document& original_document =
@@ -133,13 +135,15 @@ void Augmenter::Augment() {
     // perform at least one action, drop this sample. It's identical to the
     // original document. Repeat this augmentation iteration.
     if (!augmentation_performed &&
-        augmentations_.total ==
-            augmentations_.lowercase + augmentations_.address +
-                augmentations_.phone + augmentations_.context_keep_labels +
-                augmentations_.context_drop_labels) {
+        augmentations_.num_total ==
+            augmentations_.num_lowercasings +
+                augmentations_.num_address_replacements +
+                augmentations_.num_phone_replacements +
+                augmentations_.num_context_drops_between_labels +
+                augmentations_.num_context_drops_outside_one_label) {
       documents_.mutable_documents()->RemoveLast();
     } else {
-      --augmentations_.total;
+      --augmentations_.num_total;
     }
   }
 }
@@ -147,27 +151,27 @@ void Augmenter::Augment() {
 bool Augmenter::AugmentContext(
     bert_annotator::Document* const augmented_document) {
   const bool dropped_context_keeping_labels = MaybeDropContextKeepLabels(
-      static_cast<double>(augmentations_.context_keep_labels) /
-          augmentations_.total,
+      static_cast<double>(augmentations_.num_context_drops_between_labels) /
+          augmentations_.num_total,
       augmented_document);
   if (dropped_context_keeping_labels) {
-    --augmentations_.context_keep_labels;
+    --augmentations_.num_context_drops_between_labels;
     return true;
   }
 
   const bool dropped_context_dropping_labels = MaybeDropContextDropLabels(
-      static_cast<double>(augmentations_.context_drop_labels) /
-          augmentations_.total,
+      static_cast<double>(augmentations_.num_context_drops_outside_one_label) /
+          augmentations_.num_total,
       augmented_document);
   if (dropped_context_dropping_labels) {
-    --augmentations_.context_drop_labels;
+    --augmentations_.num_context_drops_outside_one_label;
     return true;
   }
 
   return false;
 }
 
-std::vector<TokenRange> Augmenter::DroppableRanges(
+std::vector<TokenRange> Augmenter::UnlabeledRanges(
     const bert_annotator::Document& document) {
   std::vector<TokenRange> droppable_ranges;
   int start = 0;
@@ -217,7 +221,7 @@ bool Augmenter::MaybeDropContextKeepLabels(
 
   bool dropped_context = false;
   std::vector<TokenRange> droppable_ranges =
-      DroppableRanges(*augmented_document);
+      UnlabeledRanges(*augmented_document);
   // If there are no labels, we will get a single droppable range containing
   // the whole sentence. To drop from both its start and end, we duplicate it
   // here.

@@ -43,11 +43,11 @@ The augmenter can be run using
 
 Valid flags are:
  - `--corpora="[corpora]"`
- - `--total=[total augmentations]`
- - `--lowercase=[augmentations by lowercasing]`
+ - `--num_total=[total augmentations]`
+ - `--num_lowercasings=[augmentations by lowercasing]`
  - `--addresses_path=[path to address file]`
- - `--addresses=[augmentations by address replacement]`
+ - `--num_address_replacements=[augmentations by address replacement]`
  - `--phones_path=[path to phone number file]`
- - `--phones=[augmentations by phone number replacement]`
- - `--context_keep_labels=[augmentations by dropping context while keeping all address/phone labels]`
- - `--context_drop_labels=[augmentations by dropping context and potentially dropping other labels]`
+ - `--num_phone_replacements=[augmentations by phone number replacement]`
+ - `--num_context_drops_between_labels=[augmentations by dropping context in between labels. Keeps at least the token directly to the left and right of each label.]`
+ - `--num_context_drops_outside_one_label=[augmentations by selecting a label and dropping context to its left and right. May drop other labels]`

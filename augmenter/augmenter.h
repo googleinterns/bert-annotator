@@ -55,7 +55,8 @@ class Augmenter {
                          const absl::string_view replacement_label,
                          bert_annotator::Document* const document);
   bool AugmentContext(bert_annotator::Document* const augmented_document);
-  std::vector<TokenRange> DroppableRanges(
+  // Returns the ranges of all tokens not labeled as an address or phone number.
+  std::vector<TokenRange> UnlabeledRanges(
       const bert_annotator::Document& document);
   std::vector<TokenRange> LabeledRanges(
       const bert_annotator::Document& document,

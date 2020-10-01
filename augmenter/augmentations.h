@@ -20,12 +20,12 @@
 namespace augmenter {
 
 struct Augmentations {
-  int total;
-  int lowercase;
-  int address;
-  int phone;
-  int context_keep_labels;
-  int context_drop_labels;
+  int num_total;
+  int num_lowercasings;
+  int num_address_replacements;
+  int num_phone_replacements;
+  int num_context_drops_between_labels;
+  int num_context_drops_outside_one_label;
 };
 
 }  // namespace augmenter

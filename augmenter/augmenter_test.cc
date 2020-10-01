@@ -135,12 +135,12 @@ void ExpectEq(const bert_annotator::Document a,
 TEST(AugmenterTest, NoAugmentation) {
   bert_annotator::Documents documents = ConstructBertDocument(
       {DocumentSpec("Text with some InterWordCapitalization", {})});
-  Augmentations augmentations = {.total = 0,
-                                 .lowercase = 0,
-                                 .address = 0,
-                                 .phone = 0,
-                                 .context_keep_labels = 0,
-                                 .context_drop_labels = 0};
+  Augmentations augmentations = {.num_total = 0,
+                                 .num_lowercasings = 0,
+                                 .num_address_replacements = 0,
+                                 .num_phone_replacements = 0,
+                                 .num_context_drops_between_labels = 0,
+                                 .num_context_drops_outside_one_label = 0};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   Augmenter augmenter =
@@ -154,12 +154,12 @@ TEST(AugmenterTest, NoAugmentation) {
 TEST(AugmenterTest, AugmentsAreAdded) {
   bert_annotator::Documents documents = ConstructBertDocument(
       {DocumentSpec("Text with some InterWordCapitalization", {})});
-  Augmentations augmentations = {.total = 1,
-                                 .lowercase = 0,
-                                 .address = 0,
-                                 .phone = 0,
-                                 .context_keep_labels = 0,
-                                 .context_drop_labels = 0};
+  Augmentations augmentations = {.num_total = 1,
+                                 .num_lowercasings = 0,
+                                 .num_address_replacements = 0,
+                                 .num_phone_replacements = 0,
+                                 .num_context_drops_between_labels = 0,
+                                 .num_context_drops_outside_one_label = 0};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   Augmenter augmenter =
@@ -173,12 +173,12 @@ TEST(AugmenterTest, AugmentsAreAdded) {
 TEST(AugmenterTest, NoLowercasing) {
   bert_annotator::Documents documents = ConstructBertDocument(
       {DocumentSpec("Text with some InterWordCapitalization", {})});
-  Augmentations augmentations = {.total = 10,
-                                 .lowercase = 0,
-                                 .address = 0,
-                                 .phone = 0,
-                                 .context_keep_labels = 0,
-                                 .context_drop_labels = 0};
+  Augmentations augmentations = {.num_total = 10,
+                                 .num_lowercasings = 0,
+                                 .num_address_replacements = 0,
+                                 .num_phone_replacements = 0,
+                                 .num_context_drops_between_labels = 0,
+                                 .num_context_drops_outside_one_label = 0};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   Augmenter augmenter =
@@ -186,7 +186,7 @@ TEST(AugmenterTest, NoLowercasing) {
 
   augmenter.Augment();
 
-  for (int i = 0; i < augmentations.total + 1; ++i) {
+  for (int i = 0; i < augmentations.num_total + 1; ++i) {
     EXPECT_STREQ(augmenter.documents().documents(i).text().c_str(),
                  "Text with some InterWordCapitalization");
   }
@@ -198,12 +198,12 @@ TEST(AugmenterTest, CompleteLowercasing) {
                     {TokenSpec("Text", 0, 3), TokenSpec("with", 5, 8),
                      TokenSpec("some", 10, 13),
                      TokenSpec("InterWordCapitalization", 15, 37)})});
-  Augmentations augmentations = {.total = 10,
-                                 .lowercase = 10,
-                                 .address = 0,
-                                 .phone = 0,
-                                 .context_keep_labels = 0,
-                                 .context_drop_labels = 0};
+  Augmentations augmentations = {.num_total = 10,
+                                 .num_lowercasings = 10,
+                                 .num_address_replacements = 0,
+                                 .num_phone_replacements = 0,
+                                 .num_context_drops_between_labels = 0,
+                                 .num_context_drops_outside_one_label = 0};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   Augmenter augmenter =
@@ -221,7 +221,7 @@ TEST(AugmenterTest, CompleteLowercasing) {
                "some");
   EXPECT_STREQ(augmenter.documents().documents(0).token(3).word().c_str(),
                "InterWordCapitalization");
-  for (int i = 1; i < augmentations.total + 1; ++i) {
+  for (int i = 1; i < augmentations.num_total + 1; ++i) {
     EXPECT_STREQ(augmenter.documents().documents(i).text().c_str(),
                  "text with some interwordcapitalization");
     EXPECT_STREQ(augmenter.documents().documents(i).token(0).word().c_str(),
@@ -271,12 +271,12 @@ TEST(AugmenterTest, RandomizedLowercasing) {
       .WillOnce(Return(false));
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 1.0 / 1))
       .WillOnce(Return(true));
-  Augmentations augmentations = {.total = 4,
-                                 .lowercase = 2,
-                                 .address = 0,
-                                 .phone = 0,
-                                 .context_keep_labels = 0,
-                                 .context_drop_labels = 0};
+  Augmentations augmentations = {.num_total = 4,
+                                 .num_lowercasings = 2,
+                                 .num_address_replacements = 0,
+                                 .num_phone_replacements = 0,
+                                 .num_context_drops_between_labels = 0,
+                                 .num_context_drops_outside_one_label = 0};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
@@ -301,12 +301,12 @@ TEST(AugmenterTest, DontLowercaseNonTokens) {
                     {TokenSpec("Text", 6, 9), TokenSpec("with", 11, 14),
                      TokenSpec("some", 16, 19),
                      TokenSpec("InterWordCapitalization", 21, 43)})});
-  Augmentations augmentations = {.total = 1,
-                                 .lowercase = 1,
-                                 .address = 0,
-                                 .phone = 0,
-                                 .context_keep_labels = 0,
-                                 .context_drop_labels = 0};
+  Augmentations augmentations = {.num_total = 1,
+                                 .num_lowercasings = 1,
+                                 .num_address_replacements = 0,
+                                 .num_phone_replacements = 0,
+                                 .num_context_drops_between_labels = 0,
+                                 .num_context_drops_outside_one_label = 0};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   Augmenter augmenter =
@@ -324,12 +324,12 @@ TEST(AugmenterTest, DontReplacePhone) {
       {TokenSpec("Call", 0, 3), TokenSpec("0123456789", 5, 14),
        TokenSpec("Thanks", 17, 22)},
       {{"lucid", {LabelSpec(Augmenter::kPhoneReplacementLabel, 1, 1)}}})});
-  Augmentations augmentations = {.total = 1,
-                                 .lowercase = 0,
-                                 .address = 0,
-                                 .phone = 0,
-                                 .context_keep_labels = 0,
-                                 .context_drop_labels = 0};
+  Augmentations augmentations = {.num_total = 1,
+                                 .num_lowercasings = 0,
+                                 .num_address_replacements = 0,
+                                 .num_phone_replacements = 0,
+                                 .num_context_drops_between_labels = 0,
+                                 .num_context_drops_outside_one_label = 0};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   Augmenter augmenter =
@@ -347,12 +347,12 @@ TEST(AugmenterTest, ReplacePhoneSameLength) {
       {TokenSpec("Call", 0, 3), TokenSpec("0123456789", 5, 14),
        TokenSpec("Thanks", 17, 22)},
       {{"lucid", {LabelSpec(Augmenter::kPhoneReplacementLabel, 1, 1)}}})});
-  Augmentations augmentations = {.total = 1,
-                                 .lowercase = 0,
-                                 .address = 0,
-                                 .phone = 1,
-                                 .context_keep_labels = 0,
-                                 .context_drop_labels = 0};
+  Augmentations augmentations = {.num_total = 1,
+                                 .num_lowercasings = 0,
+                                 .num_address_replacements = 0,
+                                 .num_phone_replacements = 1,
+                                 .num_context_drops_between_labels = 0,
+                                 .num_context_drops_outside_one_label = 0};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   std::string replacement = "9876543210";
@@ -388,12 +388,12 @@ TEST(AugmenterTest, ReplacePhoneLongerLength) {
       {TokenSpec("Call", 0, 3), TokenSpec("0123456789", 5, 14),
        TokenSpec("Thanks", 17, 22)},
       {{"lucid", {LabelSpec(Augmenter::kPhoneReplacementLabel, 1, 1)}}})});
-  Augmentations augmentations = {.total = 1,
-                                 .lowercase = 0,
-                                 .address = 0,
-                                 .phone = 1,
-                                 .context_keep_labels = 0,
-                                 .context_drop_labels = 0};
+  Augmentations augmentations = {.num_total = 1,
+                                 .num_lowercasings = 0,
+                                 .num_address_replacements = 0,
+                                 .num_phone_replacements = 1,
+                                 .num_context_drops_between_labels = 0,
+                                 .num_context_drops_outside_one_label = 0};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   std::string replacement = "98765432109876543210";
@@ -430,12 +430,12 @@ TEST(AugmenterTest, ReplacePhoneShorterLength) {
       {TokenSpec("Call", 0, 3), TokenSpec("0123456789", 5, 14),
        TokenSpec("Thanks", 17, 22)},
       {{"lucid", {LabelSpec(Augmenter::kPhoneReplacementLabel, 1, 1)}}})});
-  Augmentations augmentations = {.total = 1,
-                                 .lowercase = 0,
-                                 .address = 0,
-                                 .phone = 1,
-                                 .context_keep_labels = 0,
-                                 .context_drop_labels = 0};
+  Augmentations augmentations = {.num_total = 1,
+                                 .num_lowercasings = 0,
+                                 .num_address_replacements = 0,
+                                 .num_phone_replacements = 1,
+                                 .num_context_drops_between_labels = 0,
+                                 .num_context_drops_outside_one_label = 0};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   std::string replacement = "98";
@@ -470,12 +470,12 @@ TEST(AugmenterTest, ReplacePhoneStart) {
       "0123456789! Thanks.",
       {TokenSpec("0123456789", 0, 9), TokenSpec("Thanks", 12, 17)},
       {{"lucid", {LabelSpec(Augmenter::kPhoneReplacementLabel, 0, 0)}}})});
-  Augmentations augmentations = {.total = 1,
-                                 .lowercase = 0,
-                                 .address = 0,
-                                 .phone = 1,
-                                 .context_keep_labels = 0,
-                                 .context_drop_labels = 0};
+  Augmentations augmentations = {.num_total = 1,
+                                 .num_lowercasings = 0,
+                                 .num_address_replacements = 0,
+                                 .num_phone_replacements = 1,
+                                 .num_context_drops_between_labels = 0,
+                                 .num_context_drops_outside_one_label = 0};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   std::string replacement = "9876543210";
@@ -509,12 +509,12 @@ TEST(AugmenterTest, ReplacePhoneEnd) {
       "Call 0123456789",
       {TokenSpec("Call", 0, 3), TokenSpec("0123456789", 5, 14)},
       {{"lucid", {LabelSpec(Augmenter::kPhoneReplacementLabel, 1, 1)}}})});
-  Augmentations augmentations = {.total = 1,
-                                 .lowercase = 0,
-                                 .address = 0,
-                                 .phone = 1,
-                                 .context_keep_labels = 0,
-                                 .context_drop_labels = 0};
+  Augmentations augmentations = {.num_total = 1,
+                                 .num_lowercasings = 0,
+                                 .num_address_replacements = 0,
+                                 .num_phone_replacements = 1,
+                                 .num_context_drops_between_labels = 0,
+                                 .num_context_drops_outside_one_label = 0};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   std::string replacement = "9876543210";
@@ -551,12 +551,12 @@ TEST(AugmenterTest, ReplacePhoneChooseLabel) {
                     {{"lucid",
                       {LabelSpec(Augmenter::kPhoneReplacementLabel, 0, 0),
                        LabelSpec(Augmenter::kPhoneReplacementLabel, 2, 2)}}})});
-  Augmentations augmentations = {.total = 2,
-                                 .lowercase = 0,
-                                 .address = 0,
-                                 .phone = 2,
-                                 .context_keep_labels = 0,
-                                 .context_drop_labels = 0};
+  Augmentations augmentations = {.num_total = 2,
+                                 .num_lowercasings = 0,
+                                 .num_address_replacements = 0,
+                                 .num_phone_replacements = 2,
+                                 .num_context_drops_between_labels = 0,
+                                 .num_context_drops_outside_one_label = 0};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   std::string replacement = "9876543210";
@@ -612,12 +612,12 @@ TEST(AugmenterTest, ReplacePhoneChooseDocument) {
       {TokenSpec("Call", 0, 3), TokenSpec("0123456789", 5, 14),
        TokenSpec("Thanks", 17, 22)},
       {{"lucid", {LabelSpec(Augmenter::kPhoneReplacementLabel, 1, 1)}}})});
-  Augmentations augmentations = {.total = 2,
-                                 .lowercase = 0,
-                                 .address = 0,
-                                 .phone = 1,
-                                 .context_keep_labels = 0,
-                                 .context_drop_labels = 0};
+  Augmentations augmentations = {.num_total = 2,
+                                 .num_lowercasings = 0,
+                                 .num_address_replacements = 0,
+                                 .num_phone_replacements = 1,
+                                 .num_context_drops_between_labels = 0,
+                                 .num_context_drops_outside_one_label = 0};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   std::string replacement = "9876543210";
@@ -662,12 +662,12 @@ TEST(AugmenterTest, ReplacePhoneMissingLucid) {
            {TokenSpec("Call", 0, 3), TokenSpec("0123456789", 5, 14),
             TokenSpec("Thanks", 17, 22)},
            {{"lucid", {LabelSpec(Augmenter::kPhoneReplacementLabel, 1, 1)}}})});
-  Augmentations augmentations = {.total = 1,
-                                 .lowercase = 0,
-                                 .address = 0,
-                                 .phone = 1,
-                                 .context_keep_labels = 0,
-                                 .context_drop_labels = 0};
+  Augmentations augmentations = {.num_total = 1,
+                                 .num_lowercasings = 0,
+                                 .num_address_replacements = 0,
+                                 .num_phone_replacements = 1,
+                                 .num_context_drops_between_labels = 0,
+                                 .num_context_drops_outside_one_label = 0};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   std::string replacement = "9876543210";
@@ -712,12 +712,12 @@ TEST(AugmenterTest, DontReplaceAddress) {
                     {TokenSpec("Visit", 0, 4), TokenSpec("Zurich", 6, 11),
                      TokenSpec("Thanks", 13, 18)},
                     {{"lucid", {LabelSpec("LOCALITY", 1, 1)}}})});
-  Augmentations augmentations = {.total = 1,
-                                 .lowercase = 0,
-                                 .address = 0,
-                                 .phone = 0,
-                                 .context_keep_labels = 0,
-                                 .context_drop_labels = 0};
+  Augmentations augmentations = {.num_total = 1,
+                                 .num_lowercasings = 0,
+                                 .num_address_replacements = 0,
+                                 .num_phone_replacements = 0,
+                                 .num_context_drops_between_labels = 0,
+                                 .num_context_drops_outside_one_label = 0};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   Augmenter augmenter =
@@ -745,12 +745,12 @@ TEST(AugmenterTest, UpdateLabels) {
                     {TokenSpec("Visit", 0, 4), TokenSpec("Zurich", 6, 11),
                      TokenSpec("Thanks", 13, 18)},
                     {{"lucid", {LabelSpec("LOCALITY", 1, 1)}}})});
-  Augmentations augmentations = {.total = 0,
-                                 .lowercase = 0,
-                                 .address = 0,
-                                 .phone = 0,
-                                 .context_keep_labels = 0,
-                                 .context_drop_labels = 0};
+  Augmentations augmentations = {.num_total = 0,
+                                 .num_lowercasings = 0,
+                                 .num_address_replacements = 0,
+                                 .num_phone_replacements = 0,
+                                 .num_context_drops_between_labels = 0,
+                                 .num_context_drops_outside_one_label = 0};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   Augmenter augmenter =
@@ -778,12 +778,12 @@ TEST(AugmenterTest, ReplaceAddressSameLength) {
                     {TokenSpec("Visit", 0, 4), TokenSpec("Zurich", 6, 11),
                      TokenSpec("Thanks", 13, 18)},
                     {{"lucid", {LabelSpec("LOCALITY", 1, 1)}}})});
-  Augmentations augmentations = {.total = 1,
-                                 .lowercase = 0,
-                                 .address = 1,
-                                 .phone = 0,
-                                 .context_keep_labels = 0,
-                                 .context_drop_labels = 0};
+  Augmentations augmentations = {.num_total = 1,
+                                 .num_lowercasings = 0,
+                                 .num_address_replacements = 1,
+                                 .num_phone_replacements = 0,
+                                 .num_context_drops_between_labels = 0,
+                                 .num_context_drops_outside_one_label = 0};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   std::string replacement = "Munich";
@@ -820,12 +820,12 @@ TEST(AugmenterTest, ReplaceAddressFewerTokens) {
        TokenSpec("City", 13, 16), TokenSpec("Thanks", 18, 23)},
       {{"lucid",
         {LabelSpec("LOCALITY", 1, 1), LabelSpec("LOCALITY", 2, 2)}}})});
-  Augmentations augmentations = {.total = 1,
-                                 .lowercase = 0,
-                                 .address = 1,
-                                 .phone = 0,
-                                 .context_keep_labels = 0,
-                                 .context_drop_labels = 0};
+  Augmentations augmentations = {.num_total = 1,
+                                 .num_lowercasings = 0,
+                                 .num_address_replacements = 1,
+                                 .num_phone_replacements = 0,
+                                 .num_context_drops_between_labels = 0,
+                                 .num_context_drops_outside_one_label = 0};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   std::string replacement = "Munich";
@@ -862,12 +862,12 @@ TEST(AugmenterTest, ReplaceAddressMultiWordReplacement) {
        TokenSpec("City", 13, 16), TokenSpec("Thanks", 18, 23)},
       {{"lucid",
         {LabelSpec("LOCALITY", 1, 1), LabelSpec("LOCALITY", 2, 2)}}})});
-  Augmentations augmentations = {.total = 1,
-                                 .lowercase = 0,
-                                 .address = 1,
-                                 .phone = 0,
-                                 .context_keep_labels = 0,
-                                 .context_drop_labels = 0};
+  Augmentations augmentations = {.num_total = 1,
+                                 .num_lowercasings = 0,
+                                 .num_address_replacements = 1,
+                                 .num_phone_replacements = 0,
+                                 .num_context_drops_between_labels = 0,
+                                 .num_context_drops_outside_one_label = 0};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   std::string replacement = "Munich Centrum";
@@ -904,12 +904,12 @@ TEST(AugmenterTest, DropContextDetectMultipleDroppableSequences) {
        TokenSpec("0123456789", 14, 23), TokenSpec("Postfix", 25, 31),
        TokenSpec("tokens", 33, 38)},
       {{"lucid", {LabelSpec(Augmenter::kPhoneReplacementLabel, 2, 2)}}})});
-  Augmentations augmentations = {.total = 1,
-                                 .lowercase = 0,
-                                 .address = 0,
-                                 .phone = 0,
-                                 .context_keep_labels = 1,
-                                 .context_drop_labels = 0};
+  Augmentations augmentations = {.num_total = 1,
+                                 .num_lowercasings = 0,
+                                 .num_address_replacements = 0,
+                                 .num_phone_replacements = 0,
+                                 .num_context_drops_between_labels = 1,
+                                 .num_context_drops_outside_one_label = 0};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
@@ -938,12 +938,12 @@ TEST(AugmenterTest, DropContextStartAndEnd) {
       {{"lucid",
         {LabelSpec(Augmenter::kPhoneReplacementLabel, 2, 2),
          LabelSpec(Augmenter::kPhoneReplacementLabel, 5, 5)}}})});
-  Augmentations augmentations = {.total = 1,
-                                 .lowercase = 0,
-                                 .address = 0,
-                                 .phone = 0,
-                                 .context_keep_labels = 1,
-                                 .context_drop_labels = 0};
+  Augmentations augmentations = {.num_total = 1,
+                                 .num_lowercasings = 0,
+                                 .num_address_replacements = 0,
+                                 .num_phone_replacements = 0,
+                                 .num_context_drops_between_labels = 1,
+                                 .num_context_drops_outside_one_label = 0};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
@@ -997,12 +997,12 @@ TEST(AugmenterTest, DropContextRemoveBeginningOfLabel) {
                     {{"lucid",
                       {LabelSpec("OTHER", 0, 1),
                        LabelSpec(Augmenter::kPhoneReplacementLabel, 2, 2)}}})});
-  Augmentations augmentations = {.total = 1,
-                                 .lowercase = 0,
-                                 .address = 0,
-                                 .phone = 0,
-                                 .context_keep_labels = 1,
-                                 .context_drop_labels = 0};
+  Augmentations augmentations = {.num_total = 1,
+                                 .num_lowercasings = 0,
+                                 .num_address_replacements = 0,
+                                 .num_phone_replacements = 0,
+                                 .num_context_drops_between_labels = 1,
+                                 .num_context_drops_outside_one_label = 0};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
@@ -1048,12 +1048,12 @@ TEST(AugmenterTest, DropContextRemoveMiddleOfLabel) {
                       {LabelSpec(Augmenter::kPhoneReplacementLabel, 0, 0),
                        LabelSpec("OTHER", 1, 3),
                        LabelSpec(Augmenter::kPhoneReplacementLabel, 4, 4)}}})});
-  Augmentations augmentations = {.total = 1,
-                                 .lowercase = 0,
-                                 .address = 0,
-                                 .phone = 0,
-                                 .context_keep_labels = 1,
-                                 .context_drop_labels = 0};
+  Augmentations augmentations = {.num_total = 1,
+                                 .num_lowercasings = 0,
+                                 .num_address_replacements = 0,
+                                 .num_phone_replacements = 0,
+                                 .num_context_drops_between_labels = 1,
+                                 .num_context_drops_outside_one_label = 0};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
@@ -1102,12 +1102,12 @@ TEST(AugmenterTest, DropContextRemoveEndOfLabel) {
                     {{"lucid",
                       {LabelSpec(Augmenter::kPhoneReplacementLabel, 2, 2),
                        LabelSpec("OTHER", 3, 4)}}})});
-  Augmentations augmentations = {.total = 1,
-                                 .lowercase = 0,
-                                 .address = 0,
-                                 .phone = 0,
-                                 .context_keep_labels = 1,
-                                 .context_drop_labels = 0};
+  Augmentations augmentations = {.num_total = 1,
+                                 .num_lowercasings = 0,
+                                 .num_address_replacements = 0,
+                                 .num_phone_replacements = 0,
+                                 .num_context_drops_between_labels = 1,
+                                 .num_context_drops_outside_one_label = 0};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
@@ -1149,12 +1149,12 @@ TEST(AugmenterTest, DropContextNoLabels) {
       {DocumentSpec("Text without any tokens.",
                     {TokenSpec("Text", 0, 3), TokenSpec("without", 5, 11),
                      TokenSpec("any", 13, 15), TokenSpec("tokens", 17, 22)})});
-  Augmentations augmentations = {.total = 1,
-                                 .lowercase = 0,
-                                 .address = 0,
-                                 .phone = 0,
-                                 .context_keep_labels = 1,
-                                 .context_drop_labels = 0};
+  Augmentations augmentations = {.num_total = 1,
+                                 .num_lowercasings = 0,
+                                 .num_address_replacements = 0,
+                                 .num_phone_replacements = 0,
+                                 .num_context_drops_between_labels = 1,
+                                 .num_context_drops_outside_one_label = 0};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
@@ -1196,12 +1196,12 @@ TEST(AugmenterTest, DropContextNoLabelsNoLucid) {
                     {TokenSpec("Text", 0, 3), TokenSpec("without", 5, 11),
                      TokenSpec("any", 13, 15), TokenSpec("tokens", 17, 22)},
                     {})});
-  Augmentations augmentations = {.total = 1,
-                                 .lowercase = 0,
-                                 .address = 0,
-                                 .phone = 0,
-                                 .context_keep_labels = 1,
-                                 .context_drop_labels = 0};
+  Augmentations augmentations = {.num_total = 1,
+                                 .num_lowercasings = 0,
+                                 .num_address_replacements = 0,
+                                 .num_phone_replacements = 0,
+                                 .num_context_drops_between_labels = 1,
+                                 .num_context_drops_outside_one_label = 0};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
@@ -1243,12 +1243,12 @@ TEST(AugmenterTest, DropContextDropLabelsNoLabels) {
       {DocumentSpec("Text without any tokens.",
                     {TokenSpec("Text", 0, 3), TokenSpec("without", 5, 11),
                      TokenSpec("any", 13, 15), TokenSpec("tokens", 17, 22)})});
-  Augmentations augmentations = {.total = 1,
-                                 .lowercase = 0,
-                                 .address = 0,
-                                 .phone = 0,
-                                 .context_keep_labels = 0,
-                                 .context_drop_labels = 1};
+  Augmentations augmentations = {.num_total = 1,
+                                 .num_lowercasings = 0,
+                                 .num_address_replacements = 0,
+                                 .num_phone_replacements = 0,
+                                 .num_context_drops_between_labels = 0,
+                                 .num_context_drops_outside_one_label = 1};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
@@ -1290,12 +1290,12 @@ TEST(AugmenterTest, DropContextDropLabelsNoLabelsNoLucid) {
                     {TokenSpec("Text", 0, 3), TokenSpec("without", 5, 11),
                      TokenSpec("any", 13, 15), TokenSpec("tokens", 17, 22)},
                     {})});
-  Augmentations augmentations = {.total = 1,
-                                 .lowercase = 0,
-                                 .address = 0,
-                                 .phone = 0,
-                                 .context_keep_labels = 0,
-                                 .context_drop_labels = 1};
+  Augmentations augmentations = {.num_total = 1,
+                                 .num_lowercasings = 0,
+                                 .num_address_replacements = 0,
+                                 .num_phone_replacements = 0,
+                                 .num_context_drops_between_labels = 0,
+                                 .num_context_drops_outside_one_label = 1};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
@@ -1343,12 +1343,12 @@ TEST(AugmenterTest, DropContextDropLabels) {
                       {LabelSpec(Augmenter::kPhoneReplacementLabel, 0, 0),
                        LabelSpec("OTHER", 1, 3),
                        LabelSpec(Augmenter::kPhoneReplacementLabel, 4, 4)}}})});
-  Augmentations augmentations = {.total = 1,
-                                 .lowercase = 0,
-                                 .address = 0,
-                                 .phone = 0,
-                                 .context_keep_labels = 0,
-                                 .context_drop_labels = 1};
+  Augmentations augmentations = {.num_total = 1,
+                                 .num_lowercasings = 0,
+                                 .num_address_replacements = 0,
+                                 .num_phone_replacements = 0,
+                                 .num_context_drops_between_labels = 0,
+                                 .num_context_drops_outside_one_label = 1};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
