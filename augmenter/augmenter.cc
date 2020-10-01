@@ -192,7 +192,7 @@ std::vector<TokenRange> Augmenter::LabeledRanges(
     const bert_annotator::Document& document) {
   if (document.labeled_spans().find("lucid") ==
       document.labeled_spans().end()) {
-    return {TokenRange{.start = 0, .end = document.token_size() - 1}};
+    return {};
   }
 
   std::vector<TokenRange> labeled_ranges;
