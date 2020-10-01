@@ -60,6 +60,12 @@ class Augmenter {
       const bert_annotator::Document& document);
   std::vector<TokenRange> LabeledRanges(
       const bert_annotator::Document& document);
+  // Finds all token ranges labeled according to the given label list. If
+  // multiple sequential tokens have different labels, but all are given in
+  // the list, they are considered to be part of the same range.
+  const std::vector<TokenRange> LabelBoundaryList(
+      const bert_annotator::Document& document,
+      const absl::string_view label) const;
   void DropTokens(const TokenRange boundaries,
                   bert_annotator::Document* const augmented_document) const;
   // Drops context while keeping all labels.
@@ -71,12 +77,6 @@ class Augmenter {
   bool MaybeDropContextDropLabels(
       const double probability,
       bert_annotator::Document* const augmented_document);
-  // Finds all token ranges labeled according to the given label list. If
-  // multiple sequential tokens have different labels, but all are given in
-  // the list, they are considered to be part of the same range.
-  const std::vector<TokenRange> LabelBoundaryList(
-      const bert_annotator::Document& document,
-      const absl::string_view label) const;
   const int ReplaceText(const TokenRange& boundaries,
                         const std::string& replacement,
                         bert_annotator::Document* const document) const;
@@ -105,6 +105,16 @@ class Augmenter {
   // Transforms the text to lowercase. Only explicitly listed tokens are
   // transformed.
   void Lowercase(bert_annotator::Document* const document) const;
+  google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>
+  GetLabelListWithDefault(
+      const bert_annotator::Document& document,
+      google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>
+          defaults_to) const;
+  google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>*
+  GetLabelListWithDefault(
+      bert_annotator::Document* document,
+      google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>*
+          defaults_to) const;
   bert_annotator::Documents documents_;
   RandomSampler* const address_sampler_;
   RandomSampler* const phone_sampler_;
