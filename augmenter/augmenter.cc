@@ -249,10 +249,9 @@ bool Augmenter::MaybeDropContextKeepLabels(
 
     int drop_tokens_start;
     int drop_tokens_end;
+    // For context after the last label, drop a postfix of the sentence.
     if (i == static_cast<int>(droppable_ranges.size()) - 1 &&
-        droppable_range.end == augmented_document->token_size() -
-                                   1) {  // For context after the last label,
-                                         // drop a postfix of the sentence.
+        droppable_range.end == augmented_document->token_size() - 1) {
       drop_tokens_start =
           absl::Uniform(absl::IntervalClosed, bitgenref_,
                         droppable_range.start + 1, droppable_range.end);
@@ -262,15 +261,17 @@ bool Augmenter::MaybeDropContextKeepLabels(
       if (no_labels) {
         droppable_ranges[0].end = drop_tokens_start;
       }
-    } else if (droppable_range.start ==
-               0) {  // For context before the first label, drop a prefix of the
-                     // sentence.
+    }
+    // For context before the first label, drop a prefix of the sentence. //
+    else if (droppable_range.start == 0) {  // NOLINT
       drop_tokens_start = 0;
       drop_tokens_end = absl::Uniform(absl::IntervalClosed, bitgenref_, 0,
                                       droppable_range.end - 1);
-    } else {  // For context between two labels, drop a subsequence.
-      if (droppable_range.end - droppable_range.start ==
-          1) {  // At least the first and the last tokens must not be dropped.
+    }
+    // For context between two labels, drop a subsequence.
+    else {  // NOLINT
+      // At least the first and the last tokens must not be dropped.
+      if (droppable_range.end - droppable_range.start == 1) {
         continue;
       }
 
