@@ -2,7 +2,6 @@ load("@rules_cc//cc:defs.bzl", "cc_library", "cc_binary", "cc_test")
 
 cc_library(
   name = "token_sequence",
-  srcs = ["token_sequence.cc"],
   hdrs = ["token_sequence.h"],
 )
 

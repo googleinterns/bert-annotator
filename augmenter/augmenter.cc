@@ -158,36 +158,34 @@ bool Augmenter::AugmentContext(
   return false;
 }
 
-std::vector<TokenSequence> Augmenter::DropableSequences(
+std::vector<TokenSequence> Augmenter::DroppableSequences(
     const bert_annotator::Document& document) {
   if (document.labeled_spans().find("lucid") ==
       document.labeled_spans().end()) {
     return {TokenSequence{.start = 0, .end = document.token_size() - 1}};
   }
 
-  std::vector<TokenSequence> dropable_sequences;
+  std::vector<TokenSequence> droppable_sequences;
   int start = 0;
 
   const auto labeled_spans =
       document.labeled_spans().at("lucid").labeled_span();
   for (const bert_annotator::LabeledSpan& labeled_span : labeled_spans) {
-    if (labeled_span.label().compare(
-            std::string(Augmenter::kAddressReplacementLabel)) == 0 ||
-        labeled_span.label().compare(
-            std::string(Augmenter::kPhoneReplacementLabel)) == 0) {
+    if (labeled_span.label() == Augmenter::kAddressReplacementLabel ||
+        labeled_span.label() == Augmenter::kPhoneReplacementLabel) {
       if (start != labeled_span.token_start()) {
-        dropable_sequences.push_back(TokenSequence{
+        droppable_sequences.push_back(TokenSequence{
             .start = start, .end = labeled_span.token_start() - 1});
       }
       start = labeled_span.token_end() + 1;
     }
   }
   if (start != document.token_size()) {
-    dropable_sequences.push_back(
+    droppable_sequences.push_back(
         TokenSequence{.start = start, .end = document.token_size() - 1});
   }
 
-  return dropable_sequences;
+  return droppable_sequences;
 }
 
 std::vector<TokenSequence> Augmenter::LabeledSequences(
@@ -202,10 +200,8 @@ std::vector<TokenSequence> Augmenter::LabeledSequences(
   const auto labeled_spans =
       document.labeled_spans().at("lucid").labeled_span();
   for (const bert_annotator::LabeledSpan& labeled_span : labeled_spans) {
-    if (labeled_span.label().compare(
-            std::string(Augmenter::kAddressReplacementLabel)) == 0 ||
-        labeled_span.label().compare(
-            std::string(Augmenter::kPhoneReplacementLabel)) == 0) {
+    if (labeled_span.label() == Augmenter::kAddressReplacementLabel ||
+        labeled_span.label() == Augmenter::kPhoneReplacementLabel) {
       labeled_sequences.push_back(
           TokenSequence{.start = labeled_span.token_start(),
                         .end = labeled_span.token_end()});
@@ -223,22 +219,22 @@ bool Augmenter::MaybeDropContextKeepLabels(
   }
 
   bool dropped_context = false;
-  std::vector<TokenSequence> dropable_sequences =
-      DropableSequences(*augmented_document);
-  // If there are not labels, we will get a single dropable sequence containing
+  std::vector<TokenSequence> droppable_sequences =
+      DroppableSequences(*augmented_document);
+  // If there are no labels, we will get a single droppable sequence containing
   // the whole sentence. To drop from both its start and end, we duplicate it
   // here.
   bool no_labels = false;
-  if (dropable_sequences.size() == 1 && dropable_sequences[0].start == 0 &&
-      dropable_sequences[0].end == augmented_document->token_size() - 1) {
+  if (droppable_sequences.size() == 1 && droppable_sequences[0].start == 0 &&
+      droppable_sequences[0].end == augmented_document->token_size() - 1) {
     no_labels = true;
-    dropable_sequences.push_back(dropable_sequences[0]);
+    droppable_sequences.push_back(droppable_sequences[0]);
   }
 
   // Tokens will be dropped, so iterating backwards avoids the need to
-  // update the indices in dropable_sequences.
-  for (int i = dropable_sequences.size() - 1; i >= 0; --i) {
-    const TokenSequence& dropable_sequence = dropable_sequences[i];
+  // update the indices in droppable_sequences.
+  for (int i = droppable_sequences.size() - 1; i >= 0; --i) {
+    const TokenSequence& droppable_sequence = droppable_sequences[i];
     const bool do_drop = absl::Bernoulli(bitgenref_, 0.5);
     if (!do_drop) {
       continue;
@@ -246,7 +242,7 @@ bool Augmenter::MaybeDropContextKeepLabels(
 
     // At least one token should be dropped, so the sequence needs to be at
     // least two tokens long.
-    if (dropable_sequence.end == dropable_sequence.start) {
+    if (droppable_sequence.end == droppable_sequence.start) {
       continue;
     }
 
@@ -254,37 +250,37 @@ bool Augmenter::MaybeDropContextKeepLabels(
 
     int drop_tokens_start;
     int drop_tokens_end;
-    if (i == static_cast<int>(dropable_sequences.size()) - 1 &&
-        dropable_sequence.end == augmented_document->token_size() -
-                                     1) {  // For context after the last label,
-                                           // drop a postfix of the sentence.
+    if (i == static_cast<int>(droppable_sequences.size()) - 1 &&
+        droppable_sequence.end == augmented_document->token_size() -
+                                      1) {  // For context after the last label,
+                                            // drop a postfix of the sentence.
       drop_tokens_start =
           absl::Uniform(absl::IntervalClosed, bitgenref_,
-                        dropable_sequence.start + 1, dropable_sequence.end);
-      drop_tokens_end = dropable_sequence.end;
+                        droppable_sequence.start + 1, droppable_sequence.end);
+      drop_tokens_end = droppable_sequence.end;
       // If no labels exist, the sequences was duplicated, so the index needs to
       // be updated.
       if (no_labels) {
-        dropable_sequences[0].end = drop_tokens_start;
+        droppable_sequences[0].end = drop_tokens_start;
       }
-    } else if (dropable_sequence.start ==
+    } else if (droppable_sequence.start ==
                0) {  // For context before the first label, drop a prefix of the
                      // sentence.
       drop_tokens_start = 0;
       drop_tokens_end = absl::Uniform(absl::IntervalClosed, bitgenref_, 0,
-                                      dropable_sequence.end - 1);
+                                      droppable_sequence.end - 1);
     } else {  // For context between two labels, drop a subsequence.
-      if (dropable_sequence.end - dropable_sequence.start ==
+      if (droppable_sequence.end - droppable_sequence.start ==
           1) {  // At least the first and the last tokens must not be dropped.
         continue;
       }
 
-      drop_tokens_start =
-          absl::Uniform(absl::IntervalClosed, bitgenref_,
-                        dropable_sequence.start + 1, dropable_sequence.end - 1);
+      drop_tokens_start = absl::Uniform(absl::IntervalClosed, bitgenref_,
+                                        droppable_sequence.start + 1,
+                                        droppable_sequence.end - 1);
       drop_tokens_end =
           absl::Uniform(absl::IntervalClosed, bitgenref_, drop_tokens_start,
-                        dropable_sequence.end - 1);
+                        droppable_sequence.end - 1);
     }
 
     const TokenSequence boundaries =
@@ -517,7 +513,7 @@ const std::vector<TokenSequence> Augmenter::LabelBoundaryList(
   // subsequent spans.
   std::vector<TokenSequence> boundary_list = {};
   for (const bert_annotator::LabeledSpan labeled_span : labeled_spans) {
-    if (labeled_span.label().compare(std::string(label)) == 0) {
+    if (labeled_span.label() == label) {
       boundary_list.push_back(TokenSequence{.start = labeled_span.token_start(),
                                             .end = labeled_span.token_end()});
     }

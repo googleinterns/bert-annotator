@@ -52,7 +52,7 @@ class Augmenter {
                          const absl::string_view replacement_label,
                          bert_annotator::Document* const document);
   bool AugmentContext(bert_annotator::Document* const augmented_document);
-  std::vector<TokenSequence> DropableSequences(
+  std::vector<TokenSequence> DroppableSequences(
       const bert_annotator::Document& document);
   std::vector<TokenSequence> LabeledSequences(
       const bert_annotator::Document& document);
@@ -69,7 +69,7 @@ class Augmenter {
       bert_annotator::Document* const augmented_document);
   // Finds all token sequences labeled according to the given label list. If
   // multiple sequential tokens have different labels, but all are given in
-  // the list, they are concidered to be part of the same sequence.
+  // the list, they are considered to be part of the same sequence.
   const std::vector<TokenSequence> LabelBoundaryList(
       const bert_annotator::Document& document,
       const absl::string_view label) const;
