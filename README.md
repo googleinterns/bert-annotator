@@ -51,3 +51,4 @@ Valid flags are:
  - `--num_phone_replacements=[augmentations by phone number replacement]`
  - `--num_context_drops_between_labels=[augmentations by dropping context in between labels. Keeps at least the token directly to the left and right of each label.]`
  - `--num_context_drops_outside_one_label=[augmentations by selecting a label and dropping context to its left and right. May drop other labels]`
+ - `--probability_per_drop=[given that context from a sentence will be dropped, how likely is each sequence to be dropped? Defaults to 0.5]`

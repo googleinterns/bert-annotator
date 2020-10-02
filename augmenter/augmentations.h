@@ -26,6 +26,7 @@ struct Augmentations {
   int num_phone_replacements;
   int num_context_drops_between_labels;
   int num_context_drops_outside_one_label;
+  double probability_per_drop;
 };
 
 }  // namespace augmenter

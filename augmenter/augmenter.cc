@@ -236,7 +236,8 @@ bool Augmenter::MaybeDropContextKeepLabels(
   // update the indices in droppable_ranges.
   for (int i = droppable_ranges.size() - 1; i >= 0; --i) {
     const TokenRange& droppable_range = droppable_ranges[i];
-    const bool do_drop = absl::Bernoulli(bitgenref_, 0.5);
+    const bool do_drop =
+        absl::Bernoulli(bitgenref_, augmentations_.probability_per_drop);
     if (!do_drop) {
       continue;
     }
@@ -320,7 +321,8 @@ bool Augmenter::MaybeDropContextDropLabels(
   TokenRange labeled_range = labeled_ranges[label_id];
   if (labeled_range.end < token_count - 2) {
     TokenRange drop_range{.start = 0, .end = token_count - 1};
-    const bool drop_right = absl::Bernoulli(bitgenref_, 0.5);
+    const bool drop_right =
+        absl::Bernoulli(bitgenref_, augmentations_.probability_per_drop);
     if (drop_right) {
       drop_range.start = absl::Uniform(absl::IntervalClosed, bitgenref_,
                                        labeled_range.end + 2, token_count - 1);
@@ -334,7 +336,8 @@ bool Augmenter::MaybeDropContextDropLabels(
   }
   if (labeled_range.start > 1) {
     TokenRange drop_range{.start = 0, .end = 0};
-    const bool drop_left = absl::Bernoulli(bitgenref_, 0.5);
+    const bool drop_left =
+        absl::Bernoulli(bitgenref_, augmentations_.probability_per_drop);
     if (drop_left) {
       drop_range.end = absl::Uniform(absl::IntervalClosed, bitgenref_, 0,
                                      labeled_range.start - 2);

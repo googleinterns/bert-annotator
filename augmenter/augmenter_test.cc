@@ -140,7 +140,8 @@ TEST(AugmenterTest, NoAugmentation) {
                                  .num_address_replacements = 0,
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 0,
-                                 .num_context_drops_outside_one_label = 0};
+                                 .num_context_drops_outside_one_label = 0,
+                                 .probability_per_drop = 0.5};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   Augmenter augmenter =
@@ -159,7 +160,8 @@ TEST(AugmenterTest, AugmentsAreAdded) {
                                  .num_address_replacements = 0,
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 0,
-                                 .num_context_drops_outside_one_label = 0};
+                                 .num_context_drops_outside_one_label = 0,
+                                 .probability_per_drop = 0.5};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   Augmenter augmenter =
@@ -178,7 +180,8 @@ TEST(AugmenterTest, NoLowercasing) {
                                  .num_address_replacements = 0,
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 0,
-                                 .num_context_drops_outside_one_label = 0};
+                                 .num_context_drops_outside_one_label = 0,
+                                 .probability_per_drop = 0.5};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   Augmenter augmenter =
@@ -203,7 +206,8 @@ TEST(AugmenterTest, CompleteLowercasing) {
                                  .num_address_replacements = 0,
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 0,
-                                 .num_context_drops_outside_one_label = 0};
+                                 .num_context_drops_outside_one_label = 0,
+                                 .probability_per_drop = 0.5};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   Augmenter augmenter =
@@ -276,7 +280,8 @@ TEST(AugmenterTest, RandomizedLowercasing) {
                                  .num_address_replacements = 0,
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 0,
-                                 .num_context_drops_outside_one_label = 0};
+                                 .num_context_drops_outside_one_label = 0,
+                                 .probability_per_drop = 0.5};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
@@ -306,7 +311,8 @@ TEST(AugmenterTest, DontLowercaseNonTokens) {
                                  .num_address_replacements = 0,
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 0,
-                                 .num_context_drops_outside_one_label = 0};
+                                 .num_context_drops_outside_one_label = 0,
+                                 .probability_per_drop = 0.5};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   Augmenter augmenter =
@@ -329,7 +335,8 @@ TEST(AugmenterTest, DontReplacePhone) {
                                  .num_address_replacements = 0,
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 0,
-                                 .num_context_drops_outside_one_label = 0};
+                                 .num_context_drops_outside_one_label = 0,
+                                 .probability_per_drop = 0.5};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   Augmenter augmenter =
@@ -352,7 +359,8 @@ TEST(AugmenterTest, ReplacePhoneSameLength) {
                                  .num_address_replacements = 0,
                                  .num_phone_replacements = 1,
                                  .num_context_drops_between_labels = 0,
-                                 .num_context_drops_outside_one_label = 0};
+                                 .num_context_drops_outside_one_label = 0,
+                                 .probability_per_drop = 0.5};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   std::string replacement = "9876543210";
@@ -393,7 +401,8 @@ TEST(AugmenterTest, ReplacePhoneLongerLength) {
                                  .num_address_replacements = 0,
                                  .num_phone_replacements = 1,
                                  .num_context_drops_between_labels = 0,
-                                 .num_context_drops_outside_one_label = 0};
+                                 .num_context_drops_outside_one_label = 0,
+                                 .probability_per_drop = 0.5};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   std::string replacement = "98765432109876543210";
@@ -435,7 +444,8 @@ TEST(AugmenterTest, ReplacePhoneShorterLength) {
                                  .num_address_replacements = 0,
                                  .num_phone_replacements = 1,
                                  .num_context_drops_between_labels = 0,
-                                 .num_context_drops_outside_one_label = 0};
+                                 .num_context_drops_outside_one_label = 0,
+                                 .probability_per_drop = 0.5};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   std::string replacement = "98";
@@ -475,7 +485,8 @@ TEST(AugmenterTest, ReplacePhoneStart) {
                                  .num_address_replacements = 0,
                                  .num_phone_replacements = 1,
                                  .num_context_drops_between_labels = 0,
-                                 .num_context_drops_outside_one_label = 0};
+                                 .num_context_drops_outside_one_label = 0,
+                                 .probability_per_drop = 0.5};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   std::string replacement = "9876543210";
@@ -514,7 +525,8 @@ TEST(AugmenterTest, ReplacePhoneEnd) {
                                  .num_address_replacements = 0,
                                  .num_phone_replacements = 1,
                                  .num_context_drops_between_labels = 0,
-                                 .num_context_drops_outside_one_label = 0};
+                                 .num_context_drops_outside_one_label = 0,
+                                 .probability_per_drop = 0.5};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   std::string replacement = "9876543210";
@@ -556,7 +568,8 @@ TEST(AugmenterTest, ReplacePhoneChooseLabel) {
                                  .num_address_replacements = 0,
                                  .num_phone_replacements = 2,
                                  .num_context_drops_between_labels = 0,
-                                 .num_context_drops_outside_one_label = 0};
+                                 .num_context_drops_outside_one_label = 0,
+                                 .probability_per_drop = 0.5};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   std::string replacement = "9876543210";
@@ -617,7 +630,8 @@ TEST(AugmenterTest, ReplacePhoneChooseDocument) {
                                  .num_address_replacements = 0,
                                  .num_phone_replacements = 1,
                                  .num_context_drops_between_labels = 0,
-                                 .num_context_drops_outside_one_label = 0};
+                                 .num_context_drops_outside_one_label = 0,
+                                 .probability_per_drop = 0.5};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   std::string replacement = "9876543210";
@@ -667,7 +681,8 @@ TEST(AugmenterTest, ReplacePhoneMissingLucid) {
                                  .num_address_replacements = 0,
                                  .num_phone_replacements = 1,
                                  .num_context_drops_between_labels = 0,
-                                 .num_context_drops_outside_one_label = 0};
+                                 .num_context_drops_outside_one_label = 0,
+                                 .probability_per_drop = 0.5};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   std::string replacement = "9876543210";
@@ -717,7 +732,8 @@ TEST(AugmenterTest, DontReplaceAddress) {
                                  .num_address_replacements = 0,
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 0,
-                                 .num_context_drops_outside_one_label = 0};
+                                 .num_context_drops_outside_one_label = 0,
+                                 .probability_per_drop = 0.5};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   Augmenter augmenter =
@@ -750,7 +766,8 @@ TEST(AugmenterTest, UpdateLabels) {
                                  .num_address_replacements = 0,
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 0,
-                                 .num_context_drops_outside_one_label = 0};
+                                 .num_context_drops_outside_one_label = 0,
+                                 .probability_per_drop = 0.5};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   Augmenter augmenter =
@@ -783,7 +800,8 @@ TEST(AugmenterTest, ReplaceAddressSameLength) {
                                  .num_address_replacements = 1,
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 0,
-                                 .num_context_drops_outside_one_label = 0};
+                                 .num_context_drops_outside_one_label = 0,
+                                 .probability_per_drop = 0.5};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   std::string replacement = "Munich";
@@ -825,7 +843,8 @@ TEST(AugmenterTest, ReplaceAddressFewerTokens) {
                                  .num_address_replacements = 1,
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 0,
-                                 .num_context_drops_outside_one_label = 0};
+                                 .num_context_drops_outside_one_label = 0,
+                                 .probability_per_drop = 0.5};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   std::string replacement = "Munich";
@@ -867,7 +886,8 @@ TEST(AugmenterTest, ReplaceAddressMultiWordReplacement) {
                                  .num_address_replacements = 1,
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 0,
-                                 .num_context_drops_outside_one_label = 0};
+                                 .num_context_drops_outside_one_label = 0,
+                                 .probability_per_drop = 0.5};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   std::string replacement = "Munich Centrum";
@@ -909,7 +929,8 @@ TEST(AugmenterTest, DropContextDetectMultipleDroppableSequences) {
                                  .num_address_replacements = 0,
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 1,
-                                 .num_context_drops_outside_one_label = 0};
+                                 .num_context_drops_outside_one_label = 0,
+                                 .probability_per_drop = 0.5};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
@@ -943,7 +964,8 @@ TEST(AugmenterTest, DropContextStartAndEnd) {
                                  .num_address_replacements = 0,
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 1,
-                                 .num_context_drops_outside_one_label = 0};
+                                 .num_context_drops_outside_one_label = 0,
+                                 .probability_per_drop = 0.5};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
@@ -1002,7 +1024,8 @@ TEST(AugmenterTest, DropContextRemoveBeginningOfLabel) {
                                  .num_address_replacements = 0,
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 1,
-                                 .num_context_drops_outside_one_label = 0};
+                                 .num_context_drops_outside_one_label = 0,
+                                 .probability_per_drop = 0.5};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
@@ -1053,7 +1076,8 @@ TEST(AugmenterTest, DropContextRemoveMiddleOfLabel) {
                                  .num_address_replacements = 0,
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 1,
-                                 .num_context_drops_outside_one_label = 0};
+                                 .num_context_drops_outside_one_label = 0,
+                                 .probability_per_drop = 0.5};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
@@ -1107,7 +1131,8 @@ TEST(AugmenterTest, DropContextRemoveEndOfLabel) {
                                  .num_address_replacements = 0,
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 1,
-                                 .num_context_drops_outside_one_label = 0};
+                                 .num_context_drops_outside_one_label = 0,
+                                 .probability_per_drop = 0.5};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
@@ -1154,7 +1179,8 @@ TEST(AugmenterTest, DropContextNoLabels) {
                                  .num_address_replacements = 0,
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 1,
-                                 .num_context_drops_outside_one_label = 0};
+                                 .num_context_drops_outside_one_label = 0,
+                                 .probability_per_drop = 0.5};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
@@ -1201,7 +1227,8 @@ TEST(AugmenterTest, DropContextNoLabelsNoLucid) {
                                  .num_address_replacements = 0,
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 1,
-                                 .num_context_drops_outside_one_label = 0};
+                                 .num_context_drops_outside_one_label = 0,
+                                 .probability_per_drop = 0.5};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
@@ -1248,7 +1275,8 @@ TEST(AugmenterTest, DropContextDropLabelsNoLabels) {
                                  .num_address_replacements = 0,
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 0,
-                                 .num_context_drops_outside_one_label = 1};
+                                 .num_context_drops_outside_one_label = 1,
+                                 .probability_per_drop = 0.5};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
@@ -1295,7 +1323,8 @@ TEST(AugmenterTest, DropContextDropLabelsNoLabelsNoLucid) {
                                  .num_address_replacements = 0,
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 0,
-                                 .num_context_drops_outside_one_label = 1};
+                                 .num_context_drops_outside_one_label = 1,
+                                 .probability_per_drop = 0.5};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
@@ -1348,7 +1377,8 @@ TEST(AugmenterTest, DropContextDropLabelsPrefix) {
                                  .num_address_replacements = 0,
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 0,
-                                 .num_context_drops_outside_one_label = 1};
+                                 .num_context_drops_outside_one_label = 1,
+                                 .probability_per_drop = 0.5};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
@@ -1408,7 +1438,8 @@ TEST(AugmenterTest, DropContextDropLabelsSuffix) {
                                  .num_address_replacements = 0,
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 0,
-                                 .num_context_drops_outside_one_label = 1};
+                                 .num_context_drops_outside_one_label = 1,
+                                 .probability_per_drop = 0.5};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;

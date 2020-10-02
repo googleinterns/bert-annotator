@@ -44,6 +44,9 @@ ABSL_FLAG(
 ABSL_FLAG(int, num_context_drops_outside_one_label, 0,
           "Number of augmentations by selecting a label and dropping context "
           "to its left and right. May drop other labels.");
+ABSL_FLAG(double, probability_per_drop, 0.5,
+          "Given that context from a sentence will be dropped, how likely is "
+          "each sequence to be dropped?");
 
 // Augments the dataset by applying configurable actions, see defined flags.
 int main(int argc, char* argv[]) {
@@ -65,7 +68,8 @@ int main(int argc, char* argv[]) {
       .num_context_drops_between_labels =
           absl::GetFlag(FLAGS_num_context_drops_between_labels),
       .num_context_drops_outside_one_label =
-          absl::GetFlag(FLAGS_num_context_drops_outside_one_label)};
+          absl::GetFlag(FLAGS_num_context_drops_outside_one_label),
+      .probability_per_drop = absl::GetFlag(FLAGS_probability_per_drop)};
 
   for (const std::string& corpus : corpora) {
     augmenter::TextprotoIO textproto_io = augmenter::TextprotoIO();
