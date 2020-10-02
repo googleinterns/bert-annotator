@@ -571,6 +571,7 @@ bool Augmenter::MaybeChangeCase(
   std::string* const text = augmented_document->mutable_text();
   std::string new_text;
   int text_index = 0;
+  bool changed_casing = false;
   for (bert_annotator::Token& token : *augmented_document->mutable_token()) {
     // Adds the string in between two tokens as it is.
     const int token_start = token.start();
@@ -581,18 +582,25 @@ bool Augmenter::MaybeChangeCase(
 
     // Transforms the token to the new case.
     std::string* const word = token.mutable_word();
-    if (change_to_lowercase) {
+    if (change_to_lowercase && absl::c_any_of(*word, [](unsigned char c) {
+          return std::isupper(c);
+        })) {
       absl::AsciiStrToLower(word);
-    } else {
+      changed_casing = true;
+    } else if (!change_to_lowercase &&
+               absl::c_any_of(
+                   *word, [](unsigned char c) { return std::islower(c); })) {
       absl::AsciiStrToUpper(word);
+      changed_casing = true;
     }
+
     new_text.append(*word);
     text_index = token_end + 1;
   }
   new_text.append(text->begin() + text_index, text->end());
   augmented_document->set_text(new_text);
 
-  return true;
+  return changed_casing;
 }
 
 google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>
