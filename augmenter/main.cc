@@ -14,17 +14,28 @@
 // limitations under the License.
 //
 
+#include <fstream>
 #include <string>
 #include <vector>
 
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
+#include "augmenter/augmentations.h"
 #include "augmenter/augmenter.h"
+#include "augmenter/random_sampler.h"
 #include "augmenter/textproto_io.h"
 
-ABSL_FLAG(double, lowercase, 0, "Percentage of augmentations by lowercasing");
+ABSL_FLAG(int, total, 0, "Number of created augmented samples");
 ABSL_FLAG(std::vector<std::string>, corpora, std::vector<std::string>({}),
           "comma-separated list of corpora to augment");
+ABSL_FLAG(int, lowercase, 0, "Number of augmentations by lowercasing");
+ABSL_FLAG(std::string, addresses_path, "",
+          "Path to list of alternative addresses");
+ABSL_FLAG(int, addresses, 0, "Number of augmentations by address replacement");
+ABSL_FLAG(std::string, phones_path, "",
+          "Path to list of alternative phone number");
+ABSL_FLAG(int, phones, 0,
+          "Number of augmentations by phone number replacement");
 
 // Augments the dataset by applying configurable actions, see defined flags.
 int main(int argc, char* argv[]) {
@@ -34,8 +45,13 @@ int main(int argc, char* argv[]) {
 
   absl::ParseCommandLine(argc, argv);
 
-  const double lowercase_percentage = absl::GetFlag(FLAGS_lowercase);
+  const int augmentations_total = absl::GetFlag(FLAGS_total);
   const std::vector<std::string> corpora = absl::GetFlag(FLAGS_corpora);
+  const int augmentations_lowercase = absl::GetFlag(FLAGS_lowercase);
+  const std::string addresses_path = absl::GetFlag(FLAGS_addresses_path);
+  const int augmentations_addresses = absl::GetFlag(FLAGS_addresses);
+  const std::string phones_path = absl::GetFlag(FLAGS_phones_path);
+  const int augmentations_phones = absl::GetFlag(FLAGS_phones);
 
   for (const std::string& corpus : corpora) {
     augmenter::TextprotoIO textproto_io = augmenter::TextprotoIO();
@@ -45,10 +61,41 @@ int main(int argc, char* argv[]) {
     }
     std::cout << "Processing corpus " << corpus << std::endl;
 
-    augmenter::Augmenter augmenter =
-        augmenter::Augmenter(textproto_io.documents());
-    augmenter.Lowercase(lowercase_percentage);
+    if (addresses_path.empty()) {
+      std::cerr << "List of alternative addresses must be provided."
+                << std::endl;
+      return false;
+    }
+    std::ifstream address_stream(addresses_path);
+    if (address_stream.fail()) {
+      std::cerr << "Failed to load address file " << addresses_path
+                << std::endl;
+      return false;
+    }
+    augmenter::RandomSampler address_sampler(address_stream);
 
+    if (phones_path.empty()) {
+      std::cerr << "List of alternative phone numbers must be provided."
+                << std::endl;
+      return false;
+    }
+
+    std::ifstream phones_stream(phones_path);
+    if (phones_stream.fail()) {
+      std::cerr << "Failed to load phone number file " << phones_path
+                << std::endl;
+      return false;
+    }
+    augmenter::RandomSampler phones_sampler(phones_stream);
+
+    augmenter::Augmentations augmentations{.total = augmentations_total,
+                                .lowercase = augmentations_lowercase,
+                                .address = augmentations_addresses,
+                                .phone = augmentations_phones};
+    augmenter::Augmenter augmenter =
+        augmenter::Augmenter(textproto_io.documents(), augmentations,
+                             &address_sampler, &phones_sampler);
+    augmenter.Augment();
     textproto_io.set_documents(augmenter.documents());
     textproto_io.Save(corpus);
   }

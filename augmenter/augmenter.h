@@ -17,20 +17,76 @@
 #ifndef AUGMENTER_AUGMENTER_H_
 #define AUGMENTER_AUGMENTER_H_
 
+#include <string>
+#include <unordered_set>
+#include <utility>
+#include <vector>
+
+#include "absl/container/flat_hash_set.h"
+#include "absl/random/bit_gen_ref.h"
+#include "absl/random/random.h"
+#include "absl/strings/string_view.h"
+#include "augmenter/augmentations.h"
+#include "augmenter/label_boundaries.h"
+#include "augmenter/random_sampler.h"
 #include "protocol_buffer/documents.pb.h"
 
 namespace augmenter {
 
 class Augmenter {
  public:
-  explicit Augmenter(bert_annotator::Documents documents);
-  Augmenter(bert_annotator::Documents documents, const uint seed);
-  void Lowercase(const double lowercase_percentage);
+  Augmenter(const bert_annotator::Documents& documents,
+            Augmentations augmentations, RandomSampler* const address_sampler,
+            RandomSampler* const phone_sampler);
+  Augmenter(const bert_annotator::Documents& documents,
+            Augmentations augmentations, RandomSampler* const address_sampler,
+            RandomSampler* const phone_sampler, absl::BitGenRef bitgen);
+  void Augment();
   const bert_annotator::Documents documents() const;
 
  private:
+  bool AugmentAddress(bert_annotator::Document* const augmented_document);
+  bool AugmentPhone(bert_annotator::Document* const augmented_document);
+  bool AugmentLowercase(bert_annotator::Document* const augmented_document);
+  bool MaybeReplaceLabel(const double probability, RandomSampler* const sampler,
+                         const absl::string_view replacement_label,
+                         bert_annotator::Document* const document);
+  // Finds all token sequences labeled according to the given label list. If
+  // multiple sequential tokens have different labels, but all are given in
+  // the list, they are concidered to be part of the same sequence.
+  const std::vector<LabelBoundaries> LabelBoundaryList(
+      const bert_annotator::Document& document,
+      const absl::string_view label) const;
+  void ReplaceText(const LabelBoundaries& boundaries,
+                   const std::string& replacement,
+                   bert_annotator::Document* const document) const;
+  // May introduce tokens longer than one word.
+  void ReplaceTokens(const LabelBoundaries& boundaries,
+                     const std::string& replacement,
+                     bert_annotator::Document* const document) const;
+  void UpdateTokenBoundaries(const LabelBoundaries& boundaries,
+                             const std::string& replacement,
+                             bert_annotator::Document* const document) const;
+  void ReplaceLabeledSpans(const LabelBoundaries& boundaries,
+                           const absl::string_view replacement_label,
+                           bert_annotator::Document* const document) const;
+  void Replace(const LabelBoundaries& boundaries,
+               const std::string& replacement,
+               const absl::string_view replacement_label,
+               bert_annotator::Document* const document) const;
+  // Transforms the text to lowercase. Only explicitly listed tokens are
+  // transformed.
+  void Lowercase(bert_annotator::Document* const document) const;
   bert_annotator::Documents documents_;
-  uint seed_;
+  RandomSampler* const address_sampler_;
+  RandomSampler* const phone_sampler_;
+  Augmentations augmentations_;
+  static const absl::flat_hash_set<absl::string_view>& kAddressLabels;
+  static constexpr absl::string_view kAddressReplacementLabel = "ADDRESS";
+  static const absl::flat_hash_set<absl::string_view>& kPhoneLabels;
+  static constexpr absl::string_view kPhoneReplacementLabel = "TELEPHONE";
+  absl::BitGenRef bitgenref_;
+  absl::BitGen bitgen_;
 };
 
 }  // namespace augmenter

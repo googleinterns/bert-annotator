@@ -29,7 +29,7 @@
 
 namespace augmenter {
 
-RandomSampler::RandomSampler(std::istringstream& input_stream) {
+RandomSampler::RandomSampler(std::istream& input_stream) {
   random_items_ = std::vector<RandomItem>();
 
   // Parse input.

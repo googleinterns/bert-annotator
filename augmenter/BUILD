@@ -1,11 +1,29 @@
 load("@rules_cc//cc:defs.bzl", "cc_library", "cc_binary", "cc_test")
 
 cc_library(
+  name = "label_boundaries",
+  srcs = ["label_boundaries.cc"],
+  hdrs = ["label_boundaries.h"],
+)
+
+cc_library(
+  name = "augmentations",
+  srcs = ["augmentations.cc"],
+  hdrs = ["augmentations.h"],
+)
+
+cc_library(
   name = "augmenter",
   srcs = ["augmenter.cc"],
   hdrs = ["augmenter.h"],
   deps = [
+    ':augmentations',
+    ":random_sampler",
+    ":label_boundaries",
     "//protocol_buffer:documents_cc_proto",
+    "@com_google_absl//absl/container:flat_hash_set",
+    "@com_google_absl//absl/random",
+    "@com_google_absl//absl/random:bit_gen_ref",
     "@com_google_absl//absl/strings:strings",
   ]
 )
@@ -16,9 +34,11 @@ cc_test (
     "augmenter_test.cc"
   ],
   deps = [
+    ':augmentations',
     ":augmenter",
     "//protocol_buffer:documents_cc_proto",
     "@com_google_absl//absl/flags:flag",
+    "@com_google_absl//absl/random:mock_distributions",
     "@com_google_googletest//:gtest",
     "@com_google_googletest//:gtest_main",
   ],
@@ -70,7 +90,9 @@ cc_binary(
   name = "main",
   srcs = ["main.cc"],
   deps = [
+    ':augmentations',
     ":augmenter",
+    ":random_sampler",
     ":textproto_io",
     "//protocol_buffer:documents_cc_proto",
     "@com_google_absl//absl/flags:flag",

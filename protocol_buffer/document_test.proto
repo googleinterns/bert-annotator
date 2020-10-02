@@ -11,9 +11,11 @@ package bert_annotator;
 option cc_enable_arenas = true;
 
 message Document {
-  optional string text = 2;
+  optional string text = 1;
 
-  repeated Token token = 9;
+  repeated Token token = 2;
+
+  map<string, LabeledSpans> labeled_spans = 3;
 }
 
 message Token {
@@ -21,4 +23,15 @@ message Token {
 
   required int32 start = 2;
   required int32 end = 3;
+}
+
+message LabeledSpan {
+  optional int32 token_start = 1;
+  optional int32 token_end = 2;
+  
+  optional string label = 3;
+}
+
+message LabeledSpans {
+  repeated LabeledSpan labeled_span = 1;
 }
