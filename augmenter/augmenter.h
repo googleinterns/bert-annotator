@@ -78,8 +78,9 @@ class Augmenter {
   const int ReplaceText(const TokenRange& boundaries,
                         const std::string& replacement,
                         bert_annotator::Document* const document) const;
-  // Also removed non-tokens between the first dropped tokens and the preceeding
-  // last non-dropped token. Returns the number of deleted characters.
+  // Removes the specified range of tokens from the text. Tries to keep the
+  // sentence structure logical by also removing now obsolete non-tokens
+  // (spaces, punctuation). Returns the number of deleted characters.
   const int DropText(const TokenRange& boundaries,
                      bert_annotator::Document* const document) const;
   // May introduce tokens longer than one word.
