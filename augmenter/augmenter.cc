@@ -123,11 +123,12 @@ bool Augmenter::AugmentPhone(
 bool Augmenter::AugmentLowercase(
     bert_annotator::Document* const augmented_document) {
   const bool perform_lowercasing = absl::Bernoulli(
-      bitgenref_, static_cast<double>(augmentations_.num_lowercasings) /
-                      augmentations_.num_total);
+      bitgenref_,
+      static_cast<double>(augmentations_.num_complete_lowercasings) /
+          augmentations_.num_total);
   if (perform_lowercasing) {
     Lowercase(augmented_document);
-    --augmentations_.num_lowercasings;
+    --augmentations_.num_complete_lowercasings;
     return true;
   }
   return false;
@@ -182,7 +183,7 @@ void Augmenter::Augment() {
     // original document. Repeat this augmentation iteration.
     if (!augmentation_performed &&
         augmentations_.num_total ==
-            augmentations_.num_lowercasings +
+            augmentations_.num_complete_lowercasings +
                 augmentations_.num_address_replacements +
                 augmentations_.num_phone_replacements +
                 augmentations_.num_context_drops_between_labels +

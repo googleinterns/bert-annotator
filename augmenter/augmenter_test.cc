@@ -135,7 +135,7 @@ TEST(AugmenterTest, NoAugmentation) {
   bert_annotator::Documents documents = ConstructBertDocument(
       {DocumentSpec("Text with some InterWordCapitalization", {})});
   Augmentations augmentations = {.num_total = 0,
-                                 .num_lowercasings = 0,
+                                 .num_complete_lowercasings = 0,
                                  .num_address_replacements = 0,
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 0,
@@ -158,7 +158,7 @@ TEST(AugmenterTest, AugmentsAreAdded) {
   bert_annotator::Documents documents = ConstructBertDocument(
       {DocumentSpec("Text with some InterWordCapitalization", {})});
   Augmentations augmentations = {.num_total = 1,
-                                 .num_lowercasings = 0,
+                                 .num_complete_lowercasings = 0,
                                  .num_address_replacements = 0,
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 0,
@@ -181,7 +181,7 @@ TEST(AugmenterTest, NoAugmentations) {
   bert_annotator::Documents documents = ConstructBertDocument(
       {DocumentSpec("Text with some InterWordCapitalization", {})});
   Augmentations augmentations = {.num_total = 10,
-                                 .num_lowercasings = 0,
+                                 .num_complete_lowercasings = 0,
                                  .num_address_replacements = 0,
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 0,
@@ -209,7 +209,7 @@ TEST(AugmenterTest, Lowercasing) {
                      TokenSpec("some", 10, 13),
                      TokenSpec("InterWordCapitalization", 15, 37)})});
   Augmentations augmentations = {.num_total = 10,
-                                 .num_lowercasings = 10,
+                                 .num_complete_lowercasings = 10,
                                  .num_address_replacements = 0,
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 0,
@@ -286,7 +286,7 @@ TEST(AugmenterTest, RandomizedLowercasing) {
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 1.0 / 1))
       .WillOnce(Return(true));
   Augmentations augmentations = {.num_total = 4,
-                                 .num_lowercasings = 2,
+                                 .num_complete_lowercasings = 2,
                                  .num_address_replacements = 0,
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 0,
@@ -331,7 +331,7 @@ TEST(AugmenterTest, DontLowercaseNonTokens) {
                      TokenSpec("some", 16, 19),
                      TokenSpec("InterWordCapitalization", 21, 43)})});
   Augmentations augmentations = {.num_total = 1,
-                                 .num_lowercasings = 1,
+                                 .num_complete_lowercasings = 1,
                                  .num_address_replacements = 0,
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 0,
@@ -366,7 +366,7 @@ TEST(AugmenterTest, DontReplacePhone) {
                     {{Augmenter::kLabelContainerName,
                       {LabelSpec(Augmenter::kPhoneReplacementLabel, 1, 1)}}})});
   Augmentations augmentations = {.num_total = 1,
-                                 .num_lowercasings = 0,
+                                 .num_complete_lowercasings = 0,
                                  .num_address_replacements = 0,
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 0,
@@ -395,7 +395,7 @@ TEST(AugmenterTest, ReplacePhoneSameLength) {
                     {{Augmenter::kLabelContainerName,
                       {LabelSpec(Augmenter::kPhoneReplacementLabel, 1, 1)}}})});
   Augmentations augmentations = {.num_total = 1,
-                                 .num_lowercasings = 0,
+                                 .num_complete_lowercasings = 0,
                                  .num_address_replacements = 0,
                                  .num_phone_replacements = 1,
                                  .num_context_drops_between_labels = 0,
@@ -441,7 +441,7 @@ TEST(AugmenterTest, ReplacePhoneLongerLength) {
                     {{Augmenter::kLabelContainerName,
                       {LabelSpec(Augmenter::kPhoneReplacementLabel, 1, 1)}}})});
   Augmentations augmentations = {.num_total = 1,
-                                 .num_lowercasings = 0,
+                                 .num_complete_lowercasings = 0,
                                  .num_address_replacements = 0,
                                  .num_phone_replacements = 1,
                                  .num_context_drops_between_labels = 0,
@@ -488,7 +488,7 @@ TEST(AugmenterTest, ReplacePhoneShorterLength) {
                     {{Augmenter::kLabelContainerName,
                       {LabelSpec(Augmenter::kPhoneReplacementLabel, 1, 1)}}})});
   Augmentations augmentations = {.num_total = 1,
-                                 .num_lowercasings = 0,
+                                 .num_complete_lowercasings = 0,
                                  .num_address_replacements = 0,
                                  .num_phone_replacements = 1,
                                  .num_context_drops_between_labels = 0,
@@ -533,7 +533,7 @@ TEST(AugmenterTest, ReplacePhoneStart) {
       {{Augmenter::kLabelContainerName,
         {LabelSpec(Augmenter::kPhoneReplacementLabel, 0, 0)}}})});
   Augmentations augmentations = {.num_total = 1,
-                                 .num_lowercasings = 0,
+                                 .num_complete_lowercasings = 0,
                                  .num_address_replacements = 0,
                                  .num_phone_replacements = 1,
                                  .num_context_drops_between_labels = 0,
@@ -577,7 +577,7 @@ TEST(AugmenterTest, ReplacePhoneEnd) {
                     {{Augmenter::kLabelContainerName,
                       {LabelSpec(Augmenter::kPhoneReplacementLabel, 1, 1)}}})});
   Augmentations augmentations = {.num_total = 1,
-                                 .num_lowercasings = 0,
+                                 .num_complete_lowercasings = 0,
                                  .num_address_replacements = 0,
                                  .num_phone_replacements = 1,
                                  .num_context_drops_between_labels = 0,
@@ -623,7 +623,7 @@ TEST(AugmenterTest, ReplacePhoneChooseLabel) {
                       {LabelSpec(Augmenter::kPhoneReplacementLabel, 0, 0),
                        LabelSpec(Augmenter::kPhoneReplacementLabel, 2, 2)}}})});
   Augmentations augmentations = {.num_total = 2,
-                                 .num_lowercasings = 0,
+                                 .num_complete_lowercasings = 0,
                                  .num_address_replacements = 0,
                                  .num_phone_replacements = 2,
                                  .num_context_drops_between_labels = 0,
@@ -689,7 +689,7 @@ TEST(AugmenterTest, ReplacePhoneChooseDocument) {
                     {{Augmenter::kLabelContainerName,
                       {LabelSpec(Augmenter::kPhoneReplacementLabel, 1, 1)}}})});
   Augmentations augmentations = {.num_total = 2,
-                                 .num_lowercasings = 0,
+                                 .num_complete_lowercasings = 0,
                                  .num_address_replacements = 0,
                                  .num_phone_replacements = 1,
                                  .num_context_drops_between_labels = 0,
@@ -744,7 +744,7 @@ TEST(AugmenterTest, ReplacePhoneMissingLabelContainer) {
                     {{Augmenter::kLabelContainerName,
                       {LabelSpec(Augmenter::kPhoneReplacementLabel, 1, 1)}}})});
   Augmentations augmentations = {.num_total = 1,
-                                 .num_lowercasings = 0,
+                                 .num_complete_lowercasings = 0,
                                  .num_address_replacements = 0,
                                  .num_phone_replacements = 1,
                                  .num_context_drops_between_labels = 0,
@@ -798,7 +798,7 @@ TEST(AugmenterTest, DontReplaceAddress) {
        TokenSpec("Thanks", 13, 18)},
       {{Augmenter::kLabelContainerName, {LabelSpec("LOCALITY", 1, 1)}}})});
   Augmentations augmentations = {.num_total = 1,
-                                 .num_lowercasings = 0,
+                                 .num_complete_lowercasings = 0,
                                  .num_address_replacements = 0,
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 0,
@@ -835,7 +835,7 @@ TEST(AugmenterTest, UpdateLabels) {
        TokenSpec("Thanks", 13, 18)},
       {{Augmenter::kLabelContainerName, {LabelSpec("LOCALITY", 1, 1)}}})});
   Augmentations augmentations = {.num_total = 0,
-                                 .num_lowercasings = 0,
+                                 .num_complete_lowercasings = 0,
                                  .num_address_replacements = 0,
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 0,
@@ -871,7 +871,7 @@ TEST(AugmenterTest, ReplaceAddressSameLength) {
        TokenSpec("Thanks", 13, 18)},
       {{Augmenter::kLabelContainerName, {LabelSpec("LOCALITY", 1, 1)}}})});
   Augmentations augmentations = {.num_total = 1,
-                                 .num_lowercasings = 0,
+                                 .num_complete_lowercasings = 0,
                                  .num_address_replacements = 1,
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 0,
@@ -917,7 +917,7 @@ TEST(AugmenterTest, ReplaceAddressFewerTokens) {
       {{Augmenter::kLabelContainerName,
         {LabelSpec("LOCALITY", 1, 1), LabelSpec("LOCALITY", 2, 2)}}})});
   Augmentations augmentations = {.num_total = 1,
-                                 .num_lowercasings = 0,
+                                 .num_complete_lowercasings = 0,
                                  .num_address_replacements = 1,
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 0,
@@ -963,7 +963,7 @@ TEST(AugmenterTest, ReplaceAddressMultiWordReplacement) {
       {{Augmenter::kLabelContainerName,
         {LabelSpec("LOCALITY", 1, 1), LabelSpec("LOCALITY", 2, 2)}}})});
   Augmentations augmentations = {.num_total = 1,
-                                 .num_lowercasings = 0,
+                                 .num_complete_lowercasings = 0,
                                  .num_address_replacements = 1,
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 0,
@@ -1010,7 +1010,7 @@ TEST(AugmenterTest, DropContextDetectMultipleDroppableSequences) {
                     {{Augmenter::kLabelContainerName,
                       {LabelSpec(Augmenter::kPhoneReplacementLabel, 2, 2)}}})});
   Augmentations augmentations = {.num_total = 1,
-                                 .num_lowercasings = 0,
+                                 .num_complete_lowercasings = 0,
                                  .num_address_replacements = 0,
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 1,
@@ -1048,7 +1048,7 @@ TEST(AugmenterTest, DropContextStartAndEnd) {
         {LabelSpec(Augmenter::kPhoneReplacementLabel, 2, 2),
          LabelSpec(Augmenter::kPhoneReplacementLabel, 5, 5)}}})});
   Augmentations augmentations = {.num_total = 1,
-                                 .num_lowercasings = 0,
+                                 .num_complete_lowercasings = 0,
                                  .num_address_replacements = 0,
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 1,
@@ -1111,7 +1111,7 @@ TEST(AugmenterTest, DropContextRemoveBeginningOfLabel) {
                       {LabelSpec("OTHER", 0, 1),
                        LabelSpec(Augmenter::kPhoneReplacementLabel, 2, 2)}}})});
   Augmentations augmentations = {.num_total = 1,
-                                 .num_lowercasings = 0,
+                                 .num_complete_lowercasings = 0,
                                  .num_address_replacements = 0,
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 1,
@@ -1166,7 +1166,7 @@ TEST(AugmenterTest, DropContextRemoveMiddleOfLabel) {
                        LabelSpec("OTHER", 1, 3),
                        LabelSpec(Augmenter::kPhoneReplacementLabel, 4, 4)}}})});
   Augmentations augmentations = {.num_total = 1,
-                                 .num_lowercasings = 0,
+                                 .num_complete_lowercasings = 0,
                                  .num_address_replacements = 0,
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 1,
@@ -1224,7 +1224,7 @@ TEST(AugmenterTest, DropContextRemoveEndOfLabel) {
                       {LabelSpec(Augmenter::kPhoneReplacementLabel, 2, 2),
                        LabelSpec("OTHER", 3, 4)}}})});
   Augmentations augmentations = {.num_total = 1,
-                                 .num_lowercasings = 0,
+                                 .num_complete_lowercasings = 0,
                                  .num_address_replacements = 0,
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 1,
@@ -1275,7 +1275,7 @@ TEST(AugmenterTest, DropContextNoLabels) {
                     {TokenSpec("Text", 0, 3), TokenSpec("without", 5, 11),
                      TokenSpec("any", 13, 15), TokenSpec("tokens", 17, 22)})});
   Augmentations augmentations = {.num_total = 1,
-                                 .num_lowercasings = 0,
+                                 .num_complete_lowercasings = 0,
                                  .num_address_replacements = 0,
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 1,
@@ -1326,7 +1326,7 @@ TEST(AugmenterTest, DropContextNoLabelsNoLabelContainer) {
                      TokenSpec("any", 13, 15), TokenSpec("tokens", 17, 22)},
                     {})});
   Augmentations augmentations = {.num_total = 1,
-                                 .num_lowercasings = 0,
+                                 .num_complete_lowercasings = 0,
                                  .num_address_replacements = 0,
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 1,
@@ -1377,7 +1377,7 @@ TEST(AugmenterTest, DropContextDropLabelsNoLabels) {
                     {TokenSpec("Text", 0, 3), TokenSpec("without", 5, 11),
                      TokenSpec("any", 13, 15), TokenSpec("tokens", 17, 22)})});
   Augmentations augmentations = {.num_total = 1,
-                                 .num_lowercasings = 0,
+                                 .num_complete_lowercasings = 0,
                                  .num_address_replacements = 0,
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 0,
@@ -1428,7 +1428,7 @@ TEST(AugmenterTest, DropContextDropLabelsNoLabelsNoLabelContainer) {
                      TokenSpec("any", 13, 15), TokenSpec("tokens", 17, 22)},
                     {})});
   Augmentations augmentations = {.num_total = 1,
-                                 .num_lowercasings = 0,
+                                 .num_complete_lowercasings = 0,
                                  .num_address_replacements = 0,
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 0,
@@ -1485,7 +1485,7 @@ TEST(AugmenterTest, DropContextDropLabelsPrefix) {
                        LabelSpec("OTHER", 1, 3),
                        LabelSpec(Augmenter::kPhoneReplacementLabel, 4, 4)}}})});
   Augmentations augmentations = {.num_total = 1,
-                                 .num_lowercasings = 0,
+                                 .num_complete_lowercasings = 0,
                                  .num_address_replacements = 0,
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 0,
@@ -1549,7 +1549,7 @@ TEST(AugmenterTest, DropContextDropLabelsSuffix) {
                        LabelSpec("OTHER", 1, 3),
                        LabelSpec(Augmenter::kPhoneReplacementLabel, 4, 4)}}})});
   Augmentations augmentations = {.num_total = 1,
-                                 .num_lowercasings = 0,
+                                 .num_complete_lowercasings = 0,
                                  .num_address_replacements = 0,
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 0,
@@ -1602,7 +1602,7 @@ TEST(AugmenterTest, RemoveSeparatorTokens) {
                      TokenSpec("more", 6, 9), TokenSpec("...", 11, 13),
                      TokenSpec("t.e.x.t.", 15, 22), TokenSpec("!", 23, 23)})});
   Augmentations augmentations = {.num_total = 1,
-                                 .num_lowercasings = 0,
+                                 .num_complete_lowercasings = 0,
                                  .num_address_replacements = 0,
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 0,
@@ -1641,7 +1641,7 @@ TEST(AugmenterTest, MaskDigits) {
        TokenSpec("99", 32, 33)},
       {{Augmenter::kLabelContainerName, {LabelSpec("LOCALITY", 2, 2)}}})});
   Augmentations augmentations = {.num_total = 1,
-                                 .num_lowercasings = 0,
+                                 .num_complete_lowercasings = 0,
                                  .num_address_replacements = 1,
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 0,
@@ -1696,7 +1696,7 @@ TEST(AugmenterTest, MaskDigits) {
 TEST(AugmenterTest, ContextlessAddress) {
   bert_annotator::Documents documents = ConstructBertDocument({});
   Augmentations augmentations = {.num_total = 1,
-                                 .num_lowercasings = 0,
+                                 .num_complete_lowercasings = 0,
                                  .num_address_replacements = 0,
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 0,
@@ -1730,7 +1730,7 @@ TEST(AugmenterTest, ContextlessAddress) {
 TEST(AugmenterTest, ContextlessPhone) {
   bert_annotator::Documents documents = ConstructBertDocument({});
   Augmentations augmentations = {.num_total = 1,
-                                 .num_lowercasings = 0,
+                                 .num_complete_lowercasings = 0,
                                  .num_address_replacements = 0,
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 0,

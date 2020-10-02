@@ -28,7 +28,8 @@
 ABSL_FLAG(int, num_total, 0, "Number of created augmented samples");
 ABSL_FLAG(std::vector<std::string>, corpora, std::vector<std::string>({}),
           "comma-separated list of corpora to augment");
-ABSL_FLAG(int, num_lowercasings, 0, "Number of augmentations by lowercasing");
+ABSL_FLAG(int, num_complete_lowercasings, 0,
+          "Number of augmentations by lowercasing");
 ABSL_FLAG(std::string, addresses_path, "",
           "Path to list of alternative addresses");
 ABSL_FLAG(int, num_address_replacements, 0,
@@ -70,7 +71,8 @@ int main(int argc, char* argv[]) {
 
   augmenter::Augmentations augmentations{
       .num_total = absl::GetFlag(FLAGS_num_total),
-      .num_lowercasings = absl::GetFlag(FLAGS_num_lowercasings),
+      .num_complete_lowercasings =
+          absl::GetFlag(FLAGS_num_complete_lowercasings),
       .num_address_replacements = absl::GetFlag(FLAGS_num_address_replacements),
       .num_phone_replacements = absl::GetFlag(FLAGS_num_phone_replacements),
       .num_context_drops_between_labels =
