@@ -45,6 +45,7 @@ Valid flags are:
  - `--corpora="[corpora]"`
  - `--num_total=[total augmentations]`
  - `--num_complete_lowercasings=[augmentations by lowercasing the complete sentence]`
+ - `--num_complete_uppercasings=[augmentations by uppercasing the complete sentence]`
  - `--addresses_path=[path to address file]`
  - `--num_address_replacements=[augmentations by address replacement]`
  - `--phones_path=[path to phone number file]`

@@ -120,17 +120,26 @@ bool Augmenter::AugmentPhone(
   return false;
 }
 
-bool Augmenter::AugmentLowercase(
+bool Augmenter::AugmentCase(
     bert_annotator::Document* const augmented_document) {
-  const bool perform_lowercasing = absl::Bernoulli(
-      bitgenref_,
+  const bool lowercased_complete_sentence = MaybeChangeCase(
       static_cast<double>(augmentations_.num_complete_lowercasings) /
-          augmentations_.num_total);
-  if (perform_lowercasing) {
-    Lowercase(augmented_document);
+          augmentations_.num_total,
+      true, augmented_document);
+  if (lowercased_complete_sentence) {
     --augmentations_.num_complete_lowercasings;
     return true;
   }
+
+  const bool uppercased_complete_sentence = MaybeChangeCase(
+      static_cast<double>(augmentations_.num_complete_uppercasings) /
+          augmentations_.num_total,
+      false, augmented_document);
+  if (uppercased_complete_sentence) {
+    --augmentations_.num_complete_uppercasings;
+    return true;
+  }
+
   return false;
 }
 
@@ -175,7 +184,7 @@ void Augmenter::Augment() {
     bool augmentation_performed = false;
     augmentation_performed |= AugmentAddress(augmented_document);
     augmentation_performed |= AugmentPhone(augmented_document);
-    augmentation_performed |= AugmentLowercase(augmented_document);
+    augmentation_performed |= AugmentCase(augmented_document);
     augmentation_performed |= AugmentContext(augmented_document);
 
     // If no action was performed and all remaining augmentations have to
@@ -184,6 +193,7 @@ void Augmenter::Augment() {
     if (!augmentation_performed &&
         augmentations_.num_total ==
             augmentations_.num_complete_lowercasings +
+                augmentations_.num_complete_uppercasings +
                 augmentations_.num_address_replacements +
                 augmentations_.num_phone_replacements +
                 augmentations_.num_context_drops_between_labels +
@@ -550,8 +560,14 @@ void Augmenter::ReplaceLabeledTokens(
       document);
 }
 
-void Augmenter::Lowercase(
-    bert_annotator::Document* const augmented_document) const {
+bool Augmenter::MaybeChangeCase(
+    const double probability, const bool change_to_lowercase,
+    bert_annotator::Document* const augmented_document) {
+  const bool do_change_case = absl::Bernoulli(bitgenref_, probability);
+  if (!do_change_case) {
+    return false;
+  }
+
   std::string* const text = augmented_document->mutable_text();
   std::string new_text;
   int text_index = 0;
@@ -563,14 +579,20 @@ void Augmenter::Lowercase(
       new_text.append(text->begin() + text_index, text->begin() + token_start);
     }
 
-    // Transforms the token to lowercase.
+    // Transforms the token to the new case.
     std::string* const word = token.mutable_word();
-    absl::AsciiStrToLower(word);
+    if (change_to_lowercase) {
+      absl::AsciiStrToLower(word);
+    } else {
+      absl::AsciiStrToUpper(word);
+    }
     new_text.append(*word);
     text_index = token_end + 1;
   }
   new_text.append(text->begin() + text_index, text->end());
   augmented_document->set_text(new_text);
+
+  return true;
 }
 
 google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>

@@ -22,6 +22,7 @@ namespace augmenter {
 struct Augmentations {
   int num_total;
   int num_complete_lowercasings;
+  int num_complete_uppercasings;
   int num_address_replacements;
   int num_phone_replacements;
   int num_context_drops_between_labels;

@@ -53,7 +53,7 @@ class Augmenter {
  private:
   bool AugmentAddress(bert_annotator::Document* const augmented_document);
   bool AugmentPhone(bert_annotator::Document* const augmented_document);
-  bool AugmentLowercase(bert_annotator::Document* const augmented_document);
+  bool AugmentCase(bert_annotator::Document* const augmented_document);
   void AugmentContextless(const absl::string_view label,
                           RandomSampler* const sampler);
   bool MaybeReplaceLabel(const double probability, RandomSampler* const sampler,
@@ -105,7 +105,8 @@ class Augmenter {
                             bert_annotator::Document* const document) const;
   // Transforms the text to lowercase. Only explicitly listed tokens are
   // transformed.
-  void Lowercase(bert_annotator::Document* const document) const;
+  bool MaybeChangeCase(const double probability, const bool change_to_lowercase,
+                       bert_annotator::Document* const document);
   google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>
   GetLabelListWithDefault(
       const bert_annotator::Document& document,
