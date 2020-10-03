@@ -1,6 +1,11 @@
 load("@rules_cc//cc:defs.bzl", "cc_library", "cc_binary", "cc_test")
 
 cc_library(
+  name = "case_augmentation",
+  hdrs = ["case_augmentation.h"],
+)
+
+cc_library(
   name = "token_range",
   hdrs = ["token_range.h"],
 )
@@ -17,6 +22,7 @@ cc_library(
   hdrs = ["augmenter.h"],
   deps = [
     ':augmentations',
+    ':case_augmentation',
     ":random_sampler",
     ":token_range",
     "//protocol_buffer:documents_cc_proto",

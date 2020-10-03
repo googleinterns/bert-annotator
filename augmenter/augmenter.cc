@@ -25,6 +25,7 @@
 #include "absl/strings/ascii.h"
 #include "absl/strings/str_replace.h"
 #include "augmenter/augmentations.h"
+#include "augmenter/case_augmentation.h"
 #include "augmenter/random_sampler.h"
 #include "augmenter/token_range.h"
 #include "protocol_buffer/document.pb.h"
@@ -122,25 +123,54 @@ bool Augmenter::AugmentPhone(
 
 bool Augmenter::AugmentCase(
     bert_annotator::Document* const augmented_document) {
-  const bool lowercased_complete_sentence = MaybeChangeCase(
-      static_cast<double>(augmentations_.num_complete_lowercasings) /
+  std::vector<int> token_ids(augmented_document->token_size());
+  std::iota(token_ids.begin(), token_ids.end(), 0);
+
+  std::vector<int> unmodified_token_ids = MaybeChangeCase(
+      CaseAugmentation::kLowercaseCompleteToken,
+      static_cast<double>(augmentations_.num_lowercasings_complete_token) /
           augmentations_.num_total,
-      true, augmented_document);
-  if (lowercased_complete_sentence) {
-    --augmentations_.num_complete_lowercasings;
-    return true;
+      augmentations_.probability_per_lowercasing_complete_token, token_ids,
+      augmented_document);
+  if (unmodified_token_ids.size() != token_ids.size()) {
+    --augmentations_.num_lowercasings_complete_token;
+    token_ids = unmodified_token_ids;
   }
 
-  const bool uppercased_complete_sentence = MaybeChangeCase(
-      static_cast<double>(augmentations_.num_complete_uppercasings) /
+  unmodified_token_ids = MaybeChangeCase(
+      CaseAugmentation::kLowercaseFirstLetter,
+      static_cast<double>(augmentations_.num_lowercasings_first_letter) /
           augmentations_.num_total,
-      false, augmented_document);
-  if (uppercased_complete_sentence) {
-    --augmentations_.num_complete_uppercasings;
-    return true;
+      augmentations_.probability_per_lowercasing_first_letter, token_ids,
+      augmented_document);
+  if (unmodified_token_ids.size() != token_ids.size()) {
+    --augmentations_.num_lowercasings_first_letter;
+    token_ids = unmodified_token_ids;
   }
 
-  return false;
+  unmodified_token_ids = MaybeChangeCase(
+      CaseAugmentation::kUppercaseCompleteToken,
+      static_cast<double>(augmentations_.num_uppercasings_complete_token) /
+          augmentations_.num_total,
+      augmentations_.probability_per_uppercasing_complete_token, token_ids,
+      augmented_document);
+  if (unmodified_token_ids.size() != token_ids.size()) {
+    --augmentations_.num_uppercasings_complete_token;
+    token_ids = unmodified_token_ids;
+  }
+
+  unmodified_token_ids = MaybeChangeCase(
+      CaseAugmentation::kUppercaseFirstLetter,
+      static_cast<double>(augmentations_.num_uppercasings_first_letter) /
+          augmentations_.num_total,
+      augmentations_.probability_per_uppercasing_first_letter, token_ids,
+      augmented_document);
+  if (unmodified_token_ids.size() != token_ids.size()) {
+    --augmentations_.num_uppercasings_first_letter;
+    token_ids = unmodified_token_ids;
+  }
+
+  return static_cast<int>(token_ids.size()) != augmented_document->token_size();
 }
 
 void Augmenter::AugmentContextless(const absl::string_view label,
@@ -192,8 +222,10 @@ void Augmenter::Augment() {
     // original document. Repeat this augmentation iteration.
     if (!augmentation_performed &&
         augmentations_.num_total ==
-            augmentations_.num_complete_lowercasings +
-                augmentations_.num_complete_uppercasings +
+            augmentations_.num_lowercasings_complete_token +
+                augmentations_.num_lowercasings_first_letter +
+                augmentations_.num_uppercasings_complete_token +
+                augmentations_.num_uppercasings_first_letter +
                 augmentations_.num_address_replacements +
                 augmentations_.num_phone_replacements +
                 augmentations_.num_context_drops_between_labels +
@@ -560,47 +592,62 @@ void Augmenter::ReplaceLabeledTokens(
       document);
 }
 
-bool Augmenter::MaybeChangeCase(
-    const double probability, const bool change_to_lowercase,
-    bert_annotator::Document* const augmented_document) {
-  const bool do_change_case = absl::Bernoulli(bitgenref_, probability);
+std::vector<int> Augmenter::MaybeChangeCase(
+    const CaseAugmentation case_augmentation,
+    const double probability_per_sentence, const double probability_per_token,
+    const std::vector<int>& token_ids,
+    bert_annotator::Document* const document) {
+  const bool do_change_case =
+      absl::Bernoulli(bitgenref_, probability_per_sentence);
   if (!do_change_case) {
-    return false;
+    return token_ids;
   }
 
-  std::string* const text = augmented_document->mutable_text();
+  std::string* const text = document->mutable_text();
   std::string new_text;
   int text_index = 0;
-  bool changed_casing = false;
-  for (bert_annotator::Token& token : *augmented_document->mutable_token()) {
-    // Adds the string in between two tokens as it is.
-    const int token_start = token.start();
-    const int token_end = token.end();
+  std::vector<int> unmodified_ids;
+  for (int token_id : token_ids) {
+    bert_annotator::Token* const token = document->mutable_token(token_id);
+    std::string* const word = token->mutable_word();
+
+    // Adds the non-tokens before the current token as they are.
+    const int token_start = token->start();
+    const int token_end = token->end();
     if (text_index < token_start) {
       new_text.append(text->begin() + text_index, text->begin() + token_start);
     }
 
-    // Transforms the token to the new case.
-    std::string* const word = token.mutable_word();
-    if (change_to_lowercase && absl::c_any_of(*word, [](unsigned char c) {
-          return std::isupper(c);
-        })) {
+    bool skip_this_token = !absl::Bernoulli(bitgenref_, probability_per_token);
+    if (!skip_this_token &&
+        case_augmentation == CaseAugmentation::kLowercaseCompleteToken &&
+        absl::c_any_of(*word,
+                       [](unsigned char c) { return std::isupper(c); })) {
       absl::AsciiStrToLower(word);
-      changed_casing = true;
-    } else if (!change_to_lowercase &&
+    } else if (!skip_this_token &&
+               case_augmentation == CaseAugmentation::kLowercaseFirstLetter &&
+               word->size() > 0 && std::isupper(word->at(0))) {
+      word->at(0) = std::tolower(word->at(0));
+    } else if (!skip_this_token &&
+               case_augmentation == CaseAugmentation::kUppercaseCompleteToken &&
                absl::c_any_of(
                    *word, [](unsigned char c) { return std::islower(c); })) {
       absl::AsciiStrToUpper(word);
-      changed_casing = true;
+    } else if (!skip_this_token &&
+               case_augmentation == CaseAugmentation::kUppercaseFirstLetter &&
+               word->size() > 0 && std::islower(word->at(0))) {
+      word->at(0) = std::toupper(word->at(0));
+    } else {
+      unmodified_ids.push_back(token_id);
     }
 
     new_text.append(*word);
     text_index = token_end + 1;
   }
   new_text.append(text->begin() + text_index, text->end());
-  augmented_document->set_text(new_text);
+  document->set_text(new_text);
 
-  return changed_casing;
+  return unmodified_ids;
 }
 
 google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>

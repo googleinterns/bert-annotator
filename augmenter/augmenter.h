@@ -26,6 +26,7 @@
 #include "absl/random/random.h"
 #include "absl/strings/string_view.h"
 #include "augmenter/augmentations.h"
+#include "augmenter/case_augmentation.h"
 #include "augmenter/random_sampler.h"
 #include "augmenter/token_range.h"
 #include "protocol_buffer/documents.pb.h"
@@ -103,10 +104,14 @@ class Augmenter {
                             const std::string& replacement,
                             const absl::string_view replacement_label,
                             bert_annotator::Document* const document) const;
-  // Transforms the text to lowercase. Only explicitly listed tokens are
-  // transformed.
-  bool MaybeChangeCase(const double probability, const bool change_to_lowercase,
-                       bert_annotator::Document* const document);
+  // Changes the the complete token or the first letter of a token to
+  // lower/upper case. Processes only the specified tokens and returns the ids
+  // of all unmodifed tokens.
+  std::vector<int> MaybeChangeCase(const CaseAugmentation case_augmentation,
+                                   const double probability_per_sentence,
+                                   const double probability_per_token,
+                                   const std::vector<int>& token_ids,
+                                   bert_annotator::Document* const document);
   google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>
   GetLabelListWithDefault(
       const bert_annotator::Document& document,
