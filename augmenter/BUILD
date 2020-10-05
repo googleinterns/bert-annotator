@@ -1,9 +1,8 @@
 load("@rules_cc//cc:defs.bzl", "cc_library", "cc_binary", "cc_test")
 
 cc_library(
-  name = "label_boundaries",
-  srcs = ["label_boundaries.cc"],
-  hdrs = ["label_boundaries.h"],
+  name = "token_range",
+  hdrs = ["token_range.h"],
 )
 
 cc_library(
@@ -19,7 +18,7 @@ cc_library(
   deps = [
     ':augmentations',
     ":random_sampler",
-    ":label_boundaries",
+    ":token_range",
     "//protocol_buffer:documents_cc_proto",
     "@com_google_absl//absl/container:flat_hash_set",
     "@com_google_absl//absl/random",

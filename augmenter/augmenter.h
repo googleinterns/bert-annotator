@@ -18,7 +18,6 @@
 #define AUGMENTER_AUGMENTER_H_
 
 #include <string>
-#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -27,8 +26,8 @@
 #include "absl/random/random.h"
 #include "absl/strings/string_view.h"
 #include "augmenter/augmentations.h"
-#include "augmenter/label_boundaries.h"
 #include "augmenter/random_sampler.h"
+#include "augmenter/token_range.h"
 #include "protocol_buffer/documents.pb.h"
 
 namespace augmenter {
@@ -43,6 +42,10 @@ class Augmenter {
             RandomSampler* const phone_sampler, absl::BitGenRef bitgen);
   void Augment();
   const bert_annotator::Documents documents() const;
+  static const absl::flat_hash_set<absl::string_view>& kAddressLabels;
+  static constexpr absl::string_view kAddressReplacementLabel = "ADDRESS";
+  static const absl::flat_hash_set<absl::string_view>& kPhoneLabels;
+  static constexpr absl::string_view kPhoneReplacementLabel = "TELEPHONE";
 
  private:
   bool AugmentAddress(bert_annotator::Document* const augmented_document);
@@ -51,40 +54,66 @@ class Augmenter {
   bool MaybeReplaceLabel(const double probability, RandomSampler* const sampler,
                          const absl::string_view replacement_label,
                          bert_annotator::Document* const document);
-  // Finds all token sequences labeled according to the given label list. If
-  // multiple sequential tokens have different labels, but all are given in
-  // the list, they are concidered to be part of the same sequence.
-  const std::vector<LabelBoundaries> LabelBoundaryList(
+  bool AugmentContext(bert_annotator::Document* const augmented_document);
+  // Returns the ranges of all tokens not labeled as an address or phone number.
+  std::vector<TokenRange> GetUnlabeledRanges(
+      const bert_annotator::Document& document);
+  std::vector<TokenRange> GetLabeledRanges(
       const bert_annotator::Document& document,
-      const absl::string_view label) const;
-  void ReplaceText(const LabelBoundaries& boundaries,
-                   const std::string& replacement,
-                   bert_annotator::Document* const document) const;
-  // May introduce tokens longer than one word.
-  void ReplaceTokens(const LabelBoundaries& boundaries,
-                     const std::string& replacement,
+      absl::flat_hash_set<absl::string_view> labels);
+  void DropTokens(const TokenRange boundaries,
+                  bert_annotator::Document* const augmented_document) const;
+  // Drops context while keeping all labels.
+  bool MaybeDropContextKeepLabels(
+      const double probability,
+      bert_annotator::Document* const augmented_document);
+  // Drops context before/after a chosen label, potentially dropping other
+  // labels.
+  bool MaybeDropContextDropLabels(
+      const double probability,
+      bert_annotator::Document* const augmented_document);
+  const int ReplaceText(const TokenRange& boundaries,
+                        const std::string& replacement,
+                        bert_annotator::Document* const document) const;
+  // Returns the number of dropped characters.
+  // Also removed non-tokens between the first dropped tokens and the preceeding
+  // last non-dropped token.
+  const int DropText(const TokenRange& boundaries,
                      bert_annotator::Document* const document) const;
-  void UpdateTokenBoundaries(const LabelBoundaries& boundaries,
-                             const std::string& replacement,
-                             bert_annotator::Document* const document) const;
-  void ReplaceLabeledSpans(const LabelBoundaries& boundaries,
-                           const absl::string_view replacement_label,
-                           bert_annotator::Document* const document) const;
-  void Replace(const LabelBoundaries& boundaries,
-               const std::string& replacement,
-               const absl::string_view replacement_label,
-               bert_annotator::Document* const document) const;
+  // May introduce tokens longer than one word.
+  void ReplaceToken(const int token_id, const std::string& replacement,
+                    bert_annotator::Document* const document) const;
+  void ShiftTokenBoundaries(const int first_token, const int shift,
+                            bert_annotator::Document* const document) const;
+  void ReplaceLabeledSpan(const int token_id,
+                          const absl::string_view replacement_label,
+                          bert_annotator::Document* const document) const;
+  // Drops labeled spans if associated tokens were dropped. Otherwise updates
+  // the start and end indices to reflect the new token ids.
+  void UpdateLabeledSpansForDroppedTokens(
+      const TokenRange& removed_tokens,
+      bert_annotator::Document* const document) const;
+  void ReplaceLabeledTokens(const TokenRange& boundaries,
+                            const std::string& replacement,
+                            const absl::string_view replacement_label,
+                            bert_annotator::Document* const document) const;
   // Transforms the text to lowercase. Only explicitly listed tokens are
   // transformed.
   void Lowercase(bert_annotator::Document* const document) const;
+  google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>
+  GetLabelListWithDefault(
+      const bert_annotator::Document& document,
+      google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>
+          defaults_to) const;
+  google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>*
+  GetLabelListWithDefault(
+      bert_annotator::Document* document,
+      google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>*
+          defaults_to) const;
   bert_annotator::Documents documents_;
   RandomSampler* const address_sampler_;
   RandomSampler* const phone_sampler_;
   Augmentations augmentations_;
-  static const absl::flat_hash_set<absl::string_view>& kAddressLabels;
-  static constexpr absl::string_view kAddressReplacementLabel = "ADDRESS";
-  static const absl::flat_hash_set<absl::string_view>& kPhoneLabels;
-  static constexpr absl::string_view kPhoneReplacementLabel = "TELEPHONE";
   absl::BitGenRef bitgenref_;
   absl::BitGen bitgen_;
 };

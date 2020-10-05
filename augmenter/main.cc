@@ -25,17 +25,28 @@
 #include "augmenter/random_sampler.h"
 #include "augmenter/textproto_io.h"
 
-ABSL_FLAG(int, total, 0, "Number of created augmented samples");
+ABSL_FLAG(int, num_total, 0, "Number of created augmented samples");
 ABSL_FLAG(std::vector<std::string>, corpora, std::vector<std::string>({}),
           "comma-separated list of corpora to augment");
-ABSL_FLAG(int, lowercase, 0, "Number of augmentations by lowercasing");
+ABSL_FLAG(int, num_lowercasings, 0, "Number of augmentations by lowercasing");
 ABSL_FLAG(std::string, addresses_path, "",
           "Path to list of alternative addresses");
-ABSL_FLAG(int, addresses, 0, "Number of augmentations by address replacement");
+ABSL_FLAG(int, num_address_replacements, 0,
+          "Number of augmentations by address replacement");
 ABSL_FLAG(std::string, phones_path, "",
           "Path to list of alternative phone number");
-ABSL_FLAG(int, phones, 0,
+ABSL_FLAG(int, num_phone_replacements, 0,
           "Number of augmentations by phone number replacement");
+ABSL_FLAG(
+    int, num_context_drops_between_labels, 0,
+    "Number of augmentations by dropping context in between labels. Keeps at "
+    "least the token directly to the left and right of each label.");
+ABSL_FLAG(int, num_context_drops_outside_one_label, 0,
+          "Number of augmentations by selecting a label and dropping context "
+          "to its left and right. May drop other labels.");
+ABSL_FLAG(double, probability_per_drop, 0.5,
+          "Given that context from a sentence will be dropped, how likely is "
+          "each sequence to be dropped?");
 
 // Augments the dataset by applying configurable actions, see defined flags.
 int main(int argc, char* argv[]) {
@@ -45,13 +56,20 @@ int main(int argc, char* argv[]) {
 
   absl::ParseCommandLine(argc, argv);
 
-  const int augmentations_total = absl::GetFlag(FLAGS_total);
   const std::vector<std::string> corpora = absl::GetFlag(FLAGS_corpora);
-  const int augmentations_lowercase = absl::GetFlag(FLAGS_lowercase);
   const std::string addresses_path = absl::GetFlag(FLAGS_addresses_path);
-  const int augmentations_addresses = absl::GetFlag(FLAGS_addresses);
   const std::string phones_path = absl::GetFlag(FLAGS_phones_path);
-  const int augmentations_phones = absl::GetFlag(FLAGS_phones);
+
+  augmenter::Augmentations augmentations{
+      .num_total = absl::GetFlag(FLAGS_num_total),
+      .num_lowercasings = absl::GetFlag(FLAGS_num_lowercasings),
+      .num_address_replacements = absl::GetFlag(FLAGS_num_address_replacements),
+      .num_phone_replacements = absl::GetFlag(FLAGS_num_phone_replacements),
+      .num_context_drops_between_labels =
+          absl::GetFlag(FLAGS_num_context_drops_between_labels),
+      .num_context_drops_outside_one_label =
+          absl::GetFlag(FLAGS_num_context_drops_outside_one_label),
+      .probability_per_drop = absl::GetFlag(FLAGS_probability_per_drop)};
 
   for (const std::string& corpus : corpora) {
     augmenter::TextprotoIO textproto_io = augmenter::TextprotoIO();
@@ -88,10 +106,6 @@ int main(int argc, char* argv[]) {
     }
     augmenter::RandomSampler phones_sampler(phones_stream);
 
-    augmenter::Augmentations augmentations{.total = augmentations_total,
-                                .lowercase = augmentations_lowercase,
-                                .address = augmentations_addresses,
-                                .phone = augmentations_phones};
     augmenter::Augmenter augmenter =
         augmenter::Augmenter(textproto_io.documents(), augmentations,
                              &address_sampler, &phones_sampler);
