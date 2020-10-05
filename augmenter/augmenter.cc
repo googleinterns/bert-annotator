@@ -171,7 +171,7 @@ bool Augmenter::AugmentContext(
   return false;
 }
 
-std::vector<TokenRange> Augmenter::UnlabeledRanges(
+std::vector<TokenRange> Augmenter::GetUnlabeledRanges(
     const bert_annotator::Document& document) {
   std::vector<TokenRange> droppable_ranges;
   int start = 0;
@@ -196,7 +196,7 @@ std::vector<TokenRange> Augmenter::UnlabeledRanges(
   return droppable_ranges;
 }
 
-std::vector<TokenRange> Augmenter::LabeledRanges(
+std::vector<TokenRange> Augmenter::GetLabeledRanges(
     const bert_annotator::Document& document,
     absl::flat_hash_set<absl::string_view> labels) {
   std::vector<TokenRange> labeled_ranges;
@@ -221,7 +221,7 @@ bool Augmenter::MaybeDropContextKeepLabels(
 
   bool dropped_context = false;
   std::vector<TokenRange> droppable_ranges =
-      UnlabeledRanges(*augmented_document);
+      GetUnlabeledRanges(*augmented_document);
   // If there are no labels, we will get a single droppable range containing
   // the whole sentence. To drop from both its start and end, we duplicate it
   // here.
@@ -302,7 +302,7 @@ bool Augmenter::MaybeDropContextDropLabels(
     const double probability,
     bert_annotator::Document* const augmented_document) {
   const int token_count = augmented_document->token_size();
-  std::vector<TokenRange> labeled_ranges = LabeledRanges(
+  std::vector<TokenRange> labeled_ranges = GetLabeledRanges(
       *augmented_document, {kAddressReplacementLabel, kPhoneReplacementLabel});
   // MaybeDropContextKeepLabels already implements dropping from sentences
   // without any labels.
@@ -358,7 +358,7 @@ bool Augmenter::MaybeReplaceLabel(const double probability,
                                   const absl::string_view label,
                                   bert_annotator::Document* const document) {
   const std::vector<TokenRange>& boundary_list =
-      LabeledRanges(*document, {label});
+      GetLabeledRanges(*document, {label});
   const bool do_replace = absl::Bernoulli(bitgenref_, probability);
   if (do_replace && !boundary_list.empty()) {
     const int boundary_index =
