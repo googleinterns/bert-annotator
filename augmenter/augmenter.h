@@ -79,7 +79,6 @@ class Augmenter {
   // Drops context before/after a chosen label, potentially dropping other
   // labels.
   bool MaybeDropContextDropLabels(
-      const double probability,
       bert_annotator::Document* const augmented_document);
   // Returns the length difference (positive = length increase).
   const int ReplaceText(const TokenRange& boundaries,
@@ -117,8 +116,7 @@ class Augmenter {
   // lower/upper case. Processes only the specified tokens and returns the ids
   // of all unmodified tokens.
   std::vector<int> MaybeChangeCase(const CaseAugmentation case_augmentation,
-                                   const double probability_per_sentence,
-                                   const double probability_per_token,
+                                   const double probability,
                                    const std::vector<int>& token_ids,
                                    bert_annotator::Document* const document);
   google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>

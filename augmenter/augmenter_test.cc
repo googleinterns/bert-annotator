@@ -131,27 +131,78 @@ void ExpectEq(const bert_annotator::Document a,
   }
 }
 
-TEST(AugmenterTest, NoAugmentation) {
-  bert_annotator::Documents documents = ConstructBertDocument(
-      {DocumentSpec("Text with some InterWordCapitalization", {})});
-  Augmentations augmentations = {
-      .num_total = 0,
-      .num_lowercasings_complete_token = 0,
-      .probability_per_lowercasing_complete_token = 0.5,
-      .num_lowercasings_first_letter = 0,
-      .probability_per_lowercasing_first_letter = 0.5,
-      .num_uppercasings_complete_token = 0,
-      .probability_per_uppercasing_complete_token = 0.5,
-      .num_uppercasings_first_letter = 0,
-      .probability_per_uppercasing_first_letter = 0.5,
-      .num_address_replacements = 0,
-      .num_phone_replacements = 0,
-      .num_context_drops_between_labels = 0,
-      .num_context_drops_outside_one_label = 0,
-      .probability_per_drop = 0.5,
+TEST(AugmenterDeathTest, NegativeProbability) {
+  bert_annotator::Documents documents = ConstructBertDocument({});
+  augmenter::Augmentations augmentations{
+      .num_total = 1,
+      .prob_lowercasing_complete_token = 0,
+      .prob_lowercasing_first_letter = 0,
+      .prob_uppercasing_complete_token = 0,
+      .prob_uppercasing_first_letter = 0,
+      .prob_address_replacement = -0.5,
+      .prob_phone_replacement = 0,
+      .prob_context_drop_between_labels = 0,
+      .prob_context_drop_outside_one_label = 0,
       .num_contextless_addresses = 0,
       .num_contextless_phones = 0,
       .mask_digits = false};
+  MockRandomSampler address_sampler;
+  MockRandomSampler phone_sampler;
+  absl::MockingBitGen bitgen;
+
+  EXPECT_DEATH(
+      {
+        Augmenter augmenter = Augmenter(
+            documents, augmentations, &address_sampler, &phone_sampler, bitgen);
+      },
+      "All probabilities must have values between zero and one.");
+}
+
+TEST(AugmenterDeathTest, ProbabilityGreaterOne) {
+  bert_annotator::Documents documents = ConstructBertDocument({});
+  augmenter::Augmentations augmentations{
+      .num_total = 1,
+      .prob_lowercasing_complete_token = 0,
+      .prob_lowercasing_first_letter = 0,
+      .prob_uppercasing_complete_token = 0,
+      .prob_uppercasing_first_letter = 0,
+      .prob_address_replacement = 1.5,
+      .prob_phone_replacement = 0,
+      .prob_context_drop_between_labels = 0,
+      .prob_context_drop_outside_one_label = 0,
+      .num_contextless_addresses = 0,
+      .num_contextless_phones = 0,
+      .mask_digits = false};
+  MockRandomSampler address_sampler;
+  MockRandomSampler phone_sampler;
+  absl::MockingBitGen bitgen;
+
+  EXPECT_DEATH(
+      {
+        Augmenter augmenter = Augmenter(
+            documents, augmentations, &address_sampler, &phone_sampler, bitgen);
+      },
+      "All probabilities must have values between zero and one.");
+}
+
+TEST(AugmenterTest, NoAugmentation) {
+  bert_annotator::Documents documents = ConstructBertDocument(
+      {DocumentSpec("Text with some InterWordCapitalization", {})});
+
+  augmenter::Augmentations augmentations{
+      .num_total = 0,
+      .prob_lowercasing_complete_token = 0,
+      .prob_lowercasing_first_letter = 0,
+      .prob_uppercasing_complete_token = 0,
+      .prob_uppercasing_first_letter = 0,
+      .prob_address_replacement = 0,
+      .prob_phone_replacement = 0,
+      .prob_context_drop_between_labels = 0,
+      .prob_context_drop_outside_one_label = 0,
+      .num_contextless_addresses = 0,
+      .num_contextless_phones = 0,
+      .mask_digits = false};
+
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   Augmenter augmenter =
@@ -162,68 +213,32 @@ TEST(AugmenterTest, NoAugmentation) {
   EXPECT_EQ(augmenter.documents().documents_size(), 1);
 }
 
-TEST(AugmenterTest, AugmentsAreAdded) {
-  bert_annotator::Documents documents = ConstructBertDocument(
-      {DocumentSpec("Text with some InterWordCapitalization", {})});
-  Augmentations augmentations = {
+TEST(AugmenterDeathTest, InvalidCaseProbabilitySum) {
+  bert_annotator::Documents documents = ConstructBertDocument({});
+  augmenter::Augmentations augmentations{
       .num_total = 1,
-      .num_lowercasings_complete_token = 0,
-      .probability_per_lowercasing_complete_token = 0.5,
-      .num_lowercasings_first_letter = 0,
-      .probability_per_lowercasing_first_letter = 0.5,
-      .num_uppercasings_complete_token = 0,
-      .probability_per_uppercasing_complete_token = 0.5,
-      .num_uppercasings_first_letter = 0,
-      .probability_per_uppercasing_first_letter = 0.5,
-      .num_address_replacements = 0,
-      .num_phone_replacements = 0,
-      .num_context_drops_between_labels = 0,
-      .num_context_drops_outside_one_label = 0,
-      .probability_per_drop = 0.5,
+      .prob_lowercasing_complete_token = 0.3,
+      .prob_lowercasing_first_letter = 0.3,
+      .prob_uppercasing_complete_token = 0.3,
+      .prob_uppercasing_first_letter = 0.3,
+      .prob_address_replacement = 0,
+      .prob_phone_replacement = 0,
+      .prob_context_drop_between_labels = 0,
+      .prob_context_drop_outside_one_label = 0,
       .num_contextless_addresses = 0,
       .num_contextless_phones = 0,
       .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
-  Augmenter augmenter =
-      Augmenter(documents, augmentations, &address_sampler, &phone_sampler);
+  absl::MockingBitGen bitgen;
 
-  augmenter.Augment();
-
-  EXPECT_EQ(augmenter.documents().documents_size(), 2);
-}
-
-TEST(AugmenterTest, NoAugmentations) {
-  bert_annotator::Documents documents = ConstructBertDocument(
-      {DocumentSpec("Text with some InterWordCapitalization", {})});
-  Augmentations augmentations = {
-      .num_total = 10,
-      .num_lowercasings_complete_token = 0,
-      .probability_per_lowercasing_complete_token = 0.5,
-      .num_lowercasings_first_letter = 0,
-      .probability_per_lowercasing_first_letter = 0.5,
-      .num_uppercasings_complete_token = 0,
-      .probability_per_uppercasing_complete_token = 0.5,
-      .num_uppercasings_first_letter = 0,
-      .probability_per_uppercasing_first_letter = 0.5,
-      .num_address_replacements = 0,
-      .num_phone_replacements = 0,
-      .num_context_drops_between_labels = 0,
-      .num_context_drops_outside_one_label = 0,
-      .probability_per_drop = 0.5,
-      .num_contextless_addresses = 0,
-      .num_contextless_phones = 0,
-      .mask_digits = false};
-  MockRandomSampler address_sampler;
-  MockRandomSampler phone_sampler;
-  Augmenter augmenter =
-      Augmenter(documents, augmentations, &address_sampler, &phone_sampler);
-
-  augmenter.Augment();
-
-  for (int i = 0; i < augmentations.num_total + 1; ++i) {
-    ExpectEq(augmenter.documents().documents(i), documents.documents(0));
-  }
+  EXPECT_DEATH(
+      {
+        Augmenter augmenter = Augmenter(
+            documents, augmentations, &address_sampler, &phone_sampler, bitgen);
+      },
+      "The probabilities for changing the case of tokens must sum up to at "
+      "most one.");
 }
 
 TEST(AugmenterTest, LowercasingCompleteTokens) {
@@ -232,21 +247,16 @@ TEST(AugmenterTest, LowercasingCompleteTokens) {
                     {TokenSpec("Text", 0, 3), TokenSpec("with", 5, 8),
                      TokenSpec("some", 22, 25),
                      TokenSpec("InterWordCapitalization", 27, 49)})});
-  Augmentations augmentations = {
+  augmenter::Augmentations augmentations{
       .num_total = 1,
-      .num_lowercasings_complete_token = 1,
-      .probability_per_lowercasing_complete_token = 0.75,
-      .num_lowercasings_first_letter = 0,
-      .probability_per_lowercasing_first_letter = 0.5,
-      .num_uppercasings_complete_token = 0,
-      .probability_per_uppercasing_complete_token = 0.5,
-      .num_uppercasings_first_letter = 0,
-      .probability_per_uppercasing_first_letter = 0.5,
-      .num_address_replacements = 0,
-      .num_phone_replacements = 0,
-      .num_context_drops_between_labels = 0,
-      .num_context_drops_outside_one_label = 0,
-      .probability_per_drop = 0.5,
+      .prob_lowercasing_complete_token = 0.5,
+      .prob_lowercasing_first_letter = 0,
+      .prob_uppercasing_complete_token = 0,
+      .prob_uppercasing_first_letter = 0,
+      .prob_address_replacement = 0,
+      .prob_phone_replacement = 0,
+      .prob_context_drop_between_labels = 0,
+      .prob_context_drop_outside_one_label = 0,
       .num_contextless_addresses = 0,
       .num_contextless_phones = 0,
       .mask_digits = false};
@@ -254,12 +264,9 @@ TEST(AugmenterTest, LowercasingCompleteTokens) {
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
-      .Times(7)  // 1 x address, 1 x phone, 3 x case, 2 x context.
       .WillRepeatedly(Return(false));
-  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 1)).WillOnce(Return(true));
   EXPECT_CALL(absl::MockBernoulli(),
-              Call(bitgen,
-                   augmentations.probability_per_lowercasing_complete_token))
+              Call(bitgen, augmentations.prob_lowercasing_complete_token))
       .WillOnce(Return(false))
       .WillOnce(Return(false))
       .WillOnce(Return(false))
@@ -286,21 +293,16 @@ TEST(AugmenterTest, LowercasingCompleteTokensDontCountUnneeded) {
                     {TokenSpec("Text", 0, 3), TokenSpec("with", 5, 8),
                      TokenSpec("some", 22, 25),
                      TokenSpec("InterWordCapitalization", 27, 49)})});
-  Augmentations augmentations = {
+  augmenter::Augmentations augmentations{
       .num_total = 1,
-      .num_lowercasings_complete_token = 1,
-      .probability_per_lowercasing_complete_token = 0.75,
-      .num_lowercasings_first_letter = 0,
-      .probability_per_lowercasing_first_letter = 0.5,
-      .num_uppercasings_complete_token = 0,
-      .probability_per_uppercasing_complete_token = 0.5,
-      .num_uppercasings_first_letter = 0,
-      .probability_per_uppercasing_first_letter = 0.5,
-      .num_address_replacements = 0,
-      .num_phone_replacements = 0,
-      .num_context_drops_between_labels = 0,
-      .num_context_drops_outside_one_label = 0,
-      .probability_per_drop = 0.5,
+      .prob_lowercasing_complete_token = 0.5,
+      .prob_lowercasing_first_letter = 0,
+      .prob_uppercasing_complete_token = 0,
+      .prob_uppercasing_first_letter = 0,
+      .prob_address_replacement = 0,
+      .prob_phone_replacement = 0,
+      .prob_context_drop_between_labels = 0,
+      .prob_context_drop_outside_one_label = 0,
       .num_contextless_addresses = 0,
       .num_contextless_phones = 0,
       .mask_digits = false};
@@ -312,14 +314,10 @@ TEST(AugmenterTest, LowercasingCompleteTokensDontCountUnneeded) {
       .Times(2)
       .WillRepeatedly(Return(0));
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
-      .Times(14)  // 2 x address, 2 x phone, 6 x case, 4 x context.
       .WillRepeatedly(Return(false));
-  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 1))
-      .Times(2)
-      .WillRepeatedly(Return(true));  // Lowercasing the complete token.
   EXPECT_CALL(absl::MockBernoulli(),
               Call(bitgen,
-                   augmentations.probability_per_lowercasing_complete_token))
+                   augmentations.prob_lowercasing_complete_token))
       .Times(8)
       .WillOnce(Return(false))
       .WillOnce(Return(
@@ -350,21 +348,16 @@ TEST(AugmenterTest, LowercasingFirstLetter) {
                     {TokenSpec("Text", 0, 3), TokenSpec("with", 5, 8),
                      TokenSpec("some", 22, 25),
                      TokenSpec("InterWordCapitalization", 27, 49)})});
-  Augmentations augmentations = {
+  augmenter::Augmentations augmentations{
       .num_total = 1,
-      .num_lowercasings_complete_token = 0,
-      .probability_per_lowercasing_complete_token = 0.5,
-      .num_lowercasings_first_letter = 1,
-      .probability_per_lowercasing_first_letter = 0.75,
-      .num_uppercasings_complete_token = 0,
-      .probability_per_uppercasing_complete_token = 0.5,
-      .num_uppercasings_first_letter = 0,
-      .probability_per_uppercasing_first_letter = 0.5,
-      .num_address_replacements = 0,
-      .num_phone_replacements = 0,
-      .num_context_drops_between_labels = 0,
-      .num_context_drops_outside_one_label = 0,
-      .probability_per_drop = 0.5,
+      .prob_lowercasing_complete_token = 0,
+      .prob_lowercasing_first_letter = 0.5,
+      .prob_uppercasing_complete_token = 0,
+      .prob_uppercasing_first_letter = 0,
+      .prob_address_replacement = 0,
+      .prob_phone_replacement = 0,
+      .prob_context_drop_between_labels = 0,
+      .prob_context_drop_outside_one_label = 0,
       .num_contextless_addresses = 0,
       .num_contextless_phones = 0,
       .mask_digits = false};
@@ -372,12 +365,10 @@ TEST(AugmenterTest, LowercasingFirstLetter) {
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
-      .Times(7)  // 1 x address, 1 x phone, 3 x case, 2 x context.
       .WillRepeatedly(Return(false));
-  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 1)).WillOnce(Return(true));
   EXPECT_CALL(absl::MockBernoulli(),
               Call(bitgen,
-                   augmentations.probability_per_lowercasing_first_letter))
+                   augmentations.prob_lowercasing_first_letter))
       .WillOnce(Return(false))
       .WillOnce(Return(false))
       .WillOnce(Return(false))
@@ -404,21 +395,16 @@ TEST(AugmenterTest, LowercasingFirstLetterDontCountUnneeded) {
                     {TokenSpec("Text", 0, 3), TokenSpec("wITH", 5, 8),
                      TokenSpec("some", 22, 25),
                      TokenSpec("InterWordCapitalization", 27, 49)})});
-  Augmentations augmentations = {
+  augmenter::Augmentations augmentations{
       .num_total = 1,
-      .num_lowercasings_complete_token = 0,
-      .probability_per_lowercasing_complete_token = 0.5,
-      .num_lowercasings_first_letter = 1,
-      .probability_per_lowercasing_first_letter = 0.75,
-      .num_uppercasings_complete_token = 0,
-      .probability_per_uppercasing_complete_token = 0.5,
-      .num_uppercasings_first_letter = 0,
-      .probability_per_uppercasing_first_letter = 0.5,
-      .num_address_replacements = 0,
-      .num_phone_replacements = 0,
-      .num_context_drops_between_labels = 0,
-      .num_context_drops_outside_one_label = 0,
-      .probability_per_drop = 0.5,
+      .prob_lowercasing_complete_token = 0,
+      .prob_lowercasing_first_letter = 0.5,
+      .prob_uppercasing_complete_token = 0,
+      .prob_uppercasing_first_letter = 0,
+      .prob_address_replacement = 0,
+      .prob_phone_replacement = 0,
+      .prob_context_drop_between_labels = 0,
+      .prob_context_drop_outside_one_label = 0,
       .num_contextless_addresses = 0,
       .num_contextless_phones = 0,
       .mask_digits = false};
@@ -430,14 +416,10 @@ TEST(AugmenterTest, LowercasingFirstLetterDontCountUnneeded) {
       .Times(2)
       .WillRepeatedly(Return(0));
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
-      .Times(14)  // 2 x address, 2 x phone, 6 x case, 4 x context.
       .WillRepeatedly(Return(false));
-  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 1))
-      .Times(2)
-      .WillRepeatedly(Return(true));  // Lowercasing the first letter.
   EXPECT_CALL(absl::MockBernoulli(),
               Call(bitgen,
-                   augmentations.probability_per_lowercasing_first_letter))
+                   augmentations.prob_lowercasing_first_letter))
       .Times(8)
       .WillOnce(Return(false))
       .WillOnce(Return(
@@ -468,21 +450,16 @@ TEST(AugmenterTest, UppercasingCompleteTokens) {
                     {TokenSpec("Text", 0, 3), TokenSpec("with", 5, 8),
                      TokenSpec("some", 22, 25),
                      TokenSpec("InterWordCapitalization", 27, 49)})});
-  Augmentations augmentations = {
+  augmenter::Augmentations augmentations{
       .num_total = 1,
-      .num_lowercasings_complete_token = 0,
-      .probability_per_lowercasing_complete_token = 0.5,
-      .num_lowercasings_first_letter = 0,
-      .probability_per_lowercasing_first_letter = 0.5,
-      .num_uppercasings_complete_token = 1,
-      .probability_per_uppercasing_complete_token = 0.75,
-      .num_uppercasings_first_letter = 0,
-      .probability_per_uppercasing_first_letter = 0.5,
-      .num_address_replacements = 0,
-      .num_phone_replacements = 0,
-      .num_context_drops_between_labels = 0,
-      .num_context_drops_outside_one_label = 0,
-      .probability_per_drop = 0.5,
+      .prob_lowercasing_complete_token = 0,
+      .prob_lowercasing_first_letter = 0,
+      .prob_uppercasing_complete_token = 0.5,
+      .prob_uppercasing_first_letter = 0,
+      .prob_address_replacement = 0,
+      .prob_phone_replacement = 0,
+      .prob_context_drop_between_labels = 0,
+      .prob_context_drop_outside_one_label = 0,
       .num_contextless_addresses = 0,
       .num_contextless_phones = 0,
       .mask_digits = false};
@@ -490,12 +467,10 @@ TEST(AugmenterTest, UppercasingCompleteTokens) {
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
-      .Times(7)  // 1 x address, 1 x phone, 3 x case, 2 x context.
       .WillRepeatedly(Return(false));
-  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 1)).WillOnce(Return(true));
   EXPECT_CALL(absl::MockBernoulli(),
               Call(bitgen,
-                   augmentations.probability_per_uppercasing_complete_token))
+                   augmentations.prob_uppercasing_complete_token))
       .WillOnce(Return(false))
       .WillOnce(Return(false))
       .WillOnce(Return(false))
@@ -522,21 +497,16 @@ TEST(AugmenterTest, UppercasingCompleteTokensDontCountUnneeded) {
                     {TokenSpec("Text", 0, 3), TokenSpec("WITH", 5, 8),
                      TokenSpec("some", 22, 25),
                      TokenSpec("InterWordCapitalization", 27, 49)})});
-  Augmentations augmentations = {
+  augmenter::Augmentations augmentations{
       .num_total = 1,
-      .num_lowercasings_complete_token = 0,
-      .probability_per_lowercasing_complete_token = 0.5,
-      .num_lowercasings_first_letter = 0,
-      .probability_per_lowercasing_first_letter = 0.5,
-      .num_uppercasings_complete_token = 1,
-      .probability_per_uppercasing_complete_token = 0.75,
-      .num_uppercasings_first_letter = 0,
-      .probability_per_uppercasing_first_letter = 0.5,
-      .num_address_replacements = 0,
-      .num_phone_replacements = 0,
-      .num_context_drops_between_labels = 0,
-      .num_context_drops_outside_one_label = 0,
-      .probability_per_drop = 0.5,
+      .prob_lowercasing_complete_token = 0,
+      .prob_lowercasing_first_letter = 0,
+      .prob_uppercasing_complete_token = 0.5,
+      .prob_uppercasing_first_letter = 0,
+      .prob_address_replacement = 0,
+      .prob_phone_replacement = 0,
+      .prob_context_drop_between_labels = 0,
+      .prob_context_drop_outside_one_label = 0,
       .num_contextless_addresses = 0,
       .num_contextless_phones = 0,
       .mask_digits = false};
@@ -548,14 +518,10 @@ TEST(AugmenterTest, UppercasingCompleteTokensDontCountUnneeded) {
       .Times(2)
       .WillRepeatedly(Return(0));
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
-      .Times(14)  // 2 x address, 2 x phone, 6 x case, 4 x context.
       .WillRepeatedly(Return(false));
-  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 1))
-      .Times(2)
-      .WillRepeatedly(Return(true));  // Uppercasing the complete token.
   EXPECT_CALL(absl::MockBernoulli(),
               Call(bitgen,
-                   augmentations.probability_per_uppercasing_complete_token))
+                   augmentations.prob_uppercasing_complete_token))
       .Times(8)
       .WillOnce(Return(false))
       .WillOnce(Return(
@@ -586,21 +552,16 @@ TEST(AugmenterTest, UppercasingFirstLetter) {
                     {TokenSpec("Text", 0, 3), TokenSpec("with", 5, 8),
                      TokenSpec("some", 22, 25),
                      TokenSpec("interWordCapitalization", 27, 49)})});
-  Augmentations augmentations = {
+  augmenter::Augmentations augmentations{
       .num_total = 1,
-      .num_lowercasings_complete_token = 0,
-      .probability_per_lowercasing_complete_token = 0.5,
-      .num_lowercasings_first_letter = 0,
-      .probability_per_lowercasing_first_letter = 0.5,
-      .num_uppercasings_complete_token = 0,
-      .probability_per_uppercasing_complete_token = 0.5,
-      .num_uppercasings_first_letter = 1,
-      .probability_per_uppercasing_first_letter = 0.75,
-      .num_address_replacements = 0,
-      .num_phone_replacements = 0,
-      .num_context_drops_between_labels = 0,
-      .num_context_drops_outside_one_label = 0,
-      .probability_per_drop = 0.5,
+      .prob_lowercasing_complete_token = 0,
+      .prob_lowercasing_first_letter = 0,
+      .prob_uppercasing_complete_token = 0,
+      .prob_uppercasing_first_letter = 0.5,
+      .prob_address_replacement = 0,
+      .prob_phone_replacement = 0,
+      .prob_context_drop_between_labels = 0,
+      .prob_context_drop_outside_one_label = 0,
       .num_contextless_addresses = 0,
       .num_contextless_phones = 0,
       .mask_digits = false};
@@ -608,12 +569,10 @@ TEST(AugmenterTest, UppercasingFirstLetter) {
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
-      .Times(7)  // 1 x address, 1 x phone, 3 x case, 2 x context.
       .WillRepeatedly(Return(false));
-  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 1)).WillOnce(Return(true));
   EXPECT_CALL(absl::MockBernoulli(),
               Call(bitgen,
-                   augmentations.probability_per_uppercasing_first_letter))
+                   augmentations.prob_uppercasing_first_letter))
       .WillOnce(Return(false))
       .WillOnce(Return(false))
       .WillOnce(Return(false))
@@ -640,21 +599,16 @@ TEST(AugmenterTest, UppercasingFirstLetterDontCountUnneeded) {
                     {TokenSpec("text", 0, 3), TokenSpec("With", 5, 8),
                      TokenSpec("some", 22, 25),
                      TokenSpec("InterWordCapitalization", 27, 49)})});
-  Augmentations augmentations = {
+  augmenter::Augmentations augmentations{
       .num_total = 1,
-      .num_lowercasings_complete_token = 0,
-      .probability_per_lowercasing_complete_token = 0.5,
-      .num_lowercasings_first_letter = 0,
-      .probability_per_lowercasing_first_letter = 0.5,
-      .num_uppercasings_complete_token = 0,
-      .probability_per_uppercasing_complete_token = 0.5,
-      .num_uppercasings_first_letter = 1,
-      .probability_per_uppercasing_first_letter = 0.75,
-      .num_address_replacements = 0,
-      .num_phone_replacements = 0,
-      .num_context_drops_between_labels = 0,
-      .num_context_drops_outside_one_label = 0,
-      .probability_per_drop = 0.5,
+      .prob_lowercasing_complete_token = 0,
+      .prob_lowercasing_first_letter = 0,
+      .prob_uppercasing_complete_token = 0,
+      .prob_uppercasing_first_letter = 0.5,
+      .prob_address_replacement = 0,
+      .prob_phone_replacement = 0,
+      .prob_context_drop_between_labels = 0,
+      .prob_context_drop_outside_one_label = 0,
       .num_contextless_addresses = 0,
       .num_contextless_phones = 0,
       .mask_digits = false};
@@ -666,14 +620,10 @@ TEST(AugmenterTest, UppercasingFirstLetterDontCountUnneeded) {
       .Times(2)
       .WillRepeatedly(Return(0));
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
-      .Times(14)  // 2 x address, 2 x phone, 6 x case, 4 x context.
       .WillRepeatedly(Return(false));
-  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 1))
-      .Times(2)
-      .WillRepeatedly(Return(true));  // Uppercasing the first letter.
   EXPECT_CALL(absl::MockBernoulli(),
               Call(bitgen,
-                   augmentations.probability_per_uppercasing_first_letter))
+                   augmentations.prob_uppercasing_first_letter))
       .Times(8)
       .WillOnce(Return(false))
       .WillOnce(Return(
@@ -698,43 +648,6 @@ TEST(AugmenterTest, UppercasingFirstLetterDontCountUnneeded) {
   ExpectEq(augmented, expected);
 }
 
-TEST(AugmenterTest, DontReplacePhone) {
-  bert_annotator::Documents documents = ConstructBertDocument(
-      {DocumentSpec("Call 0123456789! Thanks.",
-                    {TokenSpec("Call", 0, 3), TokenSpec("0123456789", 5, 14),
-                     TokenSpec("Thanks", 17, 22)},
-                    {{Augmenter::kLabelContainerName,
-                      {LabelSpec(Augmenter::kPhoneReplacementLabel, 1, 1)}}})});
-  Augmentations augmentations = {
-      .num_total = 1,
-      .num_lowercasings_complete_token = 0,
-      .probability_per_lowercasing_complete_token = 0.5,
-      .num_lowercasings_first_letter = 0,
-      .probability_per_lowercasing_first_letter = 0.5,
-      .num_uppercasings_complete_token = 0,
-      .probability_per_uppercasing_complete_token = 0.5,
-      .num_uppercasings_first_letter = 0,
-      .probability_per_uppercasing_first_letter = 0.5,
-      .num_address_replacements = 0,
-      .num_phone_replacements = 0,
-      .num_context_drops_between_labels = 0,
-      .num_context_drops_outside_one_label = 0,
-      .probability_per_drop = 0.5,
-      .num_contextless_addresses = 0,
-      .num_contextless_phones = 0,
-      .mask_digits = false};
-  MockRandomSampler address_sampler;
-  MockRandomSampler phone_sampler;
-  Augmenter augmenter =
-      Augmenter(documents, augmentations, &address_sampler, &phone_sampler);
-
-  augmenter.Augment();
-
-  bert_annotator::Document augmented = augmenter.documents().documents(1);
-  bert_annotator::Document expected = documents.documents(0);
-  ExpectEq(augmented, expected);
-}
-
 TEST(AugmenterTest, ReplacePhoneSameLength) {
   bert_annotator::Documents documents = ConstructBertDocument(
       {DocumentSpec("Call 0123456789! Thanks.",
@@ -742,21 +655,16 @@ TEST(AugmenterTest, ReplacePhoneSameLength) {
                      TokenSpec("Thanks", 17, 22)},
                     {{Augmenter::kLabelContainerName,
                       {LabelSpec(Augmenter::kPhoneReplacementLabel, 1, 1)}}})});
-  Augmentations augmentations = {
+  augmenter::Augmentations augmentations{
       .num_total = 1,
-      .num_lowercasings_complete_token = 0,
-      .probability_per_lowercasing_complete_token = 0.5,
-      .num_lowercasings_first_letter = 0,
-      .probability_per_lowercasing_first_letter = 0.5,
-      .num_uppercasings_complete_token = 0,
-      .probability_per_uppercasing_complete_token = 0.5,
-      .num_uppercasings_first_letter = 0,
-      .probability_per_uppercasing_first_letter = 0.5,
-      .num_address_replacements = 0,
-      .num_phone_replacements = 1,
-      .num_context_drops_between_labels = 0,
-      .num_context_drops_outside_one_label = 0,
-      .probability_per_drop = 0.5,
+      .prob_lowercasing_complete_token = 0,
+      .prob_lowercasing_first_letter = 0,
+      .prob_uppercasing_complete_token = 0,
+      .prob_uppercasing_first_letter = 0,
+      .prob_address_replacement = 0,
+      .prob_phone_replacement = 0.5,
+      .prob_context_drop_between_labels = 0,
+      .prob_context_drop_outside_one_label = 0,
       .num_contextless_addresses = 0,
       .num_contextless_phones = 0,
       .mask_digits = false};
@@ -766,10 +674,10 @@ TEST(AugmenterTest, ReplacePhoneSameLength) {
   EXPECT_CALL(phone_sampler, Sample()).WillOnce(ReturnRef(replacement));
   absl::MockingBitGen bitgen;
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
-      .Times(7)  // 1 x address, 4 x casing, 2 x context.
       .WillRepeatedly(Return(false));
-  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 1))
-      .WillOnce(Return(true));  // 1 x phone.
+  EXPECT_CALL(absl::MockBernoulli(),
+              Call(bitgen, augmentations.prob_phone_replacement))
+      .WillOnce(Return(true));
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
                                   &phone_sampler, bitgen);
@@ -796,21 +704,16 @@ TEST(AugmenterTest, ReplacePhoneLongerLength) {
                      TokenSpec("Thanks", 17, 22)},
                     {{Augmenter::kLabelContainerName,
                       {LabelSpec(Augmenter::kPhoneReplacementLabel, 1, 1)}}})});
-  Augmentations augmentations = {
+  augmenter::Augmentations augmentations{
       .num_total = 1,
-      .num_lowercasings_complete_token = 0,
-      .probability_per_lowercasing_complete_token = 0.5,
-      .num_lowercasings_first_letter = 0,
-      .probability_per_lowercasing_first_letter = 0.5,
-      .num_uppercasings_complete_token = 0,
-      .probability_per_uppercasing_complete_token = 0.5,
-      .num_uppercasings_first_letter = 0,
-      .probability_per_uppercasing_first_letter = 0.5,
-      .num_address_replacements = 0,
-      .num_phone_replacements = 1,
-      .num_context_drops_between_labels = 0,
-      .num_context_drops_outside_one_label = 0,
-      .probability_per_drop = 0.5,
+      .prob_lowercasing_complete_token = 0,
+      .prob_lowercasing_first_letter = 0,
+      .prob_uppercasing_complete_token = 0,
+      .prob_uppercasing_first_letter = 0,
+      .prob_address_replacement = 0,
+      .prob_phone_replacement = 0.5,
+      .prob_context_drop_between_labels = 0,
+      .prob_context_drop_outside_one_label = 0,
       .num_contextless_addresses = 0,
       .num_contextless_phones = 0,
       .mask_digits = false};
@@ -820,10 +723,10 @@ TEST(AugmenterTest, ReplacePhoneLongerLength) {
   EXPECT_CALL(phone_sampler, Sample()).WillOnce(ReturnRef(replacement));
   absl::MockingBitGen bitgen;
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
-      .Times(7)  // 1 x address, 4 x casing, 2 x context.
       .WillRepeatedly(Return(false));
-  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 1))
-      .WillOnce(Return(true));  // 1 x phone.
+  EXPECT_CALL(absl::MockBernoulli(),
+              Call(bitgen, augmentations.prob_phone_replacement))
+      .WillOnce(Return(true));
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
                                   &phone_sampler, bitgen);
@@ -851,21 +754,16 @@ TEST(AugmenterTest, ReplacePhoneShorterLength) {
                      TokenSpec("Thanks", 17, 22)},
                     {{Augmenter::kLabelContainerName,
                       {LabelSpec(Augmenter::kPhoneReplacementLabel, 1, 1)}}})});
-  Augmentations augmentations = {
+  augmenter::Augmentations augmentations{
       .num_total = 1,
-      .num_lowercasings_complete_token = 0,
-      .probability_per_lowercasing_complete_token = 0.5,
-      .num_lowercasings_first_letter = 0,
-      .probability_per_lowercasing_first_letter = 0.5,
-      .num_uppercasings_complete_token = 0,
-      .probability_per_uppercasing_complete_token = 0.5,
-      .num_uppercasings_first_letter = 0,
-      .probability_per_uppercasing_first_letter = 0.5,
-      .num_address_replacements = 0,
-      .num_phone_replacements = 1,
-      .num_context_drops_between_labels = 0,
-      .num_context_drops_outside_one_label = 0,
-      .probability_per_drop = 0.5,
+      .prob_lowercasing_complete_token = 0,
+      .prob_lowercasing_first_letter = 0,
+      .prob_uppercasing_complete_token = 0,
+      .prob_uppercasing_first_letter = 0,
+      .prob_address_replacement = 0,
+      .prob_phone_replacement = 0.5,
+      .prob_context_drop_between_labels = 0,
+      .prob_context_drop_outside_one_label = 0,
       .num_contextless_addresses = 0,
       .num_contextless_phones = 0,
       .mask_digits = false};
@@ -875,10 +773,10 @@ TEST(AugmenterTest, ReplacePhoneShorterLength) {
   EXPECT_CALL(phone_sampler, Sample()).WillOnce(ReturnRef(replacement));
   absl::MockingBitGen bitgen;
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
-      .Times(7)  // 1 x address, 4 x casing, 2 x context.
       .WillRepeatedly(Return(false));
-  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 1))
-      .WillOnce(Return(true));  // 1 x phone.
+  EXPECT_CALL(absl::MockBernoulli(),
+              Call(bitgen, augmentations.prob_phone_replacement))
+      .WillOnce(Return(true));
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
                                   &phone_sampler, bitgen);
@@ -904,21 +802,16 @@ TEST(AugmenterTest, ReplacePhoneStart) {
       {TokenSpec("0123456789", 0, 9), TokenSpec("Thanks", 12, 17)},
       {{Augmenter::kLabelContainerName,
         {LabelSpec(Augmenter::kPhoneReplacementLabel, 0, 0)}}})});
-  Augmentations augmentations = {
+  augmenter::Augmentations augmentations{
       .num_total = 1,
-      .num_lowercasings_complete_token = 0,
-      .probability_per_lowercasing_complete_token = 0.5,
-      .num_lowercasings_first_letter = 0,
-      .probability_per_lowercasing_first_letter = 0.5,
-      .num_uppercasings_complete_token = 0,
-      .probability_per_uppercasing_complete_token = 0.5,
-      .num_uppercasings_first_letter = 0,
-      .probability_per_uppercasing_first_letter = 0.5,
-      .num_address_replacements = 0,
-      .num_phone_replacements = 1,
-      .num_context_drops_between_labels = 0,
-      .num_context_drops_outside_one_label = 0,
-      .probability_per_drop = 0.5,
+      .prob_lowercasing_complete_token = 0,
+      .prob_lowercasing_first_letter = 0,
+      .prob_uppercasing_complete_token = 0,
+      .prob_uppercasing_first_letter = 0,
+      .prob_address_replacement = 0,
+      .prob_phone_replacement = 0.5,
+      .prob_context_drop_between_labels = 0,
+      .prob_context_drop_outside_one_label = 0,
       .num_contextless_addresses = 0,
       .num_contextless_phones = 0,
       .mask_digits = false};
@@ -928,10 +821,10 @@ TEST(AugmenterTest, ReplacePhoneStart) {
   EXPECT_CALL(phone_sampler, Sample()).WillOnce(ReturnRef(replacement));
   absl::MockingBitGen bitgen;
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
-      .Times(7)  // 1 x address, 4 x casing, 2 x context.
       .WillRepeatedly(Return(false));
-  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 1))
-      .WillOnce(Return(true));  // 1 x phone.
+  EXPECT_CALL(absl::MockBernoulli(),
+              Call(bitgen, augmentations.prob_phone_replacement))
+      .WillOnce(Return(true));
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
                                   &phone_sampler, bitgen);
@@ -956,21 +849,16 @@ TEST(AugmenterTest, ReplacePhoneEnd) {
                     {TokenSpec("Call", 0, 3), TokenSpec("0123456789", 5, 14)},
                     {{Augmenter::kLabelContainerName,
                       {LabelSpec(Augmenter::kPhoneReplacementLabel, 1, 1)}}})});
-  Augmentations augmentations = {
+  augmenter::Augmentations augmentations{
       .num_total = 1,
-      .num_lowercasings_complete_token = 0,
-      .probability_per_lowercasing_complete_token = 0.5,
-      .num_lowercasings_first_letter = 0,
-      .probability_per_lowercasing_first_letter = 0.5,
-      .num_uppercasings_complete_token = 0,
-      .probability_per_uppercasing_complete_token = 0.5,
-      .num_uppercasings_first_letter = 0,
-      .probability_per_uppercasing_first_letter = 0.5,
-      .num_address_replacements = 0,
-      .num_phone_replacements = 1,
-      .num_context_drops_between_labels = 0,
-      .num_context_drops_outside_one_label = 0,
-      .probability_per_drop = 0.5,
+      .prob_lowercasing_complete_token = 0,
+      .prob_lowercasing_first_letter = 0,
+      .prob_uppercasing_complete_token = 0,
+      .prob_uppercasing_first_letter = 0,
+      .prob_address_replacement = 0,
+      .prob_phone_replacement = 0.5,
+      .prob_context_drop_between_labels = 0,
+      .prob_context_drop_outside_one_label = 0,
       .num_contextless_addresses = 0,
       .num_contextless_phones = 0,
       .mask_digits = false};
@@ -980,10 +868,10 @@ TEST(AugmenterTest, ReplacePhoneEnd) {
   EXPECT_CALL(phone_sampler, Sample()).WillOnce(ReturnRef(replacement));
   absl::MockingBitGen bitgen;
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
-      .Times(7)  // 1 x address, 4 x casing, 2 x context.
       .WillRepeatedly(Return(false));
-  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 1))
-      .WillOnce(Return(true));  // 1 x phone.
+  EXPECT_CALL(absl::MockBernoulli(),
+              Call(bitgen, augmentations.prob_phone_replacement))
+      .WillOnce(Return(true));
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
                                   &phone_sampler, bitgen);
@@ -1010,21 +898,16 @@ TEST(AugmenterTest, ReplacePhoneChooseLabel) {
                     {{Augmenter::kLabelContainerName,
                       {LabelSpec(Augmenter::kPhoneReplacementLabel, 0, 0),
                        LabelSpec(Augmenter::kPhoneReplacementLabel, 2, 2)}}})});
-  Augmentations augmentations = {
+  augmenter::Augmentations augmentations{
       .num_total = 2,
-      .num_lowercasings_complete_token = 0,
-      .probability_per_lowercasing_complete_token = 0.5,
-      .num_lowercasings_first_letter = 0,
-      .probability_per_lowercasing_first_letter = 0.5,
-      .num_uppercasings_complete_token = 0,
-      .probability_per_uppercasing_complete_token = 0.5,
-      .num_uppercasings_first_letter = 0,
-      .probability_per_uppercasing_first_letter = 0.5,
-      .num_address_replacements = 0,
-      .num_phone_replacements = 2,
-      .num_context_drops_between_labels = 0,
-      .num_context_drops_outside_one_label = 0,
-      .probability_per_drop = 0.5,
+      .prob_lowercasing_complete_token = 0,
+      .prob_lowercasing_first_letter = 0,
+      .prob_uppercasing_complete_token = 0,
+      .prob_uppercasing_first_letter = 0,
+      .prob_address_replacement = 0,
+      .prob_phone_replacement = 0.5,
+      .prob_context_drop_between_labels = 0,
+      .prob_context_drop_outside_one_label = 0,
       .num_contextless_addresses = 0,
       .num_contextless_phones = 0,
       .mask_digits = false};
@@ -1040,16 +923,13 @@ TEST(AugmenterTest, ReplacePhoneChooseLabel) {
       .Times(2)
       .WillRepeatedly(Return(0));  // Use first document.
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
-      .Times(14)  // 2 x address, 8 x casing, 4 x context.
       .WillRepeatedly(Return(false));
-  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 1))
-      .Times(2)  // 2 x phone.
-      .WillRepeatedly(Return(true));
-  // Token selection.
-  EXPECT_CALL(absl::MockUniform<int>(),
-              Call(absl::IntervalClosed, bitgen, 0, 1))
-      .WillOnce(Return(0))
-      .WillOnce(Return(1));
+  EXPECT_CALL(absl::MockBernoulli(),
+              Call(bitgen, augmentations.prob_phone_replacement))
+      .WillOnce(Return(true))
+      .WillOnce(Return(false))
+      .WillOnce(Return(false))
+      .WillOnce(Return(true));
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
                                   &phone_sampler, bitgen);
@@ -1081,68 +961,6 @@ TEST(AugmenterTest, ReplacePhoneChooseLabel) {
   ExpectEq(augmented, expected);
 }
 
-TEST(AugmenterTest, ReplacePhoneChooseDocument) {
-  bert_annotator::Documents documents = ConstructBertDocument(
-      {DocumentSpec("Call 0123456789! Thanks.",
-                    {TokenSpec("Call", 0, 3), TokenSpec("0123456789", 5, 14),
-                     TokenSpec("Thanks", 17, 22)},
-                    {{Augmenter::kLabelContainerName,
-                      {LabelSpec(Augmenter::kPhoneReplacementLabel, 1, 1)}}})});
-  Augmentations augmentations = {
-      .num_total = 2,
-      .num_lowercasings_complete_token = 0,
-      .probability_per_lowercasing_complete_token = 0.5,
-      .num_lowercasings_first_letter = 0,
-      .probability_per_lowercasing_first_letter = 0.5,
-      .num_uppercasings_complete_token = 0,
-      .probability_per_uppercasing_complete_token = 0.5,
-      .num_uppercasings_first_letter = 0,
-      .probability_per_uppercasing_first_letter = 0.5,
-      .num_address_replacements = 0,
-      .num_phone_replacements = 1,
-      .num_context_drops_between_labels = 0,
-      .num_context_drops_outside_one_label = 0,
-      .probability_per_drop = 0.5,
-      .num_contextless_addresses = 0,
-      .num_contextless_phones = 0,
-      .mask_digits = false};
-  MockRandomSampler address_sampler;
-  MockRandomSampler phone_sampler;
-  std::string replacement = "9876543210";
-  EXPECT_CALL(phone_sampler, Sample()).WillOnce(ReturnRef(replacement));
-  absl::MockingBitGen bitgen;
-  EXPECT_CALL(absl::MockUniform<int>(),
-              Call(absl::IntervalClosed, bitgen, 0, 0))
-      .Times(3)
-      .WillRepeatedly(
-          Return(0));  // 2 x use first document, 1 x token selection.
-  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
-      .Times(15)  // 2 x address, 8 x casing, 1 x phone, 4 x context.
-      .WillRepeatedly(Return(false));
-  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0.5))
-      .WillOnce(Return(true));  // Replace phone in first document.
-
-  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
-                                  &phone_sampler, bitgen);
-
-  augmenter.Augment();
-
-  bert_annotator::Document augmented = augmenter.documents().documents(1);
-  bert_annotator::Document expected =
-      ConstructBertDocument(
-          {DocumentSpec(
-              "Call 9876543210! Thanks.",
-              {TokenSpec("Call", 0, 3), TokenSpec("9876543210", 5, 14),
-               TokenSpec("Thanks", 17, 22)},
-              {{Augmenter::kLabelContainerName,
-                {LabelSpec(Augmenter::kPhoneReplacementLabel, 1, 1)}}})})
-          .documents(0);
-  ExpectEq(augmented, expected);
-  augmented = augmenter.documents().documents(2);
-  expected = documents.documents(0);
-  ExpectEq(augmented, expected);
-}
-
 TEST(AugmenterTest, ReplacePhoneMissingLabelContainer) {
   bert_annotator::Documents documents = ConstructBertDocument(
       {DocumentSpec("MissingLabelContainer",
@@ -1152,21 +970,16 @@ TEST(AugmenterTest, ReplacePhoneMissingLabelContainer) {
                      TokenSpec("Thanks", 17, 22)},
                     {{Augmenter::kLabelContainerName,
                       {LabelSpec(Augmenter::kPhoneReplacementLabel, 1, 1)}}})});
-  Augmentations augmentations = {
+  augmenter::Augmentations augmentations{
       .num_total = 1,
-      .num_lowercasings_complete_token = 0,
-      .probability_per_lowercasing_complete_token = 0.5,
-      .num_lowercasings_first_letter = 0,
-      .probability_per_lowercasing_first_letter = 0.5,
-      .num_uppercasings_complete_token = 0,
-      .probability_per_uppercasing_complete_token = 0.5,
-      .num_uppercasings_first_letter = 0,
-      .probability_per_uppercasing_first_letter = 0.5,
-      .num_address_replacements = 0,
-      .num_phone_replacements = 1,
-      .num_context_drops_between_labels = 0,
-      .num_context_drops_outside_one_label = 0,
-      .probability_per_drop = 0.5,
+      .prob_lowercasing_complete_token = 0,
+      .prob_lowercasing_first_letter = 0,
+      .prob_uppercasing_complete_token = 0,
+      .prob_uppercasing_first_letter = 0,
+      .prob_address_replacement = 0,
+      .prob_phone_replacement = 0.5,
+      .prob_context_drop_between_labels = 0,
+      .prob_context_drop_outside_one_label = 0,
       .num_contextless_addresses = 0,
       .num_contextless_phones = 0,
       .mask_digits = false};
@@ -1181,14 +994,10 @@ TEST(AugmenterTest, ReplacePhoneMissingLabelContainer) {
       .WillOnce(Return(0))
       .WillOnce(Return(1));
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
-      .Times(14)  // 2 x address, 8 x casing, 4 x context.
       .WillRepeatedly(Return(false));
-  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 1))
-      .Times(2)  // 2 x phone.
-      .WillRepeatedly(Return(true));
-  EXPECT_CALL(absl::MockUniform<int>(),
-              Call(absl::IntervalClosed, bitgen, 0, 0))
-      .WillOnce(Return(0));
+  EXPECT_CALL(absl::MockBernoulli(),
+              Call(bitgen, augmentations.prob_phone_replacement))
+      .WillOnce(Return(true));
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
                                   &phone_sampler, bitgen);
@@ -1211,72 +1020,22 @@ TEST(AugmenterTest, ReplacePhoneMissingLabelContainer) {
 
 // Replacing addresses is very similiar to replacing phone numbers, so not all
 // respective tests are repeated here.
-TEST(AugmenterTest, DontReplaceAddress) {
-  bert_annotator::Documents documents = ConstructBertDocument({DocumentSpec(
-      "Visit Zurich! Thanks.",
-      {TokenSpec("Visit", 0, 4), TokenSpec("Zurich", 6, 11),
-       TokenSpec("Thanks", 13, 18)},
-      {{Augmenter::kLabelContainerName, {LabelSpec("LOCALITY", 1, 1)}}})});
-  Augmentations augmentations = {
-      .num_total = 1,
-      .num_lowercasings_complete_token = 0,
-      .probability_per_lowercasing_complete_token = 0.5,
-      .num_lowercasings_first_letter = 0,
-      .probability_per_lowercasing_first_letter = 0.5,
-      .num_uppercasings_complete_token = 0,
-      .probability_per_uppercasing_complete_token = 0.5,
-      .num_uppercasings_first_letter = 0,
-      .probability_per_uppercasing_first_letter = 0.5,
-      .num_address_replacements = 0,
-      .num_phone_replacements = 0,
-      .num_context_drops_between_labels = 0,
-      .num_context_drops_outside_one_label = 0,
-      .probability_per_drop = 0.5,
-      .num_contextless_addresses = 0,
-      .num_contextless_phones = 0,
-      .mask_digits = false};
-  MockRandomSampler address_sampler;
-  MockRandomSampler phone_sampler;
-  Augmenter augmenter =
-      Augmenter(documents, augmentations, &address_sampler, &phone_sampler);
-
-  augmenter.Augment();
-
-  ASSERT_EQ(augmenter.documents().documents_size(), 2);
-  const auto augmented = augmenter.documents().documents(1);
-  const auto expected =
-      ConstructBertDocument(
-          {DocumentSpec(
-              "Visit Zurich! Thanks.",
-              {TokenSpec("Visit", 0, 4), TokenSpec("Zurich", 6, 11),
-               TokenSpec("Thanks", 13, 18)},
-              {{Augmenter::kLabelContainerName,
-                {LabelSpec(Augmenter::kAddressReplacementLabel, 1, 1)}}})})
-          .documents(0);
-  ExpectEq(augmented, expected);
-}
-
 TEST(AugmenterTest, UpdateLabels) {
   bert_annotator::Documents documents = ConstructBertDocument({DocumentSpec(
       "Visit Zurich! Thanks.",
       {TokenSpec("Visit", 0, 4), TokenSpec("Zurich", 6, 11),
        TokenSpec("Thanks", 13, 18)},
       {{Augmenter::kLabelContainerName, {LabelSpec("LOCALITY", 1, 1)}}})});
-  Augmentations augmentations = {
+  augmenter::Augmentations augmentations{
       .num_total = 0,
-      .num_lowercasings_complete_token = 0,
-      .probability_per_lowercasing_complete_token = 0.5,
-      .num_lowercasings_first_letter = 0,
-      .probability_per_lowercasing_first_letter = 0.5,
-      .num_uppercasings_complete_token = 0,
-      .probability_per_uppercasing_complete_token = 0.5,
-      .num_uppercasings_first_letter = 0,
-      .probability_per_uppercasing_first_letter = 0.5,
-      .num_address_replacements = 0,
-      .num_phone_replacements = 0,
-      .num_context_drops_between_labels = 0,
-      .num_context_drops_outside_one_label = 0,
-      .probability_per_drop = 0.5,
+      .prob_lowercasing_complete_token = 0,
+      .prob_lowercasing_first_letter = 0,
+      .prob_uppercasing_complete_token = 0,
+      .prob_uppercasing_first_letter = 0,
+      .prob_address_replacement = 0,
+      .prob_phone_replacement = 0,
+      .prob_context_drop_between_labels = 0,
+      .prob_context_drop_outside_one_label = 0,
       .num_contextless_addresses = 0,
       .num_contextless_phones = 0,
       .mask_digits = false};
@@ -1304,37 +1063,31 @@ TEST(AugmenterTest, ReplaceAddressSameLength) {
   bert_annotator::Documents documents = ConstructBertDocument({DocumentSpec(
       "Visit Zurich! Thanks.",
       {TokenSpec("Visit", 0, 4), TokenSpec("Zurich", 6, 11),
-       TokenSpec("Thanks", 13, 18)},
+       TokenSpec("Thanks", 14, 19)},
       {{Augmenter::kLabelContainerName,
         {LabelSpec("LOCALITY", 1, 1), LabelSpec("OTHER", 2, 2)}}})});
-  Augmentations augmentations = {
-      .num_total = 1,
-      .num_lowercasings_complete_token = 0,
-      .probability_per_lowercasing_complete_token = 0.5,
-      .num_lowercasings_first_letter = 0,
-      .probability_per_lowercasing_first_letter = 0.5,
-      .num_uppercasings_complete_token = 0,
-      .probability_per_uppercasing_complete_token = 0.5,
-      .num_uppercasings_first_letter = 0,
-      .probability_per_uppercasing_first_letter = 0.5,
-      .num_address_replacements = 1,
-      .num_phone_replacements = 0,
-      .num_context_drops_between_labels = 0,
-      .num_context_drops_outside_one_label = 0,
-      .probability_per_drop = 0.5,
-      .num_contextless_addresses = 0,
-      .num_contextless_phones = 0,
-      .mask_digits = false};
+  Augmentations augmentations = {.num_total = 1,
+                                 .prob_lowercasing_complete_token = 0,
+                                 .prob_lowercasing_first_letter = 0,
+                                 .prob_uppercasing_complete_token = 0,
+                                 .prob_uppercasing_first_letter = 0,
+                                 .prob_address_replacement = 0.5,
+                                 .prob_phone_replacement = 0,
+                                 .prob_context_drop_between_labels = 0,
+                                 .prob_context_drop_outside_one_label = 0,
+                                 .num_contextless_addresses = 0,
+                                 .num_contextless_phones = 0,
+                                 .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   std::string replacement = "Munich";
   EXPECT_CALL(address_sampler, Sample()).WillOnce(ReturnRef(replacement));
   absl::MockingBitGen bitgen;
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
-      .Times(7)  // 1 x phone, 4 x casing, 2 x context.
       .WillRepeatedly(Return(false));
-  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 1))
-      .WillOnce(Return(true));  // 1 x address.
+  EXPECT_CALL(absl::MockBernoulli(),
+              Call(bitgen, augmentations.prob_address_replacement))
+      .WillOnce(Return(true));
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
                                   &phone_sampler, bitgen);
@@ -1346,7 +1099,7 @@ TEST(AugmenterTest, ReplaceAddressSameLength) {
       ConstructBertDocument(
           {DocumentSpec("Visit Munich! Thanks.",
                         {TokenSpec("Visit", 0, 4), TokenSpec("Munich", 6, 11),
-                         TokenSpec("Thanks", 13, 18)},
+                         TokenSpec("Thanks", 14, 19)},
                         {{Augmenter::kLabelContainerName,
                           {LabelSpec(Augmenter::kAddressReplacementLabel, 1, 1),
                            LabelSpec("OTHER", 2, 2)}}})})
@@ -1358,38 +1111,32 @@ TEST(AugmenterTest, ReplaceAddressFewerTokens) {
   bert_annotator::Documents documents = ConstructBertDocument(
       {DocumentSpec("Visit Zurich City! Thanks.",
                     {TokenSpec("Visit", 0, 4), TokenSpec("Zurich", 6, 11),
-                     TokenSpec("City", 13, 16), TokenSpec("Thanks", 18, 23)},
+                     TokenSpec("City", 13, 16), TokenSpec("Thanks", 19, 24)},
                     {{Augmenter::kLabelContainerName,
                       {LabelSpec("LOCALITY", 1, 1), LabelSpec("LOCALITY", 2, 2),
                        LabelSpec("OTHER", 3, 3)}}})});
-  Augmentations augmentations = {
-      .num_total = 1,
-      .num_lowercasings_complete_token = 0,
-      .probability_per_lowercasing_complete_token = 0.5,
-      .num_lowercasings_first_letter = 0,
-      .probability_per_lowercasing_first_letter = 0.5,
-      .num_uppercasings_complete_token = 0,
-      .probability_per_uppercasing_complete_token = 0.5,
-      .num_uppercasings_first_letter = 0,
-      .probability_per_uppercasing_first_letter = 0.5,
-      .num_address_replacements = 1,
-      .num_phone_replacements = 0,
-      .num_context_drops_between_labels = 0,
-      .num_context_drops_outside_one_label = 0,
-      .probability_per_drop = 0.5,
-      .num_contextless_addresses = 0,
-      .num_contextless_phones = 0,
-      .mask_digits = false};
+  Augmentations augmentations = {.num_total = 1,
+                                 .prob_lowercasing_complete_token = 0,
+                                 .prob_lowercasing_first_letter = 0,
+                                 .prob_uppercasing_complete_token = 0,
+                                 .prob_uppercasing_first_letter = 0,
+                                 .prob_address_replacement = 0.5,
+                                 .prob_phone_replacement = 0,
+                                 .prob_context_drop_between_labels = 0,
+                                 .prob_context_drop_outside_one_label = 0,
+                                 .num_contextless_addresses = 0,
+                                 .num_contextless_phones = 0,
+                                 .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   std::string replacement = "Munich";
   EXPECT_CALL(address_sampler, Sample()).WillOnce(ReturnRef(replacement));
   absl::MockingBitGen bitgen;
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
-      .Times(7)  // 1 x phone, 4 x casing, 2 x context.
       .WillRepeatedly(Return(false));
-  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 1))
-      .WillOnce(Return(true));  // 1 x address.
+  EXPECT_CALL(absl::MockBernoulli(),
+              Call(bitgen, augmentations.prob_address_replacement))
+      .WillOnce(Return(true));
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
                                   &phone_sampler, bitgen);
@@ -1401,7 +1148,7 @@ TEST(AugmenterTest, ReplaceAddressFewerTokens) {
       ConstructBertDocument(
           {DocumentSpec("Visit Munich! Thanks.",
                         {TokenSpec("Visit", 0, 4), TokenSpec("Munich", 6, 11),
-                         TokenSpec("Thanks", 13, 18)},
+                         TokenSpec("Thanks", 14, 19)},
                         {{Augmenter::kLabelContainerName,
                           {LabelSpec(Augmenter::kAddressReplacementLabel, 1, 1),
                            LabelSpec("OTHER", 2, 2)}}})})
@@ -1413,38 +1160,32 @@ TEST(AugmenterTest, ReplaceAddressMultiWordReplacement) {
   bert_annotator::Documents documents = ConstructBertDocument(
       {DocumentSpec("Visit Zurich City! Thanks.",
                     {TokenSpec("Visit", 0, 4), TokenSpec("Zurich", 6, 11),
-                     TokenSpec("City", 13, 16), TokenSpec("Thanks", 18, 23)},
+                     TokenSpec("City", 13, 16), TokenSpec("Thanks", 19, 24)},
                     {{Augmenter::kLabelContainerName,
                       {LabelSpec("LOCALITY", 1, 1), LabelSpec("LOCALITY", 2, 2),
                        LabelSpec("OTHER", 3, 3)}}})});
-  Augmentations augmentations = {
-      .num_total = 1,
-      .num_lowercasings_complete_token = 0,
-      .probability_per_lowercasing_complete_token = 0.5,
-      .num_lowercasings_first_letter = 0,
-      .probability_per_lowercasing_first_letter = 0.5,
-      .num_uppercasings_complete_token = 0,
-      .probability_per_uppercasing_complete_token = 0.5,
-      .num_uppercasings_first_letter = 0,
-      .probability_per_uppercasing_first_letter = 0.5,
-      .num_address_replacements = 1,
-      .num_phone_replacements = 0,
-      .num_context_drops_between_labels = 0,
-      .num_context_drops_outside_one_label = 0,
-      .probability_per_drop = 0.5,
-      .num_contextless_addresses = 0,
-      .num_contextless_phones = 0,
-      .mask_digits = false};
+  Augmentations augmentations = {.num_total = 1,
+                                 .prob_lowercasing_complete_token = 0,
+                                 .prob_lowercasing_first_letter = 0,
+                                 .prob_uppercasing_complete_token = 0,
+                                 .prob_uppercasing_first_letter = 0,
+                                 .prob_address_replacement = 0.5,
+                                 .prob_phone_replacement = 0,
+                                 .prob_context_drop_between_labels = 0,
+                                 .prob_context_drop_outside_one_label = 0,
+                                 .num_contextless_addresses = 0,
+                                 .num_contextless_phones = 0,
+                                 .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   std::string replacement = "Munich Centrum";
   EXPECT_CALL(address_sampler, Sample()).WillOnce(ReturnRef(replacement));
   absl::MockingBitGen bitgen;
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
-      .Times(7)  // 1 x phone, 4 x casing, 2 x context.
       .WillRepeatedly(Return(false));
-  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 1))
-      .WillOnce(Return(true));  // 1 x address.
+  EXPECT_CALL(absl::MockBernoulli(),
+              Call(bitgen, augmentations.prob_address_replacement))
+      .WillOnce(Return(true));
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
                                   &phone_sampler, bitgen);
@@ -1457,7 +1198,7 @@ TEST(AugmenterTest, ReplaceAddressMultiWordReplacement) {
           {DocumentSpec(
               "Visit Munich Centrum! Thanks.",
               {TokenSpec("Visit", 0, 4), TokenSpec("Munich", 6, 11),
-               TokenSpec("Centrum", 13, 19), TokenSpec("Thanks", 21, 26)},
+               TokenSpec("Centrum", 13, 19), TokenSpec("Thanks", 22, 27)},
               {{Augmenter::kLabelContainerName,
                 {LabelSpec(Augmenter::kAddressReplacementLabel, 1, 2),
                  LabelSpec("OTHER", 3, 3)}}})})
@@ -1469,37 +1210,31 @@ TEST(AugmenterTest, ReplaceAddressMoreTokensReplacement) {
   bert_annotator::Documents documents = ConstructBertDocument({DocumentSpec(
       "Visit Zurich! Thanks.",
       {TokenSpec("Visit", 0, 4), TokenSpec("Zurich", 6, 11),
-       TokenSpec("Thanks", 13, 18)},
+       TokenSpec("Thanks", 14, 19)},
       {{Augmenter::kLabelContainerName,
         {LabelSpec("LOCALITY", 1, 1), LabelSpec("OTHER", 2, 2)}}})});
-  Augmentations augmentations = {
-      .num_total = 1,
-      .num_lowercasings_complete_token = 0,
-      .probability_per_lowercasing_complete_token = 0.5,
-      .num_lowercasings_first_letter = 0,
-      .probability_per_lowercasing_first_letter = 0.5,
-      .num_uppercasings_complete_token = 0,
-      .probability_per_uppercasing_complete_token = 0.5,
-      .num_uppercasings_first_letter = 0,
-      .probability_per_uppercasing_first_letter = 0.5,
-      .num_address_replacements = 1,
-      .num_phone_replacements = 0,
-      .num_context_drops_between_labels = 0,
-      .num_context_drops_outside_one_label = 0,
-      .probability_per_drop = 0.5,
-      .num_contextless_addresses = 0,
-      .num_contextless_phones = 0,
-      .mask_digits = false};
+  Augmentations augmentations = {.num_total = 1,
+                                 .prob_lowercasing_complete_token = 0,
+                                 .prob_lowercasing_first_letter = 0,
+                                 .prob_uppercasing_complete_token = 0,
+                                 .prob_uppercasing_first_letter = 0,
+                                 .prob_address_replacement = 0.5,
+                                 .prob_phone_replacement = 0,
+                                 .prob_context_drop_between_labels = 0,
+                                 .prob_context_drop_outside_one_label = 0,
+                                 .num_contextless_addresses = 0,
+                                 .num_contextless_phones = 0,
+                                 .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   std::string replacement = "Munich Centrum";
   EXPECT_CALL(address_sampler, Sample()).WillOnce(ReturnRef(replacement));
   absl::MockingBitGen bitgen;
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
-      .Times(7)  // 1 x phone, 4 x casing, 2 x context.
       .WillRepeatedly(Return(false));
-  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 1))
-      .WillOnce(Return(true));  // 1 x address.
+  EXPECT_CALL(absl::MockBernoulli(),
+              Call(bitgen, augmentations.prob_address_replacement))
+      .WillOnce(Return(true));
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
                                   &phone_sampler, bitgen);
@@ -1512,7 +1247,7 @@ TEST(AugmenterTest, ReplaceAddressMoreTokensReplacement) {
           {DocumentSpec(
               "Visit Munich Centrum! Thanks.",
               {TokenSpec("Visit", 0, 4), TokenSpec("Munich", 6, 11),
-               TokenSpec("Centrum", 13, 19), TokenSpec("Thanks", 21, 26)},
+               TokenSpec("Centrum", 13, 19), TokenSpec("Thanks", 22, 27)},
               {{Augmenter::kLabelContainerName,
                 {LabelSpec(Augmenter::kAddressReplacementLabel, 1, 2),
                  LabelSpec("OTHER", 3, 3)}}})})
@@ -1524,37 +1259,31 @@ TEST(AugmenterTest, ReplaceAddressPunctuation) {
   bert_annotator::Documents documents = ConstructBertDocument({DocumentSpec(
       "Visit Zurich! Thanks.",
       {TokenSpec("Visit", 0, 4), TokenSpec("Zurich", 6, 11),
-       TokenSpec("Thanks", 13, 18)},
+       TokenSpec("Thanks", 14, 19)},
       {{Augmenter::kLabelContainerName,
         {LabelSpec("LOCALITY", 1, 1), LabelSpec("OTHER", 2, 2)}}})});
-  Augmentations augmentations = {
-      .num_total = 1,
-      .num_lowercasings_complete_token = 0,
-      .probability_per_lowercasing_complete_token = 0.5,
-      .num_lowercasings_first_letter = 0,
-      .probability_per_lowercasing_first_letter = 0.5,
-      .num_uppercasings_complete_token = 0,
-      .probability_per_uppercasing_complete_token = 0.5,
-      .num_uppercasings_first_letter = 0,
-      .probability_per_uppercasing_first_letter = 0.5,
-      .num_address_replacements = 1,
-      .num_phone_replacements = 0,
-      .num_context_drops_between_labels = 0,
-      .num_context_drops_outside_one_label = 0,
-      .probability_per_drop = 0.5,
-      .num_contextless_addresses = 0,
-      .num_contextless_phones = 0,
-      .mask_digits = false};
+  Augmentations augmentations = {.num_total = 1,
+                                 .prob_lowercasing_complete_token = 0,
+                                 .prob_lowercasing_first_letter = 0,
+                                 .prob_uppercasing_complete_token = 0,
+                                 .prob_uppercasing_first_letter = 0,
+                                 .prob_address_replacement = 0.5,
+                                 .prob_phone_replacement = 0,
+                                 .prob_context_drop_between_labels = 0,
+                                 .prob_context_drop_outside_one_label = 0,
+                                 .num_contextless_addresses = 0,
+                                 .num_contextless_phones = 0,
+                                 .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   std::string replacement = "Str. A, 1 - a";
   EXPECT_CALL(address_sampler, Sample()).WillOnce(ReturnRef(replacement));
   absl::MockingBitGen bitgen;
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
-      .Times(7)  // 1 x phone, 4 x casing, 2 x context.
       .WillRepeatedly(Return(false));
-  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 1))
-      .WillOnce(Return(true));  // 1 x address.
+  EXPECT_CALL(absl::MockBernoulli(),
+              Call(bitgen, augmentations.prob_address_replacement))
+      .WillOnce(Return(true));
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
                                   &phone_sampler, bitgen);
@@ -1567,7 +1296,7 @@ TEST(AugmenterTest, ReplaceAddressPunctuation) {
           {DocumentSpec("Visit Str. A, 1 - a! Thanks.",
                         {TokenSpec("Visit", 0, 4), TokenSpec("Str", 6, 8),
                          TokenSpec("A", 11, 11), TokenSpec("1", 14, 14),
-                         TokenSpec("a", 18, 18), TokenSpec("Thanks", 20, 25)},
+                         TokenSpec("a", 18, 18), TokenSpec("Thanks", 21, 26)},
                         {{Augmenter::kLabelContainerName,
                           {LabelSpec(Augmenter::kAddressReplacementLabel, 1, 4),
                            LabelSpec("OTHER", 5, 5)}}})})
@@ -1583,21 +1312,16 @@ TEST(AugmenterTest, DropContextDetectMultipleDroppableSequences) {
                      TokenSpec("Postfix", 25, 31), TokenSpec("tokens", 33, 38)},
                     {{Augmenter::kLabelContainerName,
                       {LabelSpec(Augmenter::kPhoneReplacementLabel, 2, 2)}}})});
-  Augmentations augmentations = {
+  augmenter::Augmentations augmentations{
       .num_total = 1,
-      .num_lowercasings_complete_token = 0,
-      .probability_per_lowercasing_complete_token = 0.5,
-      .num_lowercasings_first_letter = 0,
-      .probability_per_lowercasing_first_letter = 0.5,
-      .num_uppercasings_complete_token = 0,
-      .probability_per_uppercasing_complete_token = 0.5,
-      .num_uppercasings_first_letter = 0,
-      .probability_per_uppercasing_first_letter = 0.5,
-      .num_address_replacements = 0,
-      .num_phone_replacements = 0,
-      .num_context_drops_between_labels = 1,
-      .num_context_drops_outside_one_label = 0,
-      .probability_per_drop = 0.5,
+      .prob_lowercasing_complete_token = 0,
+      .prob_lowercasing_first_letter = 0,
+      .prob_uppercasing_complete_token = 0,
+      .prob_uppercasing_first_letter = 0,
+      .prob_address_replacement = 0,
+      .prob_phone_replacement = 0,
+      .prob_context_drop_between_labels = 0.5,
+      .prob_context_drop_outside_one_label = 0,
       .num_contextless_addresses = 0,
       .num_contextless_phones = 0,
       .mask_digits = false};
@@ -1605,13 +1329,11 @@ TEST(AugmenterTest, DropContextDetectMultipleDroppableSequences) {
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
-      .Times(6)  // 1 x phone, 1 x addresss, 4 x casing.
       .WillRepeatedly(Return(false));
-  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 1))
-      .WillOnce(Return(true));  // 1 x context.
-  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0.5))
+  EXPECT_CALL(absl::MockBernoulli(),
+              Call(bitgen, augmentations.prob_context_drop_between_labels))
       .Times(2)
-      .WillRepeatedly(Return(true));  // Drop from both sequences.
+      .WillRepeatedly(Return(true));
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
                                   &phone_sampler, bitgen);
@@ -1629,21 +1351,16 @@ TEST(AugmenterTest, DropContextStartAndEnd) {
       {{Augmenter::kLabelContainerName,
         {LabelSpec(Augmenter::kPhoneReplacementLabel, 2, 2),
          LabelSpec(Augmenter::kPhoneReplacementLabel, 5, 5)}}})});
-  Augmentations augmentations = {
+  augmenter::Augmentations augmentations{
       .num_total = 1,
-      .num_lowercasings_complete_token = 0,
-      .probability_per_lowercasing_complete_token = 0.5,
-      .num_lowercasings_first_letter = 0,
-      .probability_per_lowercasing_first_letter = 0.5,
-      .num_uppercasings_complete_token = 0,
-      .probability_per_uppercasing_complete_token = 0.5,
-      .num_uppercasings_first_letter = 0,
-      .probability_per_uppercasing_first_letter = 0.5,
-      .num_address_replacements = 0,
-      .num_phone_replacements = 0,
-      .num_context_drops_between_labels = 1,
-      .num_context_drops_outside_one_label = 0,
-      .probability_per_drop = 0.5,
+      .prob_lowercasing_complete_token = 0,
+      .prob_lowercasing_first_letter = 0,
+      .prob_uppercasing_complete_token = 0,
+      .prob_uppercasing_first_letter = 0,
+      .prob_address_replacement = 0,
+      .prob_phone_replacement = 0,
+      .prob_context_drop_between_labels = 0.5,
+      .prob_context_drop_outside_one_label = 0,
       .num_contextless_addresses = 0,
       .num_contextless_phones = 0,
       .mask_digits = false};
@@ -1656,11 +1373,9 @@ TEST(AugmenterTest, DropContextStartAndEnd) {
       .WillRepeatedly(
           Return(0));  // 1 x use first document, 1 x drop first token.
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
-      .Times(6)  // 1 x phone, 1 x addresss, 4 x casing.
       .WillRepeatedly(Return(false));
-  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 1))
-      .WillOnce(Return(true));  // 1 x context.
-  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0.5))
+  EXPECT_CALL(absl::MockBernoulli(),
+              Call(bitgen, augmentations.prob_context_drop_between_labels))
       .Times(3)
       .WillRepeatedly(
           Return(true));  // Drop from all three sequences (second sequence
@@ -1700,21 +1415,16 @@ TEST(AugmenterTest, DropContextRemoveBeginningOfLabel) {
                     {{Augmenter::kLabelContainerName,
                       {LabelSpec("OTHER", 0, 1),
                        LabelSpec(Augmenter::kPhoneReplacementLabel, 2, 2)}}})});
-  Augmentations augmentations = {
+  augmenter::Augmentations augmentations{
       .num_total = 1,
-      .num_lowercasings_complete_token = 0,
-      .probability_per_lowercasing_complete_token = 0.5,
-      .num_lowercasings_first_letter = 0,
-      .probability_per_lowercasing_first_letter = 0.5,
-      .num_uppercasings_complete_token = 0,
-      .probability_per_uppercasing_complete_token = 0.5,
-      .num_uppercasings_first_letter = 0,
-      .probability_per_uppercasing_first_letter = 0.5,
-      .num_address_replacements = 0,
-      .num_phone_replacements = 0,
-      .num_context_drops_between_labels = 1,
-      .num_context_drops_outside_one_label = 0,
-      .probability_per_drop = 0.5,
+      .prob_lowercasing_complete_token = 0,
+      .prob_lowercasing_first_letter = 0,
+      .prob_uppercasing_complete_token = 0,
+      .prob_uppercasing_first_letter = 0,
+      .prob_address_replacement = 0,
+      .prob_phone_replacement = 0,
+      .prob_context_drop_between_labels = 0.5,
+      .prob_context_drop_outside_one_label = 0,
       .num_contextless_addresses = 0,
       .num_contextless_phones = 0,
       .mask_digits = false};
@@ -1726,11 +1436,9 @@ TEST(AugmenterTest, DropContextRemoveBeginningOfLabel) {
       .Times(2)  // 1 x use first document, 1 x drop first token.
       .WillRepeatedly(Return(0));
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
-      .Times(6)  // 1 x phone, 1 x addresss, 4 x casing.
       .WillRepeatedly(Return(false));
-  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 1))
-      .WillOnce(Return(true));  // 1 x context.
-  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0.5))
+  EXPECT_CALL(absl::MockBernoulli(),
+              Call(bitgen, augmentations.prob_context_drop_between_labels))
       .WillOnce(Return(false))  // Do not drop from second sequence.
       .WillOnce(Return(true));  //  Drop from first sequence.
 
@@ -1763,21 +1471,16 @@ TEST(AugmenterTest, DropContextRemoveMiddleOfLabel) {
                       {LabelSpec(Augmenter::kPhoneReplacementLabel, 0, 0),
                        LabelSpec("OTHER", 1, 3),
                        LabelSpec(Augmenter::kPhoneReplacementLabel, 4, 4)}}})});
-  Augmentations augmentations = {
+  augmenter::Augmentations augmentations{
       .num_total = 1,
-      .num_lowercasings_complete_token = 0,
-      .probability_per_lowercasing_complete_token = 0.5,
-      .num_lowercasings_first_letter = 0,
-      .probability_per_lowercasing_first_letter = 0.5,
-      .num_uppercasings_complete_token = 0,
-      .probability_per_uppercasing_complete_token = 0.5,
-      .num_uppercasings_first_letter = 0,
-      .probability_per_uppercasing_first_letter = 0.5,
-      .num_address_replacements = 0,
-      .num_phone_replacements = 0,
-      .num_context_drops_between_labels = 1,
-      .num_context_drops_outside_one_label = 0,
-      .probability_per_drop = 0.5,
+      .prob_lowercasing_complete_token = 0,
+      .prob_lowercasing_first_letter = 0,
+      .prob_uppercasing_complete_token = 0,
+      .prob_uppercasing_first_letter = 0,
+      .prob_address_replacement = 0,
+      .prob_phone_replacement = 0,
+      .prob_context_drop_between_labels = 0.5,
+      .prob_context_drop_outside_one_label = 0,
       .num_contextless_addresses = 0,
       .num_contextless_phones = 0,
       .mask_digits = false};
@@ -1788,11 +1491,9 @@ TEST(AugmenterTest, DropContextRemoveMiddleOfLabel) {
               Call(absl::IntervalClosed, bitgen, 0, 0))
       .WillOnce(Return(0));  // Use first document.
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
-      .Times(6)  // 1 x phone, 1 x addresss, 4 x casing.
       .WillRepeatedly(Return(false));
-  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 1))
-      .WillOnce(Return(true));  // 1 x context.
-  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0.5))
+  EXPECT_CALL(absl::MockBernoulli(),
+              Call(bitgen, augmentations.prob_context_drop_between_labels))
       .WillOnce(Return(false))  // Do not drop from second sequence.
       .WillOnce(Return(true));  //  Drop from first sequence.
   EXPECT_CALL(absl::MockUniform<int>(),
@@ -1829,21 +1530,16 @@ TEST(AugmenterTest, DropContextRemoveEndOfLabel) {
                     {{Augmenter::kLabelContainerName,
                       {LabelSpec(Augmenter::kPhoneReplacementLabel, 2, 2),
                        LabelSpec("OTHER", 3, 4)}}})});
-  Augmentations augmentations = {
+  augmenter::Augmentations augmentations{
       .num_total = 1,
-      .num_lowercasings_complete_token = 0,
-      .probability_per_lowercasing_complete_token = 0.5,
-      .num_lowercasings_first_letter = 0,
-      .probability_per_lowercasing_first_letter = 0.5,
-      .num_uppercasings_complete_token = 0,
-      .probability_per_uppercasing_complete_token = 0.5,
-      .num_uppercasings_first_letter = 0,
-      .probability_per_uppercasing_first_letter = 0.5,
-      .num_address_replacements = 0,
-      .num_phone_replacements = 0,
-      .num_context_drops_between_labels = 1,
-      .num_context_drops_outside_one_label = 0,
-      .probability_per_drop = 0.5,
+      .prob_lowercasing_complete_token = 0,
+      .prob_lowercasing_first_letter = 0,
+      .prob_uppercasing_complete_token = 0,
+      .prob_uppercasing_first_letter = 0,
+      .prob_address_replacement = 0,
+      .prob_phone_replacement = 0,
+      .prob_context_drop_between_labels = 0.5,
+      .prob_context_drop_outside_one_label = 0,
       .num_contextless_addresses = 0,
       .num_contextless_phones = 0,
       .mask_digits = false};
@@ -1854,11 +1550,9 @@ TEST(AugmenterTest, DropContextRemoveEndOfLabel) {
               Call(absl::IntervalClosed, bitgen, 0, 0))
       .WillOnce(Return(0));  // Use first document.
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
-      .Times(6)  // 1 x phone, 1 x addresss, 4 x casing.
       .WillRepeatedly(Return(false));
-  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 1))
-      .WillOnce(Return(true));  // 1 x context.
-  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0.5))
+  EXPECT_CALL(absl::MockBernoulli(),
+              Call(bitgen, augmentations.prob_context_drop_between_labels))
       .WillOnce(Return(true))    // Drop from second sequence.
       .WillOnce(Return(false));  //  Do not drop from first sequence.
   EXPECT_CALL(absl::MockUniform<int>(),
@@ -1888,21 +1582,16 @@ TEST(AugmenterTest, DropContextNoLabels) {
       {DocumentSpec("Text without any tokens.",
                     {TokenSpec("Text", 0, 3), TokenSpec("without", 5, 11),
                      TokenSpec("any", 13, 15), TokenSpec("tokens", 17, 22)})});
-  Augmentations augmentations = {
+  augmenter::Augmentations augmentations{
       .num_total = 1,
-      .num_lowercasings_complete_token = 0,
-      .probability_per_lowercasing_complete_token = 0.5,
-      .num_lowercasings_first_letter = 0,
-      .probability_per_lowercasing_first_letter = 0.5,
-      .num_uppercasings_complete_token = 0,
-      .probability_per_uppercasing_complete_token = 0.5,
-      .num_uppercasings_first_letter = 0,
-      .probability_per_uppercasing_first_letter = 0.5,
-      .num_address_replacements = 0,
-      .num_phone_replacements = 0,
-      .num_context_drops_between_labels = 1,
-      .num_context_drops_outside_one_label = 0,
-      .probability_per_drop = 0.5,
+      .prob_lowercasing_complete_token = 0,
+      .prob_lowercasing_first_letter = 0,
+      .prob_uppercasing_complete_token = 0,
+      .prob_uppercasing_first_letter = 0,
+      .prob_address_replacement = 0,
+      .prob_phone_replacement = 0,
+      .prob_context_drop_between_labels = 0.5,
+      .prob_context_drop_outside_one_label = 0,
       .num_contextless_addresses = 0,
       .num_contextless_phones = 0,
       .mask_digits = false};
@@ -1913,11 +1602,9 @@ TEST(AugmenterTest, DropContextNoLabels) {
               Call(absl::IntervalClosed, bitgen, 0, 0))
       .WillOnce(Return(0));  // Use first document.
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
-      .Times(6)  // 1 x phone, 1 x addresss, 4 x casing.
       .WillRepeatedly(Return(false));
-  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 1))
-      .WillOnce(Return(true));  // 1 x context.
-  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0.5))
+  EXPECT_CALL(absl::MockBernoulli(),
+              Call(bitgen, augmentations.prob_context_drop_between_labels))
       .Times(2)
       .WillRepeatedly(Return(true));  //  Drop from beginning and end.
   EXPECT_CALL(absl::MockUniform<int>(),
@@ -1947,21 +1634,16 @@ TEST(AugmenterTest, DropContextNoLabelsNoLabelContainer) {
                     {TokenSpec("Text", 0, 3), TokenSpec("without", 5, 11),
                      TokenSpec("any", 13, 15), TokenSpec("tokens", 17, 22)},
                     {})});
-  Augmentations augmentations = {
+  augmenter::Augmentations augmentations{
       .num_total = 1,
-      .num_lowercasings_complete_token = 0,
-      .probability_per_lowercasing_complete_token = 0.5,
-      .num_lowercasings_first_letter = 0,
-      .probability_per_lowercasing_first_letter = 0.5,
-      .num_uppercasings_complete_token = 0,
-      .probability_per_uppercasing_complete_token = 0.5,
-      .num_uppercasings_first_letter = 0,
-      .probability_per_uppercasing_first_letter = 0.5,
-      .num_address_replacements = 0,
-      .num_phone_replacements = 0,
-      .num_context_drops_between_labels = 1,
-      .num_context_drops_outside_one_label = 0,
-      .probability_per_drop = 0.5,
+      .prob_lowercasing_complete_token = 0,
+      .prob_lowercasing_first_letter = 0,
+      .prob_uppercasing_complete_token = 0,
+      .prob_uppercasing_first_letter = 0,
+      .prob_address_replacement = 0,
+      .prob_phone_replacement = 0,
+      .prob_context_drop_between_labels = 0.5,
+      .prob_context_drop_outside_one_label = 0,
       .num_contextless_addresses = 0,
       .num_contextless_phones = 0,
       .mask_digits = false};
@@ -1972,11 +1654,9 @@ TEST(AugmenterTest, DropContextNoLabelsNoLabelContainer) {
               Call(absl::IntervalClosed, bitgen, 0, 0))
       .WillOnce(Return(0));  // Use first document.
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
-      .Times(6)  // 1 x phone, 1 x addresss, 4 x casing.
       .WillRepeatedly(Return(false));
-  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 1))
-      .WillOnce(Return(true));  // 1 x context.
-  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0.5))
+  EXPECT_CALL(absl::MockBernoulli(),
+              Call(bitgen, augmentations.prob_context_drop_between_labels))
       .Times(2)
       .WillRepeatedly(Return(true));  //  Drop from beginning and end.
   EXPECT_CALL(absl::MockUniform<int>(),
@@ -2006,21 +1686,16 @@ TEST(AugmenterTest, DropContextDropLabelsNoLabels) {
       {DocumentSpec("Text without any tokens.",
                     {TokenSpec("Text", 0, 3), TokenSpec("without", 5, 11),
                      TokenSpec("any", 13, 15), TokenSpec("tokens", 17, 22)})});
-  Augmentations augmentations = {
+  augmenter::Augmentations augmentations{
       .num_total = 1,
-      .num_lowercasings_complete_token = 0,
-      .probability_per_lowercasing_complete_token = 0.5,
-      .num_lowercasings_first_letter = 0,
-      .probability_per_lowercasing_first_letter = 0.5,
-      .num_uppercasings_complete_token = 0,
-      .probability_per_uppercasing_complete_token = 0.5,
-      .num_uppercasings_first_letter = 0,
-      .probability_per_uppercasing_first_letter = 0.5,
-      .num_address_replacements = 0,
-      .num_phone_replacements = 0,
-      .num_context_drops_between_labels = 0,
-      .num_context_drops_outside_one_label = 1,
-      .probability_per_drop = 0.5,
+      .prob_lowercasing_complete_token = 0,
+      .prob_lowercasing_first_letter = 0,
+      .prob_uppercasing_complete_token = 0,
+      .prob_uppercasing_first_letter = 0,
+      .prob_address_replacement = 0,
+      .prob_phone_replacement = 0,
+      .prob_context_drop_between_labels = 0,
+      .prob_context_drop_outside_one_label = 0.5,
       .num_contextless_addresses = 0,
       .num_contextless_phones = 0,
       .mask_digits = false};
@@ -2031,11 +1706,10 @@ TEST(AugmenterTest, DropContextDropLabelsNoLabels) {
               Call(absl::IntervalClosed, bitgen, 0, 0))
       .WillOnce(Return(0));  // Use first document.
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
-      .Times(7)  // 1 x phone, 1 x addresss, 2 x casing, 3 x context.
       .WillRepeatedly(Return(false));
-  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 1))
-      .WillOnce(Return(true));  // 1 x context.
-  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0.5))
+  EXPECT_CALL(absl::MockBernoulli(),
+              Call(bitgen,
+                   augmentations.prob_context_drop_outside_one_label))
       .Times(2)
       .WillRepeatedly(Return(true));  //  Drop from beginning and end.
   EXPECT_CALL(absl::MockUniform<int>(),
@@ -2065,21 +1739,16 @@ TEST(AugmenterTest, DropContextDropLabelsNoLabelsNoLabelContainer) {
                     {TokenSpec("Text", 0, 3), TokenSpec("without", 5, 11),
                      TokenSpec("any", 13, 15), TokenSpec("tokens", 17, 22)},
                     {})});
-  Augmentations augmentations = {
+  augmenter::Augmentations augmentations{
       .num_total = 1,
-      .num_lowercasings_complete_token = 0,
-      .probability_per_lowercasing_complete_token = 0.5,
-      .num_lowercasings_first_letter = 0,
-      .probability_per_lowercasing_first_letter = 0.5,
-      .num_uppercasings_complete_token = 0,
-      .probability_per_uppercasing_complete_token = 0.5,
-      .num_uppercasings_first_letter = 0,
-      .probability_per_uppercasing_first_letter = 0.5,
-      .num_address_replacements = 0,
-      .num_phone_replacements = 0,
-      .num_context_drops_between_labels = 0,
-      .num_context_drops_outside_one_label = 1,
-      .probability_per_drop = 0.5,
+      .prob_lowercasing_complete_token = 0,
+      .prob_lowercasing_first_letter = 0,
+      .prob_uppercasing_complete_token = 0,
+      .prob_uppercasing_first_letter = 0,
+      .prob_address_replacement = 0,
+      .prob_phone_replacement = 0,
+      .prob_context_drop_between_labels = 0,
+      .prob_context_drop_outside_one_label = 0.5,
       .num_contextless_addresses = 0,
       .num_contextless_phones = 0,
       .mask_digits = false};
@@ -2090,11 +1759,10 @@ TEST(AugmenterTest, DropContextDropLabelsNoLabelsNoLabelContainer) {
               Call(absl::IntervalClosed, bitgen, 0, 0))
       .WillOnce(Return(0));  // Use first document.
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
-      .Times(7)  // 1 x phone, 1 x addresss, 2 x casing, 3 x context.
       .WillRepeatedly(Return(false));
-  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 1))
-      .WillOnce(Return(true));  // 1 x context.
-  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0.5))
+  EXPECT_CALL(absl::MockBernoulli(),
+              Call(bitgen,
+                   augmentations.prob_context_drop_outside_one_label))
       .Times(2)
       .WillRepeatedly(Return(true));  //  Drop from beginning and end.
   EXPECT_CALL(absl::MockUniform<int>(),
@@ -2130,21 +1798,16 @@ TEST(AugmenterTest, DropContextDropLabelsPrefix) {
                       {LabelSpec(Augmenter::kPhoneReplacementLabel, 0, 0),
                        LabelSpec("OTHER", 1, 3),
                        LabelSpec(Augmenter::kPhoneReplacementLabel, 4, 4)}}})});
-  Augmentations augmentations = {
+  augmenter::Augmentations augmentations{
       .num_total = 1,
-      .num_lowercasings_complete_token = 0,
-      .probability_per_lowercasing_complete_token = 0.5,
-      .num_lowercasings_first_letter = 0,
-      .probability_per_lowercasing_first_letter = 0.5,
-      .num_uppercasings_complete_token = 0,
-      .probability_per_uppercasing_complete_token = 0.5,
-      .num_uppercasings_first_letter = 0,
-      .probability_per_uppercasing_first_letter = 0.5,
-      .num_address_replacements = 0,
-      .num_phone_replacements = 0,
-      .num_context_drops_between_labels = 0,
-      .num_context_drops_outside_one_label = 1,
-      .probability_per_drop = 0.5,
+      .prob_lowercasing_complete_token = 0,
+      .prob_lowercasing_first_letter = 0,
+      .prob_uppercasing_complete_token = 0,
+      .prob_uppercasing_first_letter = 0,
+      .prob_address_replacement = 0,
+      .prob_phone_replacement = 0,
+      .prob_context_drop_between_labels = 0,
+      .prob_context_drop_outside_one_label = 0.5,
       .num_contextless_addresses = 0,
       .num_contextless_phones = 0,
       .mask_digits = false};
@@ -2155,15 +1818,13 @@ TEST(AugmenterTest, DropContextDropLabelsPrefix) {
               Call(absl::IntervalClosed, bitgen, 0, 0))
       .WillOnce(Return(0));  // Use first document.
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
-      .Times(7)  // 1 x phone, 1 x addresss, 2 x casing, 3 x context.
       .WillRepeatedly(Return(false));
-  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 1))
-      .WillOnce(Return(true));  // 1 x context.
   EXPECT_CALL(absl::MockUniform<int>(), Call(bitgen, 0, 2))
       .WillOnce(Return(1));  // Keep second label.
-  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0.5))
-      .Times(2)
-      .WillRepeatedly(Return(true));  //  Drop from beginning and end.
+  EXPECT_CALL(absl::MockBernoulli(),
+              Call(bitgen, augmentations.prob_context_drop_outside_one_label))
+      .Times(2)  // Drop beginning and end.
+      .WillRepeatedly(Return(true));
   EXPECT_CALL(absl::MockUniform<int>(),
               Call(absl::IntervalClosed, bitgen, 6, 6))
       .WillOnce(Return(6));  // Drop last token.
@@ -2202,21 +1863,16 @@ TEST(AugmenterTest, DropContextDropLabelsSuffix) {
                       {LabelSpec(Augmenter::kPhoneReplacementLabel, 0, 0),
                        LabelSpec("OTHER", 1, 3),
                        LabelSpec(Augmenter::kPhoneReplacementLabel, 4, 4)}}})});
-  Augmentations augmentations = {
+  augmenter::Augmentations augmentations{
       .num_total = 1,
-      .num_lowercasings_complete_token = 0,
-      .probability_per_lowercasing_complete_token = 0.5,
-      .num_lowercasings_first_letter = 0,
-      .probability_per_lowercasing_first_letter = 0.5,
-      .num_uppercasings_complete_token = 0,
-      .probability_per_uppercasing_complete_token = 0.5,
-      .num_uppercasings_first_letter = 0,
-      .probability_per_uppercasing_first_letter = 0.5,
-      .num_address_replacements = 0,
-      .num_phone_replacements = 0,
-      .num_context_drops_between_labels = 0,
-      .num_context_drops_outside_one_label = 1,
-      .probability_per_drop = 0.5,
+      .prob_lowercasing_complete_token = 0,
+      .prob_lowercasing_first_letter = 0,
+      .prob_uppercasing_complete_token = 0,
+      .prob_uppercasing_first_letter = 0,
+      .prob_address_replacement = 0,
+      .prob_phone_replacement = 0,
+      .prob_context_drop_between_labels = 0,
+      .prob_context_drop_outside_one_label = 0.5,
       .num_contextless_addresses = 0,
       .num_contextless_phones = 0,
       .mask_digits = false};
@@ -2227,13 +1883,11 @@ TEST(AugmenterTest, DropContextDropLabelsSuffix) {
               Call(absl::IntervalClosed, bitgen, 0, 0))
       .WillOnce(Return(0));  // Use first document.
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
-      .Times(7)  // 1 x phone, 1 x addresss, 2 x casing, 3 x context.
       .WillRepeatedly(Return(false));
-  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 1))
-      .WillOnce(Return(true));  // 1 x context.
   EXPECT_CALL(absl::MockUniform<int>(), Call(bitgen, 0, 2))
       .WillOnce(Return(0));  // Keep first label.
-  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0.5))
+  EXPECT_CALL(absl::MockBernoulli(),
+              Call(bitgen, augmentations.prob_context_drop_outside_one_label))
       .WillOnce(Return(true));  //  Drop end.
   EXPECT_CALL(absl::MockUniform<int>(),
               Call(absl::IntervalClosed, bitgen, 2, 6))
@@ -2263,21 +1917,16 @@ TEST(AugmenterTest, RemoveSeparatorTokens) {
                     {TokenSpec("Text", 0, 3), TokenSpec(",", 4, 4),
                      TokenSpec("more", 6, 9), TokenSpec("...", 11, 13),
                      TokenSpec("t.e.x.t.", 15, 22), TokenSpec("!", 23, 23)})});
-  Augmentations augmentations = {
-      .num_total = 1,
-      .num_lowercasings_complete_token = 0,
-      .probability_per_lowercasing_complete_token = 0.5,
-      .num_lowercasings_first_letter = 0,
-      .probability_per_lowercasing_first_letter = 0.5,
-      .num_uppercasings_complete_token = 0,
-      .probability_per_uppercasing_complete_token = 0.5,
-      .num_uppercasings_first_letter = 0,
-      .probability_per_uppercasing_first_letter = 0.5,
-      .num_address_replacements = 0,
-      .num_phone_replacements = 0,
-      .num_context_drops_between_labels = 0,
-      .num_context_drops_outside_one_label = 0,
-      .probability_per_drop = 0.5,
+  augmenter::Augmentations augmentations{
+      .num_total = 0,
+      .prob_lowercasing_complete_token = 0,
+      .prob_lowercasing_first_letter = 0,
+      .prob_uppercasing_complete_token = 0,
+      .prob_uppercasing_first_letter = 0,
+      .prob_address_replacement = 0,
+      .prob_phone_replacement = 0,
+      .prob_context_drop_between_labels = 0,
+      .prob_context_drop_outside_one_label = 0,
       .num_contextless_addresses = 0,
       .num_contextless_phones = 0,
       .mask_digits = false};
@@ -2310,21 +1959,16 @@ TEST(AugmenterTest, MaskDigits) {
        TokenSpec("[LABEL]", 10, 16), TokenSpec("num_0123_bers", 18, 30),
        TokenSpec("99", 32, 33)},
       {{Augmenter::kLabelContainerName, {LabelSpec("LOCALITY", 2, 2)}}})});
-  Augmentations augmentations = {
+  augmenter::Augmentations augmentations{
       .num_total = 1,
-      .num_lowercasings_complete_token = 0,
-      .probability_per_lowercasing_complete_token = 0.5,
-      .num_lowercasings_first_letter = 0,
-      .probability_per_lowercasing_first_letter = 0.5,
-      .num_uppercasings_complete_token = 0,
-      .probability_per_uppercasing_complete_token = 0.5,
-      .num_uppercasings_first_letter = 0,
-      .probability_per_uppercasing_first_letter = 0.5,
-      .num_address_replacements = 1,
-      .num_phone_replacements = 0,
-      .num_context_drops_between_labels = 0,
-      .num_context_drops_outside_one_label = 0,
-      .probability_per_drop = 0.5,
+      .prob_lowercasing_complete_token = 0,
+      .prob_lowercasing_first_letter = 0,
+      .prob_uppercasing_complete_token = 0,
+      .prob_uppercasing_first_letter = 0,
+      .prob_address_replacement = 0.5,
+      .prob_phone_replacement = 0,
+      .prob_context_drop_between_labels = 0,
+      .prob_context_drop_outside_one_label = 0,
       .num_contextless_addresses = 0,
       .num_contextless_phones = 0,
       .mask_digits = true};
@@ -2334,10 +1978,10 @@ TEST(AugmenterTest, MaskDigits) {
   EXPECT_CALL(address_sampler, Sample()).WillOnce(ReturnRef(replacement));
   absl::MockingBitGen bitgen;
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
-      .Times(7)  // 1 x phone, 4 x casing, 2 x context.
       .WillRepeatedly(Return(false));
-  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 1))
-      .WillOnce(Return(true));  // 1 x address.
+  EXPECT_CALL(absl::MockBernoulli(),
+              Call(bitgen, augmentations.prob_address_replacement))
+      .WillOnce(Return(true));
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
                                   &phone_sampler, bitgen);
@@ -2373,21 +2017,16 @@ TEST(AugmenterTest, MaskDigits) {
 
 TEST(AugmenterTest, ContextlessAddress) {
   bert_annotator::Documents documents = ConstructBertDocument({});
-  Augmentations augmentations = {
+  augmenter::Augmentations augmentations{
       .num_total = 1,
-      .num_lowercasings_complete_token = 0,
-      .probability_per_lowercasing_complete_token = 0.5,
-      .num_lowercasings_first_letter = 0,
-      .probability_per_lowercasing_first_letter = 0.5,
-      .num_uppercasings_complete_token = 0,
-      .probability_per_uppercasing_complete_token = 0.5,
-      .num_uppercasings_first_letter = 0,
-      .probability_per_uppercasing_first_letter = 0.5,
-      .num_address_replacements = 0,
-      .num_phone_replacements = 0,
-      .num_context_drops_between_labels = 0,
-      .num_context_drops_outside_one_label = 0,
-      .probability_per_drop = 0.5,
+      .prob_lowercasing_complete_token = 0,
+      .prob_lowercasing_first_letter = 0,
+      .prob_uppercasing_complete_token = 0,
+      .prob_uppercasing_first_letter = 0,
+      .prob_address_replacement = 0,
+      .prob_phone_replacement = 0,
+      .prob_context_drop_between_labels = 0,
+      .prob_context_drop_outside_one_label = 0,
       .num_contextless_addresses = 1,
       .num_contextless_phones = 0,
       .mask_digits = false};
@@ -2415,21 +2054,16 @@ TEST(AugmenterTest, ContextlessAddress) {
 
 TEST(AugmenterTest, ContextlessPhone) {
   bert_annotator::Documents documents = ConstructBertDocument({});
-  Augmentations augmentations = {
+  augmenter::Augmentations augmentations{
       .num_total = 1,
-      .num_lowercasings_complete_token = 0,
-      .probability_per_lowercasing_complete_token = 0.5,
-      .num_lowercasings_first_letter = 0,
-      .probability_per_lowercasing_first_letter = 0.5,
-      .num_uppercasings_complete_token = 0,
-      .probability_per_uppercasing_complete_token = 0.5,
-      .num_uppercasings_first_letter = 0,
-      .probability_per_uppercasing_first_letter = 0.5,
-      .num_address_replacements = 0,
-      .num_phone_replacements = 0,
-      .num_context_drops_between_labels = 0,
-      .num_context_drops_outside_one_label = 0,
-      .probability_per_drop = 0.5,
+      .prob_lowercasing_complete_token = 0,
+      .prob_lowercasing_first_letter = 0,
+      .prob_uppercasing_complete_token = 0,
+      .prob_uppercasing_first_letter = 0,
+      .prob_address_replacement = 0,
+      .prob_phone_replacement = 0,
+      .prob_context_drop_between_labels = 0,
+      .prob_context_drop_outside_one_label = 0,
       .num_contextless_addresses = 0,
       .num_contextless_phones = 1,
       .mask_digits = false};
@@ -2456,21 +2090,16 @@ TEST(AugmenterTest, ContextlessPhone) {
 
 TEST(AugmenterTest, ContextlessPhoneMaskedDigits) {
   bert_annotator::Documents documents = ConstructBertDocument({});
-  Augmentations augmentations = {
+  augmenter::Augmentations augmentations{
       .num_total = 1,
-      .num_lowercasings_complete_token = 0,
-      .probability_per_lowercasing_complete_token = 0.5,
-      .num_lowercasings_first_letter = 0,
-      .probability_per_lowercasing_first_letter = 0.5,
-      .num_uppercasings_complete_token = 0,
-      .probability_per_uppercasing_complete_token = 0.5,
-      .num_uppercasings_first_letter = 0,
-      .probability_per_uppercasing_first_letter = 0.5,
-      .num_address_replacements = 0,
-      .num_phone_replacements = 0,
-      .num_context_drops_between_labels = 0,
-      .num_context_drops_outside_one_label = 0,
-      .probability_per_drop = 0.5,
+      .prob_lowercasing_complete_token = 0,
+      .prob_lowercasing_first_letter = 0,
+      .prob_uppercasing_complete_token = 0,
+      .prob_uppercasing_first_letter = 0,
+      .prob_address_replacement = 0,
+      .prob_phone_replacement = 0,
+      .prob_context_drop_between_labels = 0,
+      .prob_context_drop_outside_one_label = 0,
       .num_contextless_addresses = 0,
       .num_contextless_phones = 1,
       .mask_digits = true};

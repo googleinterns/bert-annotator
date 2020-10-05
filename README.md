@@ -42,23 +42,20 @@ The augmenter can be run using
 ```
 
 Valid flags are:
- - `--corpora="[corpora]"`
- - `--num_total=[total augmentations]`
- - `--num_lowercasings_complete_token=[augmentations by lowercasing complete tokens]`
- - `--probability_per_lowercasing_complete_token=[given that some tokens are completely lowercased, how likely is each token to be affected? Defaults to 0.5]`
- - `--num_lowercasings_first_letter=[augmentations by lowercasing the first letter of tokens]`
- - `--probability_per_lowercasing_first_letter=[given that the first letter of some tokens will be lowercased, how likely is each token to be affected? Defaults to 0.5]`
- - `--num_uppercasings_complete_token=[augmentations by uppercasing complete tokens]`
- - `--probability_per_uppercasing_complete_token=[given that some tokens are completely uppercased, how likely is each token to be affected? Defaults to 0.5]`
- - `--num_uppercasings_first_letter=[augmentations by uppercasing the first letter of tokens]`
- - `--probability_per_uppercasing_first_letter=[given that the first letter of some tokens will be uppercased, how likely is each token to be affected? Defaults to 0.5]`
- - `--addresses_path=[path to address file]`
- - `--num_address_replacements=[augmentations by address replacement]`
- - `--phones_path=[path to phone number file]`
- - `--num_phone_replacements=[augmentations by phone number replacement]`
- - `--num_context_drops_between_labels=[augmentations by dropping context in between labels. Keeps at least the token directly to the left and right of each label.]`
- - `--num_context_drops_outside_one_label=[augmentations by selecting a label and dropping context to its left and right. May drop other labels]`
- - `--probability_per_drop=[given that context from a sentence will be dropped, how likely is each sequence to be dropped? Defaults to 0.5]`
- - `--num_contextless_addresses=[entries solely consisting of an address, without any context]`
- - `--num_contextless_phones=[entries solely consisting of a phone number, without any context]`
+ - `--corpora="[Corpora]"`
+ - `--addresses_path=[Path to list of alternative addresses]`
+ - `--phones_path=[Path to list of alternative phone numbers]`
+ - `--num_total=[Number of total augmentations]`
+ - `--prob_lowercasing_complete_token=[Probability of lowercasing a complete token]`
+ - `--prob_lowercasing_first_letter=[Probability of lowercasing the first letter of a token]`
+ - `--prob_uppercasing_complete_token=[Probability of uppercasing a complete token]`
+ - `--prob_uppercasing_first_letter=[Probability of uppercasing the first letter of a token]`
+ - `--prob_address_replacement=[Probability of replacing an address]`
+ - `--prob_phone_replacement=[Probability of replacing a phone number]`
+ - `--prob_context_drop_between_labels=[Probability of dropping context in between labels. Keeps at least the token directly to the left and right of each label]`
+ - `--prob_context_drop_outside_one_label=[Probability of selecting a label and dropping context to its left and right. May drop other labels]`
+ - `--num_contextless_addresses=[Number of entries solely consisting of an address, without any context]`
+ - `--num_contextless_phones=[Number of entries solely consisting of a phone number, without any context]`
  - `--mask_digits` (to replace all digits with zeros)
+
+The sum of all four probabilities for changes to the case of tokens must not exceed 1.0.
