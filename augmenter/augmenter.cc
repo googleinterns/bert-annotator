@@ -44,10 +44,9 @@ Augmenter::Augmenter(const bert_annotator::Documents& documents,
   // The input uses more detailed address labels. To have a consistent output,
   // all those labels have to be switched to the generall "ADDRESS" label.
   for (bert_annotator::Document& document : *documents_.mutable_documents()) {
-    auto empty_list =
-        new google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>();
+    google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan> empty_list;
     google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>* const
-        labeled_spans = GetLabelListWithDefault(&document, empty_list);
+        labeled_spans = GetLabelListWithDefault(&document, &empty_list);
     for (int i = labeled_spans->size() - 1; i >= 0; --i) {
       bert_annotator::LabeledSpan& labeled_span = labeled_spans->at(i);
       if (kAddressLabels.contains(labeled_span.label())) {
@@ -446,10 +445,9 @@ void Augmenter::ShiftTokenBoundaries(
 void Augmenter::ReplaceLabeledSpan(
     const int token_id, const absl::string_view replacement_label,
     bert_annotator::Document* const document) const {
-  auto empty_list =
-      new google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>();
+  google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan> empty_list;
   google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>* const
-      labeled_spans = GetLabelListWithDefault(document, empty_list);
+      labeled_spans = GetLabelListWithDefault(document, &empty_list);
   for (bert_annotator::LabeledSpan& labeled_span : *labeled_spans) {
     if (labeled_span.token_start() == token_id) {
       labeled_span.set_label(std::string(replacement_label));
@@ -461,10 +459,9 @@ void Augmenter::ReplaceLabeledSpan(
 void Augmenter::UpdateLabeledSpansForDroppedTokens(
     const TokenRange& removed_tokens,
     bert_annotator::Document* const document) const {
-  auto empty_list =
-      new google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>();
+  google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan> empty_list;
   google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>* const
-      labeled_spans = GetLabelListWithDefault(document, empty_list);
+      labeled_spans = GetLabelListWithDefault(document, &empty_list);
   for (int i = labeled_spans->size() - 1; i >= 0; --i) {
     bert_annotator::LabeledSpan* labeled_span = labeled_spans->Mutable(i);
     if (labeled_span->token_end() <
