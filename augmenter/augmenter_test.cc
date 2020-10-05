@@ -1477,7 +1477,7 @@ TEST(AugmenterTest, DropContextDropLabelsSuffix) {
   ExpectEq(augmented, expected);
 }
 
-TEST(AugmenterTest, DropContextRemoveSeparatorTokens) {
+TEST(AugmenterTest, RemoveSeparatorTokens) {
   bert_annotator::Documents documents = ConstructBertDocument(
       {DocumentSpec("Text, more ... t.e.x.t.!",
                     {TokenSpec("Text", 0, 3), TokenSpec(",", 4, 4),
