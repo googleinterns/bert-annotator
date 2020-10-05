@@ -106,7 +106,7 @@ class Augmenter {
                             bert_annotator::Document* const document) const;
   // Changes the the complete token or the first letter of a token to
   // lower/upper case. Processes only the specified tokens and returns the ids
-  // of all unmodifed tokens.
+  // of all unmodified tokens.
   std::vector<int> MaybeChangeCase(const CaseAugmentation case_augmentation,
                                    const double probability_per_sentence,
                                    const double probability_per_token,

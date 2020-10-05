@@ -246,6 +246,7 @@ TEST(AugmenterTest, LowercasingCompleteTokens) {
       .num_phone_replacements = 0,
       .num_context_drops_between_labels = 0,
       .num_context_drops_outside_one_label = 0,
+      .probability_per_drop = 0.5,
       .num_contextless_addresses = 0,
       .num_contextless_phones = 0,
       .mask_digits = false};
@@ -363,6 +364,7 @@ TEST(AugmenterTest, LowercasingFirstLetter) {
       .num_phone_replacements = 0,
       .num_context_drops_between_labels = 0,
       .num_context_drops_outside_one_label = 0,
+      .probability_per_drop = 0.5,
       .num_contextless_addresses = 0,
       .num_contextless_phones = 0,
       .mask_digits = false};
@@ -416,6 +418,7 @@ TEST(AugmenterTest, LowercasingFirstLetterDontCountUnneeded) {
       .num_phone_replacements = 0,
       .num_context_drops_between_labels = 0,
       .num_context_drops_outside_one_label = 0,
+      .probability_per_drop = 0.5,
       .num_contextless_addresses = 0,
       .num_contextless_phones = 0,
       .mask_digits = false};
@@ -533,6 +536,7 @@ TEST(AugmenterTest, UppercasingCompleteTokensDontCountUnneeded) {
       .num_phone_replacements = 0,
       .num_context_drops_between_labels = 0,
       .num_context_drops_outside_one_label = 0,
+      .probability_per_drop = 0.5,
       .num_contextless_addresses = 0,
       .num_contextless_phones = 0,
       .mask_digits = false};
@@ -596,6 +600,7 @@ TEST(AugmenterTest, UppercasingFirstLetter) {
       .num_phone_replacements = 0,
       .num_context_drops_between_labels = 0,
       .num_context_drops_outside_one_label = 0,
+      .probability_per_drop = 0.5,
       .num_contextless_addresses = 0,
       .num_contextless_phones = 0,
       .mask_digits = false};
@@ -649,6 +654,7 @@ TEST(AugmenterTest, UppercasingFirstLetterDontCountUnneeded) {
       .num_phone_replacements = 0,
       .num_context_drops_between_labels = 0,
       .num_context_drops_outside_one_label = 0,
+      .probability_per_drop = 0.5,
       .num_contextless_addresses = 0,
       .num_contextless_phones = 0,
       .mask_digits = false};
@@ -2149,6 +2155,7 @@ TEST(AugmenterTest, RemoveSeparatorTokens) {
       .num_phone_replacements = 0,
       .num_context_drops_between_labels = 0,
       .num_context_drops_outside_one_label = 0,
+      .probability_per_drop = 0.5,
       .num_contextless_addresses = 0,
       .num_contextless_phones = 0,
       .mask_digits = false};
@@ -2195,6 +2202,7 @@ TEST(AugmenterTest, MaskDigits) {
       .num_phone_replacements = 0,
       .num_context_drops_between_labels = 0,
       .num_context_drops_outside_one_label = 0,
+      .probability_per_drop = 0.5,
       .num_contextless_addresses = 0,
       .num_contextless_phones = 0,
       .mask_digits = true};
@@ -2257,6 +2265,7 @@ TEST(AugmenterTest, ContextlessAddress) {
       .num_phone_replacements = 0,
       .num_context_drops_between_labels = 0,
       .num_context_drops_outside_one_label = 0,
+      .probability_per_drop = 0.5,
       .num_contextless_addresses = 1,
       .num_contextless_phones = 0,
       .mask_digits = false};
@@ -2298,6 +2307,7 @@ TEST(AugmenterTest, ContextlessPhone) {
       .num_phone_replacements = 0,
       .num_context_drops_between_labels = 0,
       .num_context_drops_outside_one_label = 0,
+      .probability_per_drop = 0.5,
       .num_contextless_addresses = 0,
       .num_contextless_phones = 1,
       .mask_digits = false};
@@ -2338,10 +2348,10 @@ TEST(AugmenterTest, ContextlessPhoneMaskedDigits) {
       .num_phone_replacements = 0,
       .num_context_drops_between_labels = 0,
       .num_context_drops_outside_one_label = 0,
+      .probability_per_drop = 0.5,
       .num_contextless_addresses = 0,
       .num_contextless_phones = 1,
       .mask_digits = true};
-
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   std::string replacement = "0123456789";
