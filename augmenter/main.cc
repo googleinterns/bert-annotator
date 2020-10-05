@@ -47,6 +47,12 @@ ABSL_FLAG(int, num_context_drops_outside_one_label, 0,
 ABSL_FLAG(double, probability_per_drop, 0.5,
           "Given that context from a sentence will be dropped, how likely is "
           "each sequence to be dropped?");
+ABSL_FLAG(
+    int, num_contextless_addresses, 0,
+    "Number of sentences solely consisting of an address, without any context");
+ABSL_FLAG(int, num_contextless_phones, 0,
+          "Number of sentences solely consisting of a phone number, without "
+          "any context");
 ABSL_FLAG(bool, mask_digits, false,
           "If set, all digits are replaced with zeros");
 
@@ -72,6 +78,9 @@ int main(int argc, char* argv[]) {
       .num_context_drops_outside_one_label =
           absl::GetFlag(FLAGS_num_context_drops_outside_one_label),
       .probability_per_drop = absl::GetFlag(FLAGS_probability_per_drop),
+      .num_contextless_addresses =
+          absl::GetFlag(FLAGS_num_contextless_addresses),
+      .num_contextless_phones = absl::GetFlag(FLAGS_num_contextless_phones),
       .mask_digits = absl::GetFlag(FLAGS_mask_digits)};
 
   for (const std::string& corpus : corpora) {

@@ -46,11 +46,16 @@ class Augmenter {
   static constexpr absl::string_view kAddressReplacementLabel = "ADDRESS";
   static const absl::flat_hash_set<absl::string_view>& kPhoneLabels;
   static constexpr absl::string_view kPhoneReplacementLabel = "TELEPHONE";
+  // Cannot be an absl::string_view because it's used for lookups in maps that
+  // expect the key to be a string.
+  static const std::string& kLabelContainerName;
 
  private:
   bool AugmentAddress(bert_annotator::Document* const augmented_document);
   bool AugmentPhone(bert_annotator::Document* const augmented_document);
   bool AugmentLowercase(bert_annotator::Document* const augmented_document);
+  void AugmentContextless(const absl::string_view label,
+                          RandomSampler* const sampler);
   bool MaybeReplaceLabel(const double probability, RandomSampler* const sampler,
                          const absl::string_view replacement_label,
                          bert_annotator::Document* const document);
@@ -72,12 +77,13 @@ class Augmenter {
   bool MaybeDropContextDropLabels(
       const double probability,
       bert_annotator::Document* const augmented_document);
+  // Returns the length difference (positive = length increase).
   const int ReplaceText(const TokenRange& boundaries,
                         const std::string& replacement,
                         bert_annotator::Document* const document) const;
-  // Returns the number of dropped characters.
-  // Also removed non-tokens between the first dropped tokens and the preceeding
-  // last non-dropped token.
+  // Removes the specified range of tokens from the text. Tries to keep the
+  // sentence structure logical by also removing now obsolete non-tokens
+  // (spaces, punctuation). Returns the number of deleted characters.
   const int DropText(const TokenRange& boundaries,
                      bert_annotator::Document* const document) const;
   // May introduce tokens longer than one word.

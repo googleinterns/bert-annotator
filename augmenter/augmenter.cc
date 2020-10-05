@@ -43,10 +43,6 @@ Augmenter::Augmenter(const bert_annotator::Documents& documents,
       augmentations_(augmentations),
       bitgenref_(bitgenref) {
   for (bert_annotator::Document& document : *documents_.mutable_documents()) {
-    if (augmentations.mask_digits) {
-      MaskDigits(&document);
-    }
-
     // Some tokens only contain separator characters like "," or ".". Keeping
     // track of those complicates the identification of longer labels, because
     // those separators may split longer labels into multiple short ones. By
@@ -137,8 +133,36 @@ bool Augmenter::AugmentLowercase(
   return false;
 }
 
+void Augmenter::AugmentContextless(const absl::string_view label,
+                                   RandomSampler* const sampler) {
+  bert_annotator::Document* document = documents_.add_documents();
+
+  const std::string sample = sampler->Sample();
+  document->set_text(sample);
+  bert_annotator::Token* token = document->add_token();
+  token->set_word(sample);
+  token->set_start(0);
+  token->set_end(sample.size() - 1);
+  bert_annotator::LabeledSpans labeled_spans = {};
+  bert_annotator::LabeledSpan* labeled_span = labeled_spans.add_labeled_span();
+  labeled_span->set_label(std::string(label));
+  labeled_span->set_token_start(0);
+  labeled_span->set_token_end(0);
+  (*document->mutable_labeled_spans())[kLabelContainerName] = labeled_spans;
+}
+
 void Augmenter::Augment() {
   const int original_document_number = documents_.documents_size();
+
+  for (int i = 0; i < augmentations_.num_contextless_addresses; ++i) {
+    AugmentContextless(kAddressReplacementLabel, address_sampler_);
+    --augmentations_.num_total;
+  }
+  for (int i = 0; i < augmentations_.num_contextless_phones; ++i) {
+    AugmentContextless(kPhoneReplacementLabel, phone_sampler_);
+    --augmentations_.num_total;
+  }
+
   while (augmentations_.num_total > 0) {
     const int document_id = absl::Uniform(absl::IntervalClosed, bitgenref_, 0,
                                           original_document_number - 1);
@@ -153,10 +177,6 @@ void Augmenter::Augment() {
     augmentation_performed |= AugmentLowercase(augmented_document);
     augmentation_performed |= AugmentContext(augmented_document);
 
-    if (augmentations_.mask_digits) {
-      MaskDigits(augmented_document);
-    }
-
     // If no action was performed and all remaining augmentations have to
     // perform at least one action, drop this sample. It's identical to the
     // original document. Repeat this augmentation iteration.
@@ -170,6 +190,12 @@ void Augmenter::Augment() {
       documents_.mutable_documents()->RemoveLast();
     } else {
       --augmentations_.num_total;
+    }
+  }
+
+  if (augmentations_.mask_digits) {
+    for (bert_annotator::Document& document : *documents_.mutable_documents()) {
+      MaskDigits(&document);
     }
   }
 }
@@ -551,12 +577,12 @@ Augmenter::GetLabelListWithDefault(
     const bert_annotator::Document& document,
     google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan> defaults_to)
     const {
-  if (document.labeled_spans().find("lucid") ==
+  if (document.labeled_spans().find(kLabelContainerName) ==
       document.labeled_spans().end()) {
     return defaults_to;
   }
 
-  return document.labeled_spans().at("lucid").labeled_span();
+  return document.labeled_spans().at(kLabelContainerName).labeled_span();
 }
 
 google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>*
@@ -564,12 +590,14 @@ Augmenter::GetLabelListWithDefault(
     bert_annotator::Document* document,
     google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>*
         defaults_to) const {
-  if (document->labeled_spans().find("lucid") ==
+  if (document->labeled_spans().find(kLabelContainerName) ==
       document->labeled_spans().end()) {
     return defaults_to;
   }
 
-  return document->mutable_labeled_spans()->at("lucid").mutable_labeled_span();
+  return document->mutable_labeled_spans()
+      ->at(kLabelContainerName)
+      .mutable_labeled_span();
 }
 
 void Augmenter::MaskDigits(std::string* text) const {
@@ -608,5 +636,7 @@ const absl::flat_hash_set<absl::string_view>& Augmenter::kPhoneLabels = {
     "TELEPHONE"};
 
 constexpr absl::string_view Augmenter::kPhoneReplacementLabel;
+
+const std::string& Augmenter::kLabelContainerName = *new std::string("lucid");
 
 }  // namespace augmenter

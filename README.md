@@ -52,4 +52,6 @@ Valid flags are:
  - `--num_context_drops_between_labels=[augmentations by dropping context in between labels. Keeps at least the token directly to the left and right of each label.]`
  - `--num_context_drops_outside_one_label=[augmentations by selecting a label and dropping context to its left and right. May drop other labels]`
  - `--probability_per_drop=[given that context from a sentence will be dropped, how likely is each sequence to be dropped? Defaults to 0.5]`
+ - `--num_contextless_addresses=[entries solely consisting of an address, without any context]`
+ - `--num_contextless_phones=[entries solely consisting of a phone number, without any context]`
  - `--mask_digits` (to replace all digits with zeros)

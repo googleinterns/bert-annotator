@@ -27,6 +27,8 @@ struct Augmentations {
   int num_context_drops_between_labels;
   int num_context_drops_outside_one_label;
   double probability_per_drop;
+  int num_contextless_addresses;
+  int num_contextless_phones;
   bool mask_digits;
 };
 
