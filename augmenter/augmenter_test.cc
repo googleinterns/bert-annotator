@@ -1537,6 +1537,7 @@ TEST(AugmenterTest, RemoveSeparatorTokens) {
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 0,
                                  .num_context_drops_outside_one_label = 0,
+                                 .probability_per_drop = 0.5,
                                  .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
@@ -1573,6 +1574,7 @@ TEST(AugmenterTest, MaskDigits) {
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 0,
                                  .num_context_drops_outside_one_label = 0,
+                                 .probability_per_drop = 0.5,
                                  .mask_digits = true};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
