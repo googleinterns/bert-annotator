@@ -43,10 +43,6 @@ Augmenter::Augmenter(const bert_annotator::Documents& documents,
       augmentations_(augmentations),
       bitgenref_(bitgenref) {
   for (bert_annotator::Document& document : *documents_.mutable_documents()) {
-    if (augmentations.mask_digits) {
-      MaskDigits(&document);
-    }
-
     // Some tokens only contain separator characters like "," or ".". Keeping
     // track of those complicates the identification of longer labels, because
     // those separators may split longer labels into multiple short ones. By
@@ -181,10 +177,6 @@ void Augmenter::Augment() {
     augmentation_performed |= AugmentLowercase(augmented_document);
     augmentation_performed |= AugmentContext(augmented_document);
 
-    if (augmentations_.mask_digits) {
-      MaskDigits(augmented_document);
-    }
-
     // If no action was performed and all remaining augmentations have to
     // perform at least one action, drop this sample. It's identical to the
     // original document. Repeat this augmentation iteration.
@@ -198,6 +190,12 @@ void Augmenter::Augment() {
       documents_.mutable_documents()->RemoveLast();
     } else {
       --augmentations_.num_total;
+    }
+  }
+
+  if (augmentations_.mask_digits) {
+    for (bert_annotator::Document& document : *documents_.mutable_documents()) {
+      MaskDigits(&document);
     }
   }
 }
