@@ -41,9 +41,27 @@ Augmenter::Augmenter(const bert_annotator::Documents& documents,
       phone_sampler_(phone_sampler),
       augmentations_(augmentations),
       bitgenref_(bitgenref) {
-  // The input uses more detailed address labels. To have a consistent output,
-  // all those labels have to be switched to the generall "ADDRESS" label.
   for (bert_annotator::Document& document : *documents_.mutable_documents()) {
+    // Some tokens only contain separator characters like "," or ".". Keeping
+    // track of those complicates the identification of longer labels, because
+    // those separators may split longer labels into multiple short ones. By
+    // ignoring the separators, this can be avoided. It also avoids that
+    // context dropping *only* drops punctuation.
+    for (int i = document.token_size() - 1; i >= 0; --i) {
+      const bert_annotator::Token& token = document.token(i);
+      // TODO(brix): depends on the installed C locale, may need to be changed
+      // for non-english languages.
+      if (absl::c_none_of(token.word(), [](unsigned char c) {
+            return std::isdigit(c) || std::isalpha(c);
+          })) {
+        const TokenRange removed_tokens = TokenRange{.start = i, .end = i};
+        DropTokens(removed_tokens, &document);
+        UpdateLabeledSpansForDroppedTokens(removed_tokens, &document);
+      }
+    }
+
+    // The input uses more detailed address labels. To have a consistent output,
+    // all those labels have to be switched to the generall "ADDRESS" label.
     google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan> empty_list;
     google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>* const
         labeled_spans = GetLabelListWithDefault(&document, &empty_list);
