@@ -47,6 +47,8 @@ ABSL_FLAG(int, num_context_drops_outside_one_label, 0,
 ABSL_FLAG(double, probability_per_drop, 0.5,
           "Given that context from a sentence will be dropped, how likely is "
           "each sequence to be dropped?");
+ABSL_FLAG(bool, mask_digits, false,
+          "If set, all digits are replaced with zeros");
 
 // Augments the dataset by applying configurable actions, see defined flags.
 int main(int argc, char* argv[]) {
@@ -69,7 +71,8 @@ int main(int argc, char* argv[]) {
           absl::GetFlag(FLAGS_num_context_drops_between_labels),
       .num_context_drops_outside_one_label =
           absl::GetFlag(FLAGS_num_context_drops_outside_one_label),
-      .probability_per_drop = absl::GetFlag(FLAGS_probability_per_drop)};
+      .probability_per_drop = absl::GetFlag(FLAGS_probability_per_drop),
+      .mask_digits = absl::GetFlag(FLAGS_mask_digits)};
 
   for (const std::string& corpus : corpora) {
     augmenter::TextprotoIO textproto_io = augmenter::TextprotoIO();

@@ -27,6 +27,7 @@ struct Augmentations {
   int num_context_drops_between_labels;
   int num_context_drops_outside_one_label;
   double probability_per_drop;
+  bool mask_digits;
 };
 
 }  // namespace augmenter

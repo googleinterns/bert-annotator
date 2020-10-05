@@ -23,6 +23,7 @@
 
 #include "absl/container/flat_hash_set.h"
 #include "absl/strings/ascii.h"
+#include "absl/strings/str_replace.h"
 #include "augmenter/augmentations.h"
 #include "augmenter/random_sampler.h"
 #include "augmenter/token_range.h"
@@ -42,6 +43,10 @@ Augmenter::Augmenter(const bert_annotator::Documents& documents,
       augmentations_(augmentations),
       bitgenref_(bitgenref) {
   for (bert_annotator::Document& document : *documents_.mutable_documents()) {
+    if (augmentations.mask_digits) {
+      MaskDigits(&document);
+    }
+
     // Some tokens only contain separator characters like "," or ".". Keeping
     // track of those complicates the identification of longer labels, because
     // those separators may split longer labels into multiple short ones. By
@@ -147,6 +152,10 @@ void Augmenter::Augment() {
     augmentation_performed |= AugmentPhone(augmented_document);
     augmentation_performed |= AugmentLowercase(augmented_document);
     augmentation_performed |= AugmentContext(augmented_document);
+
+    if (augmentations_.mask_digits) {
+      MaskDigits(augmented_document);
+    }
 
     // If no action was performed and all remaining augmentations have to
     // perform at least one action, drop this sample. It's identical to the
@@ -561,6 +570,27 @@ Augmenter::GetLabelListWithDefault(
   }
 
   return document->mutable_labeled_spans()->at("lucid").mutable_labeled_span();
+}
+
+void Augmenter::MaskDigits(std::string* text) const {
+  absl::StrReplaceAll({{"1", "0"},
+                       {"2", "0"},
+                       {"3", "0"},
+                       {"4", "0"},
+                       {"5", "0"},
+                       {"6", "0"},
+                       {"7", "0"},
+                       {"8", "0"},
+                       {"9", "0"}},
+                      text);
+}
+
+void Augmenter::MaskDigits(bert_annotator::Document* const document) const {
+  MaskDigits(document->mutable_text());
+
+  for (bert_annotator::Token& token : *document->mutable_token()) {
+    MaskDigits(token.mutable_word());
+  }
 }
 
 const bert_annotator::Documents Augmenter::documents() const {

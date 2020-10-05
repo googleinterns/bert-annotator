@@ -141,7 +141,8 @@ TEST(AugmenterTest, NoAugmentation) {
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 0,
                                  .num_context_drops_outside_one_label = 0,
-                                 .probability_per_drop = 0.5};
+                                 .probability_per_drop = 0.5,
+                                 .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   Augmenter augmenter =
@@ -161,7 +162,8 @@ TEST(AugmenterTest, AugmentsAreAdded) {
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 0,
                                  .num_context_drops_outside_one_label = 0,
-                                 .probability_per_drop = 0.5};
+                                 .probability_per_drop = 0.5,
+                                 .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   Augmenter augmenter =
@@ -172,7 +174,7 @@ TEST(AugmenterTest, AugmentsAreAdded) {
   EXPECT_EQ(augmenter.documents().documents_size(), 2);
 }
 
-TEST(AugmenterTest, NoLowercasing) {
+TEST(AugmenterTest, NoAugmentations) {
   bert_annotator::Documents documents = ConstructBertDocument(
       {DocumentSpec("Text with some InterWordCapitalization", {})});
   Augmentations augmentations = {.num_total = 10,
@@ -181,7 +183,8 @@ TEST(AugmenterTest, NoLowercasing) {
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 0,
                                  .num_context_drops_outside_one_label = 0,
-                                 .probability_per_drop = 0.5};
+                                 .probability_per_drop = 0.5,
+                                 .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   Augmenter augmenter =
@@ -190,12 +193,11 @@ TEST(AugmenterTest, NoLowercasing) {
   augmenter.Augment();
 
   for (int i = 0; i < augmentations.num_total + 1; ++i) {
-    EXPECT_STREQ(augmenter.documents().documents(i).text().c_str(),
-                 "Text with some InterWordCapitalization");
+    ExpectEq(augmenter.documents().documents(i), documents.documents(0));
   }
 }
 
-TEST(AugmenterTest, CompleteLowercasing) {
+TEST(AugmenterTest, Lowercasing) {
   bert_annotator::Documents documents = ConstructBertDocument(
       {DocumentSpec("Text with some InterWordCapitalization",
                     {TokenSpec("Text", 0, 3), TokenSpec("with", 5, 8),
@@ -207,7 +209,8 @@ TEST(AugmenterTest, CompleteLowercasing) {
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 0,
                                  .num_context_drops_outside_one_label = 0,
-                                 .probability_per_drop = 0.5};
+                                 .probability_per_drop = 0.5,
+                                 .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   Augmenter augmenter =
@@ -281,7 +284,8 @@ TEST(AugmenterTest, RandomizedLowercasing) {
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 0,
                                  .num_context_drops_outside_one_label = 0,
-                                 .probability_per_drop = 0.5};
+                                 .probability_per_drop = 0.5,
+                                 .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
@@ -289,15 +293,26 @@ TEST(AugmenterTest, RandomizedLowercasing) {
 
   augmenter.Augment();
 
-  ASSERT_EQ(augmenter.documents().documents_size(), 7);
-  EXPECT_STREQ(augmenter.documents().documents(3).text().c_str(),
-               "text with some interwordcapitalization [0]");
-  EXPECT_STREQ(augmenter.documents().documents(4).text().c_str(),
-               "Text with some InterWordCapitalization [1]");
-  EXPECT_STREQ(augmenter.documents().documents(5).text().c_str(),
-               "Text with some InterWordCapitalization [2]");
-  EXPECT_STREQ(augmenter.documents().documents(6).text().c_str(),
-               "text with some interwordcapitalization [0]");
+  bert_annotator::Document augmented = augmenter.documents().documents(3);
+  bert_annotator::Document expected =
+      ConstructBertDocument(
+          {DocumentSpec("text with some interwordcapitalization [0]",
+                        {TokenSpec("text", 0, 3), TokenSpec("with", 5, 8),
+                         TokenSpec("some", 10, 13),
+                         TokenSpec("interwordcapitalization", 15, 37)})})
+          .documents(0);
+  ExpectEq(augmented, expected);
+
+  augmented = augmenter.documents().documents(6);
+  ExpectEq(augmented, expected);
+
+  augmented = augmenter.documents().documents(4);
+  expected = documents.documents(1);
+  ExpectEq(augmented, expected);
+
+  augmented = augmenter.documents().documents(5);
+  expected = documents.documents(2);
+  ExpectEq(augmented, expected);
 }
 
 TEST(AugmenterTest, DontLowercaseNonTokens) {
@@ -312,7 +327,8 @@ TEST(AugmenterTest, DontLowercaseNonTokens) {
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 0,
                                  .num_context_drops_outside_one_label = 0,
-                                 .probability_per_drop = 0.5};
+                                 .probability_per_drop = 0.5,
+                                 .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   Augmenter augmenter =
@@ -320,8 +336,15 @@ TEST(AugmenterTest, DontLowercaseNonTokens) {
 
   augmenter.Augment();
 
-  EXPECT_STREQ(augmenter.documents().documents(1).text().c_str(),
-               "[BOS] text with some interwordcapitalization [EOS]");
+  bert_annotator::Document augmented = augmenter.documents().documents(1);
+  bert_annotator::Document expected =
+      ConstructBertDocument(
+          {DocumentSpec("[BOS] text with some interwordcapitalization [EOS]",
+                        {TokenSpec("text", 6, 9), TokenSpec("with", 11, 14),
+                         TokenSpec("some", 16, 19),
+                         TokenSpec("interwordcapitalization", 21, 43)})})
+          .documents(0);
+  ExpectEq(augmented, expected);
 }
 
 TEST(AugmenterTest, DontReplacePhone) {
@@ -336,7 +359,8 @@ TEST(AugmenterTest, DontReplacePhone) {
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 0,
                                  .num_context_drops_outside_one_label = 0,
-                                 .probability_per_drop = 0.5};
+                                 .probability_per_drop = 0.5,
+                                 .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   Augmenter augmenter =
@@ -344,8 +368,9 @@ TEST(AugmenterTest, DontReplacePhone) {
 
   augmenter.Augment();
 
-  ASSERT_EQ(augmenter.documents().documents_size(), 2);
-  ExpectEq(documents.documents(0), augmenter.documents().documents(1));
+  bert_annotator::Document augmented = augmenter.documents().documents(1);
+  bert_annotator::Document expected = documents.documents(0);
+  ExpectEq(augmented, expected);
 }
 
 TEST(AugmenterTest, ReplacePhoneSameLength) {
@@ -360,7 +385,8 @@ TEST(AugmenterTest, ReplacePhoneSameLength) {
                                  .num_phone_replacements = 1,
                                  .num_context_drops_between_labels = 0,
                                  .num_context_drops_outside_one_label = 0,
-                                 .probability_per_drop = 0.5};
+                                 .probability_per_drop = 0.5,
+                                 .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   std::string replacement = "9876543210";
@@ -402,7 +428,8 @@ TEST(AugmenterTest, ReplacePhoneLongerLength) {
                                  .num_phone_replacements = 1,
                                  .num_context_drops_between_labels = 0,
                                  .num_context_drops_outside_one_label = 0,
-                                 .probability_per_drop = 0.5};
+                                 .probability_per_drop = 0.5,
+                                 .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   std::string replacement = "98765432109876543210";
@@ -445,7 +472,8 @@ TEST(AugmenterTest, ReplacePhoneShorterLength) {
                                  .num_phone_replacements = 1,
                                  .num_context_drops_between_labels = 0,
                                  .num_context_drops_outside_one_label = 0,
-                                 .probability_per_drop = 0.5};
+                                 .probability_per_drop = 0.5,
+                                 .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   std::string replacement = "98";
@@ -486,7 +514,8 @@ TEST(AugmenterTest, ReplacePhoneStart) {
                                  .num_phone_replacements = 1,
                                  .num_context_drops_between_labels = 0,
                                  .num_context_drops_outside_one_label = 0,
-                                 .probability_per_drop = 0.5};
+                                 .probability_per_drop = 0.5,
+                                 .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   std::string replacement = "9876543210";
@@ -526,7 +555,8 @@ TEST(AugmenterTest, ReplacePhoneEnd) {
                                  .num_phone_replacements = 1,
                                  .num_context_drops_between_labels = 0,
                                  .num_context_drops_outside_one_label = 0,
-                                 .probability_per_drop = 0.5};
+                                 .probability_per_drop = 0.5,
+                                 .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   std::string replacement = "9876543210";
@@ -569,7 +599,8 @@ TEST(AugmenterTest, ReplacePhoneChooseLabel) {
                                  .num_phone_replacements = 2,
                                  .num_context_drops_between_labels = 0,
                                  .num_context_drops_outside_one_label = 0,
-                                 .probability_per_drop = 0.5};
+                                 .probability_per_drop = 0.5,
+                                 .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   std::string replacement = "9876543210";
@@ -631,7 +662,8 @@ TEST(AugmenterTest, ReplacePhoneChooseDocument) {
                                  .num_phone_replacements = 1,
                                  .num_context_drops_between_labels = 0,
                                  .num_context_drops_outside_one_label = 0,
-                                 .probability_per_drop = 0.5};
+                                 .probability_per_drop = 0.5,
+                                 .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   std::string replacement = "9876543210";
@@ -682,7 +714,8 @@ TEST(AugmenterTest, ReplacePhoneMissingLucid) {
                                  .num_phone_replacements = 1,
                                  .num_context_drops_between_labels = 0,
                                  .num_context_drops_outside_one_label = 0,
-                                 .probability_per_drop = 0.5};
+                                 .probability_per_drop = 0.5,
+                                 .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   std::string replacement = "9876543210";
@@ -733,7 +766,8 @@ TEST(AugmenterTest, DontReplaceAddress) {
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 0,
                                  .num_context_drops_outside_one_label = 0,
-                                 .probability_per_drop = 0.5};
+                                 .probability_per_drop = 0.5,
+                                 .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   Augmenter augmenter =
@@ -767,7 +801,8 @@ TEST(AugmenterTest, UpdateLabels) {
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 0,
                                  .num_context_drops_outside_one_label = 0,
-                                 .probability_per_drop = 0.5};
+                                 .probability_per_drop = 0.5,
+                                 .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   Augmenter augmenter =
@@ -775,7 +810,6 @@ TEST(AugmenterTest, UpdateLabels) {
 
   augmenter.Augment();
 
-  ASSERT_EQ(augmenter.documents().documents_size(), 1);
   const auto augmented = augmenter.documents().documents(0);
   const auto expected =
       ConstructBertDocument(
@@ -801,7 +835,8 @@ TEST(AugmenterTest, ReplaceAddressSameLength) {
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 0,
                                  .num_context_drops_outside_one_label = 0,
-                                 .probability_per_drop = 0.5};
+                                 .probability_per_drop = 0.5,
+                                 .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   std::string replacement = "Munich";
@@ -844,7 +879,8 @@ TEST(AugmenterTest, ReplaceAddressFewerTokens) {
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 0,
                                  .num_context_drops_outside_one_label = 0,
-                                 .probability_per_drop = 0.5};
+                                 .probability_per_drop = 0.5,
+                                 .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   std::string replacement = "Munich";
@@ -887,7 +923,8 @@ TEST(AugmenterTest, ReplaceAddressMultiWordReplacement) {
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 0,
                                  .num_context_drops_outside_one_label = 0,
-                                 .probability_per_drop = 0.5};
+                                 .probability_per_drop = 0.5,
+                                 .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   std::string replacement = "Munich Centrum";
@@ -930,7 +967,8 @@ TEST(AugmenterTest, DropContextDetectMultipleDroppableSequences) {
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 1,
                                  .num_context_drops_outside_one_label = 0,
-                                 .probability_per_drop = 0.5};
+                                 .probability_per_drop = 0.5,
+                                 .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
@@ -965,7 +1003,8 @@ TEST(AugmenterTest, DropContextStartAndEnd) {
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 1,
                                  .num_context_drops_outside_one_label = 0,
-                                 .probability_per_drop = 0.5};
+                                 .probability_per_drop = 0.5,
+                                 .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
@@ -1025,7 +1064,8 @@ TEST(AugmenterTest, DropContextRemoveBeginningOfLabel) {
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 1,
                                  .num_context_drops_outside_one_label = 0,
-                                 .probability_per_drop = 0.5};
+                                 .probability_per_drop = 0.5,
+                                 .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
@@ -1077,7 +1117,8 @@ TEST(AugmenterTest, DropContextRemoveMiddleOfLabel) {
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 1,
                                  .num_context_drops_outside_one_label = 0,
-                                 .probability_per_drop = 0.5};
+                                 .probability_per_drop = 0.5,
+                                 .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
@@ -1132,7 +1173,8 @@ TEST(AugmenterTest, DropContextRemoveEndOfLabel) {
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 1,
                                  .num_context_drops_outside_one_label = 0,
-                                 .probability_per_drop = 0.5};
+                                 .probability_per_drop = 0.5,
+                                 .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
@@ -1180,7 +1222,8 @@ TEST(AugmenterTest, DropContextNoLabels) {
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 1,
                                  .num_context_drops_outside_one_label = 0,
-                                 .probability_per_drop = 0.5};
+                                 .probability_per_drop = 0.5,
+                                 .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
@@ -1228,7 +1271,8 @@ TEST(AugmenterTest, DropContextNoLabelsNoLucid) {
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 1,
                                  .num_context_drops_outside_one_label = 0,
-                                 .probability_per_drop = 0.5};
+                                 .probability_per_drop = 0.5,
+                                 .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
@@ -1276,7 +1320,8 @@ TEST(AugmenterTest, DropContextDropLabelsNoLabels) {
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 0,
                                  .num_context_drops_outside_one_label = 1,
-                                 .probability_per_drop = 0.5};
+                                 .probability_per_drop = 0.5,
+                                 .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
@@ -1324,7 +1369,8 @@ TEST(AugmenterTest, DropContextDropLabelsNoLabelsNoLucid) {
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 0,
                                  .num_context_drops_outside_one_label = 1,
-                                 .probability_per_drop = 0.5};
+                                 .probability_per_drop = 0.5,
+                                 .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
@@ -1378,7 +1424,8 @@ TEST(AugmenterTest, DropContextDropLabelsPrefix) {
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 0,
                                  .num_context_drops_outside_one_label = 1,
-                                 .probability_per_drop = 0.5};
+                                 .probability_per_drop = 0.5,
+                                 .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
@@ -1439,7 +1486,8 @@ TEST(AugmenterTest, DropContextDropLabelsSuffix) {
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 0,
                                  .num_context_drops_outside_one_label = 1,
-                                 .probability_per_drop = 0.5};
+                                 .probability_per_drop = 0.5,
+                                 .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
@@ -1488,7 +1536,9 @@ TEST(AugmenterTest, RemoveSeparatorTokens) {
                                  .num_address_replacements = 0,
                                  .num_phone_replacements = 0,
                                  .num_context_drops_between_labels = 0,
-                                 .num_context_drops_outside_one_label = 0};
+                                 .num_context_drops_outside_one_label = 0,
+                                 .probability_per_drop = 0.5,
+                                 .mask_digits = false};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
@@ -1504,6 +1554,65 @@ TEST(AugmenterTest, RemoveSeparatorTokens) {
           {DocumentSpec("Text, more ... t.e.x.t.!",
                         {TokenSpec("Text", 0, 3), TokenSpec("more", 6, 9),
                          TokenSpec("t.e.x.t.", 15, 22)})})
+          .documents(0);
+  ExpectEq(augmented, expected);
+}
+
+TEST(AugmenterTest, MaskDigits) {
+  // This document contains numbers within tokens, tokens solely consisting of
+  // numbers and numbers outside of tokens. The label will be replaced with
+  // additional numbers.
+  bert_annotator::Documents documents = ConstructBertDocument({DocumentSpec(
+      "Text with [LABEL] num_0123_bers 99 99",
+      {TokenSpec("Text", 0, 3), TokenSpec("with", 5, 8),
+       TokenSpec("[LABEL]", 10, 16), TokenSpec("num_0123_bers", 18, 30),
+       TokenSpec("99", 32, 33)},
+      {{"lucid", {LabelSpec("LOCALITY", 2, 2)}}})});
+  Augmentations augmentations = {.num_total = 1,
+                                 .num_lowercasings = 0,
+                                 .num_address_replacements = 1,
+                                 .num_phone_replacements = 0,
+                                 .num_context_drops_between_labels = 0,
+                                 .num_context_drops_outside_one_label = 0,
+                                 .probability_per_drop = 0.5,
+                                 .mask_digits = true};
+  MockRandomSampler address_sampler;
+  MockRandomSampler phone_sampler;
+  std::string replacement = "Addr. 1";
+  EXPECT_CALL(address_sampler, Sample()).WillOnce(ReturnRef(replacement));
+  absl::MockingBitGen bitgen;
+  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
+      .Times(4)  // 1 x phone, 1 x lowercasing, 2 x context.
+      .WillRepeatedly(Return(false));
+  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 1))
+      .WillOnce(Return(true));  // 1 x address.
+
+  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+                                  &phone_sampler, bitgen);
+
+  augmenter.Augment();
+
+  bert_annotator::Document augmented = augmenter.documents().documents(0);
+  bert_annotator::Document expected =
+      ConstructBertDocument(
+          {DocumentSpec(
+              "Text with [LABEL] num_0000_bers 00 00",
+              {TokenSpec("Text", 0, 3), TokenSpec("with", 5, 8),
+               TokenSpec("[LABEL]", 10, 16), TokenSpec("num_0000_bers", 18, 30),
+               TokenSpec("00", 32, 33)},
+              {{"lucid", {LabelSpec("ADDRESS", 2, 2)}}})})
+          .documents(0);
+  ExpectEq(augmented, expected);
+
+  augmented = augmenter.documents().documents(1);
+  expected =
+      ConstructBertDocument(
+          {DocumentSpec(
+              "Text with Addr. 0 num_0000_bers 00 00",
+              {TokenSpec("Text", 0, 3), TokenSpec("with", 5, 8),
+               TokenSpec("Addr. 0", 10, 16), TokenSpec("num_0000_bers", 18, 30),
+               TokenSpec("00", 32, 33)},
+              {{"lucid", {LabelSpec("ADDRESS", 2, 2)}}})})
           .documents(0);
   ExpectEq(augmented, expected);
 }
