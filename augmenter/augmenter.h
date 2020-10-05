@@ -46,6 +46,9 @@ class Augmenter {
   static constexpr absl::string_view kAddressReplacementLabel = "ADDRESS";
   static const absl::flat_hash_set<absl::string_view>& kPhoneLabels;
   static constexpr absl::string_view kPhoneReplacementLabel = "TELEPHONE";
+  // Cannot be an absl::string_view because it's used for lookups in maps that
+  // expect the key to be a string.
+  static const std::string& kLabelContainerName;
 
  private:
   bool AugmentAddress(bert_annotator::Document* const augmented_document);

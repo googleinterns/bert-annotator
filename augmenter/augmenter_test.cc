@@ -57,7 +57,7 @@ struct DocumentSpec {
   DocumentSpec(const absl::string_view text_,
                const std::vector<TokenSpec> token_specs_,
                const std::map<std::string, std::vector<LabelSpec>>
-                   label_specs_map_ = {{"lucid", {}}})
+                   label_specs_map_ = {{Augmenter::kLabelContainerName, {}}})
       : text(text_),
         token_specs(token_specs_),
         has_labels(true),
@@ -359,11 +359,12 @@ TEST(AugmenterTest, DontLowercaseNonTokens) {
 }
 
 TEST(AugmenterTest, DontReplacePhone) {
-  bert_annotator::Documents documents = ConstructBertDocument({DocumentSpec(
-      "Call 0123456789! Thanks.",
-      {TokenSpec("Call", 0, 3), TokenSpec("0123456789", 5, 14),
-       TokenSpec("Thanks", 17, 22)},
-      {{"lucid", {LabelSpec(Augmenter::kPhoneReplacementLabel, 1, 1)}}})});
+  bert_annotator::Documents documents = ConstructBertDocument(
+      {DocumentSpec("Call 0123456789! Thanks.",
+                    {TokenSpec("Call", 0, 3), TokenSpec("0123456789", 5, 14),
+                     TokenSpec("Thanks", 17, 22)},
+                    {{Augmenter::kLabelContainerName,
+                      {LabelSpec(Augmenter::kPhoneReplacementLabel, 1, 1)}}})});
   Augmentations augmentations = {.num_total = 1,
                                  .num_lowercasings = 0,
                                  .num_address_replacements = 0,
@@ -387,11 +388,12 @@ TEST(AugmenterTest, DontReplacePhone) {
 }
 
 TEST(AugmenterTest, ReplacePhoneSameLength) {
-  bert_annotator::Documents documents = ConstructBertDocument({DocumentSpec(
-      "Call 0123456789! Thanks.",
-      {TokenSpec("Call", 0, 3), TokenSpec("0123456789", 5, 14),
-       TokenSpec("Thanks", 17, 22)},
-      {{"lucid", {LabelSpec(Augmenter::kPhoneReplacementLabel, 1, 1)}}})});
+  bert_annotator::Documents documents = ConstructBertDocument(
+      {DocumentSpec("Call 0123456789! Thanks.",
+                    {TokenSpec("Call", 0, 3), TokenSpec("0123456789", 5, 14),
+                     TokenSpec("Thanks", 17, 22)},
+                    {{Augmenter::kLabelContainerName,
+                      {LabelSpec(Augmenter::kPhoneReplacementLabel, 1, 1)}}})});
   Augmentations augmentations = {.num_total = 1,
                                  .num_lowercasings = 0,
                                  .num_address_replacements = 0,
@@ -425,18 +427,19 @@ TEST(AugmenterTest, ReplacePhoneSameLength) {
               "Call 9876543210! Thanks.",
               {TokenSpec("Call", 0, 3), TokenSpec("9876543210", 5, 14),
                TokenSpec("Thanks", 17, 22)},
-              {{"lucid",
+              {{Augmenter::kLabelContainerName,
                 {LabelSpec(Augmenter::kPhoneReplacementLabel, 1, 1)}}})})
           .documents(0);
   ExpectEq(augmented, expected);
 }
 
 TEST(AugmenterTest, ReplacePhoneLongerLength) {
-  bert_annotator::Documents documents = ConstructBertDocument({DocumentSpec(
-      "Call 0123456789! Thanks.",
-      {TokenSpec("Call", 0, 3), TokenSpec("0123456789", 5, 14),
-       TokenSpec("Thanks", 17, 22)},
-      {{"lucid", {LabelSpec(Augmenter::kPhoneReplacementLabel, 1, 1)}}})});
+  bert_annotator::Documents documents = ConstructBertDocument(
+      {DocumentSpec("Call 0123456789! Thanks.",
+                    {TokenSpec("Call", 0, 3), TokenSpec("0123456789", 5, 14),
+                     TokenSpec("Thanks", 17, 22)},
+                    {{Augmenter::kLabelContainerName,
+                      {LabelSpec(Augmenter::kPhoneReplacementLabel, 1, 1)}}})});
   Augmentations augmentations = {.num_total = 1,
                                  .num_lowercasings = 0,
                                  .num_address_replacements = 0,
@@ -471,18 +474,19 @@ TEST(AugmenterTest, ReplacePhoneLongerLength) {
               {TokenSpec("Call", 0, 3),
                TokenSpec("98765432109876543210", 5, 24),
                TokenSpec("Thanks", 27, 32)},
-              {{"lucid",
+              {{Augmenter::kLabelContainerName,
                 {LabelSpec(Augmenter::kPhoneReplacementLabel, 1, 1)}}})})
           .documents(0);
   ExpectEq(augmented, expected);
 }
 
 TEST(AugmenterTest, ReplacePhoneShorterLength) {
-  bert_annotator::Documents documents = ConstructBertDocument({DocumentSpec(
-      "Call 0123456789! Thanks.",
-      {TokenSpec("Call", 0, 3), TokenSpec("0123456789", 5, 14),
-       TokenSpec("Thanks", 17, 22)},
-      {{"lucid", {LabelSpec(Augmenter::kPhoneReplacementLabel, 1, 1)}}})});
+  bert_annotator::Documents documents = ConstructBertDocument(
+      {DocumentSpec("Call 0123456789! Thanks.",
+                    {TokenSpec("Call", 0, 3), TokenSpec("0123456789", 5, 14),
+                     TokenSpec("Thanks", 17, 22)},
+                    {{Augmenter::kLabelContainerName,
+                      {LabelSpec(Augmenter::kPhoneReplacementLabel, 1, 1)}}})});
   Augmentations augmentations = {.num_total = 1,
                                  .num_lowercasings = 0,
                                  .num_address_replacements = 0,
@@ -516,7 +520,7 @@ TEST(AugmenterTest, ReplacePhoneShorterLength) {
               "Call 98! Thanks.",
               {TokenSpec("Call", 0, 3), TokenSpec("98", 5, 6),
                TokenSpec("Thanks", 9, 14)},
-              {{"lucid",
+              {{Augmenter::kLabelContainerName,
                 {LabelSpec(Augmenter::kPhoneReplacementLabel, 1, 1)}}})})
           .documents(0);
   ExpectEq(augmented, expected);
@@ -526,7 +530,8 @@ TEST(AugmenterTest, ReplacePhoneStart) {
   bert_annotator::Documents documents = ConstructBertDocument({DocumentSpec(
       "0123456789! Thanks.",
       {TokenSpec("0123456789", 0, 9), TokenSpec("Thanks", 12, 17)},
-      {{"lucid", {LabelSpec(Augmenter::kPhoneReplacementLabel, 0, 0)}}})});
+      {{Augmenter::kLabelContainerName,
+        {LabelSpec(Augmenter::kPhoneReplacementLabel, 0, 0)}}})});
   Augmentations augmentations = {.num_total = 1,
                                  .num_lowercasings = 0,
                                  .num_address_replacements = 0,
@@ -559,17 +564,18 @@ TEST(AugmenterTest, ReplacePhoneStart) {
           {DocumentSpec(
               "9876543210! Thanks.",
               {TokenSpec("9876543210", 0, 9), TokenSpec("Thanks", 12, 17)},
-              {{"lucid",
+              {{Augmenter::kLabelContainerName,
                 {LabelSpec(Augmenter::kPhoneReplacementLabel, 0, 0)}}})})
           .documents(0);
   ExpectEq(augmented, expected);
 }
 
 TEST(AugmenterTest, ReplacePhoneEnd) {
-  bert_annotator::Documents documents = ConstructBertDocument({DocumentSpec(
-      "Call 0123456789",
-      {TokenSpec("Call", 0, 3), TokenSpec("0123456789", 5, 14)},
-      {{"lucid", {LabelSpec(Augmenter::kPhoneReplacementLabel, 1, 1)}}})});
+  bert_annotator::Documents documents = ConstructBertDocument(
+      {DocumentSpec("Call 0123456789",
+                    {TokenSpec("Call", 0, 3), TokenSpec("0123456789", 5, 14)},
+                    {{Augmenter::kLabelContainerName,
+                      {LabelSpec(Augmenter::kPhoneReplacementLabel, 1, 1)}}})});
   Augmentations augmentations = {.num_total = 1,
                                  .num_lowercasings = 0,
                                  .num_address_replacements = 0,
@@ -602,7 +608,7 @@ TEST(AugmenterTest, ReplacePhoneEnd) {
           {DocumentSpec(
               "Call 9876543210",
               {TokenSpec("Call", 0, 3), TokenSpec("9876543210", 5, 14)},
-              {{"lucid",
+              {{Augmenter::kLabelContainerName,
                 {LabelSpec(Augmenter::kPhoneReplacementLabel, 1, 1)}}})})
           .documents(0);
   ExpectEq(augmented, expected);
@@ -613,7 +619,7 @@ TEST(AugmenterTest, ReplacePhoneChooseLabel) {
       {DocumentSpec("0123456789 or 0123456789",
                     {TokenSpec("0123456789", 0, 9), TokenSpec("or", 11, 12),
                      TokenSpec("0123456789", 14, 23)},
-                    {{"lucid",
+                    {{Augmenter::kLabelContainerName,
                       {LabelSpec(Augmenter::kPhoneReplacementLabel, 0, 0),
                        LabelSpec(Augmenter::kPhoneReplacementLabel, 2, 2)}}})});
   Augmentations augmentations = {.num_total = 2,
@@ -657,7 +663,7 @@ TEST(AugmenterTest, ReplacePhoneChooseLabel) {
               "9876543210 or 0123456789",
               {TokenSpec("9876543210", 0, 9), TokenSpec("or", 11, 12),
                TokenSpec("0123456789", 14, 23)},
-              {{"lucid",
+              {{Augmenter::kLabelContainerName,
                 {LabelSpec(Augmenter::kPhoneReplacementLabel, 0, 0),
                  LabelSpec(Augmenter::kPhoneReplacementLabel, 2, 2)}}})})
           .documents(0);
@@ -668,7 +674,7 @@ TEST(AugmenterTest, ReplacePhoneChooseLabel) {
                      "0123456789 or 9876543210",
                      {TokenSpec("0123456789", 0, 9), TokenSpec("or", 11, 12),
                       TokenSpec("9876543210", 14, 23)},
-                     {{"lucid",
+                     {{Augmenter::kLabelContainerName,
                        {LabelSpec(Augmenter::kPhoneReplacementLabel, 0, 0),
                         LabelSpec(Augmenter::kPhoneReplacementLabel, 2, 2)}}})})
                  .documents(0);
@@ -676,11 +682,12 @@ TEST(AugmenterTest, ReplacePhoneChooseLabel) {
 }
 
 TEST(AugmenterTest, ReplacePhoneChooseDocument) {
-  bert_annotator::Documents documents = ConstructBertDocument({DocumentSpec(
-      "Call 0123456789! Thanks.",
-      {TokenSpec("Call", 0, 3), TokenSpec("0123456789", 5, 14),
-       TokenSpec("Thanks", 17, 22)},
-      {{"lucid", {LabelSpec(Augmenter::kPhoneReplacementLabel, 1, 1)}}})});
+  bert_annotator::Documents documents = ConstructBertDocument(
+      {DocumentSpec("Call 0123456789! Thanks.",
+                    {TokenSpec("Call", 0, 3), TokenSpec("0123456789", 5, 14),
+                     TokenSpec("Thanks", 17, 22)},
+                    {{Augmenter::kLabelContainerName,
+                      {LabelSpec(Augmenter::kPhoneReplacementLabel, 1, 1)}}})});
   Augmentations augmentations = {.num_total = 2,
                                  .num_lowercasings = 0,
                                  .num_address_replacements = 0,
@@ -718,7 +725,7 @@ TEST(AugmenterTest, ReplacePhoneChooseDocument) {
               "Call 9876543210! Thanks.",
               {TokenSpec("Call", 0, 3), TokenSpec("9876543210", 5, 14),
                TokenSpec("Thanks", 17, 22)},
-              {{"lucid",
+              {{Augmenter::kLabelContainerName,
                 {LabelSpec(Augmenter::kPhoneReplacementLabel, 1, 1)}}})})
           .documents(0);
   ExpectEq(augmented, expected);
@@ -727,14 +734,15 @@ TEST(AugmenterTest, ReplacePhoneChooseDocument) {
   ExpectEq(augmented, expected);
 }
 
-TEST(AugmenterTest, ReplacePhoneMissingLucid) {
+TEST(AugmenterTest, ReplacePhoneMissingLabelContainer) {
   bert_annotator::Documents documents = ConstructBertDocument(
-      {DocumentSpec("MissingLucid", {TokenSpec("MissingLucid", 0, 12)}, {}),
-       DocumentSpec(
-           "Call 0123456789! Thanks.",
-           {TokenSpec("Call", 0, 3), TokenSpec("0123456789", 5, 14),
-            TokenSpec("Thanks", 17, 22)},
-           {{"lucid", {LabelSpec(Augmenter::kPhoneReplacementLabel, 1, 1)}}})});
+      {DocumentSpec("MissingLabelContainer",
+                    {TokenSpec("MissingLabelContainer", 0, 20)}, {}),
+       DocumentSpec("Call 0123456789! Thanks.",
+                    {TokenSpec("Call", 0, 3), TokenSpec("0123456789", 5, 14),
+                     TokenSpec("Thanks", 17, 22)},
+                    {{Augmenter::kLabelContainerName,
+                      {LabelSpec(Augmenter::kPhoneReplacementLabel, 1, 1)}}})});
   Augmentations augmentations = {.num_total = 1,
                                  .num_lowercasings = 0,
                                  .num_address_replacements = 0,
@@ -775,7 +783,7 @@ TEST(AugmenterTest, ReplacePhoneMissingLucid) {
               "Call 9876543210! Thanks.",
               {TokenSpec("Call", 0, 3), TokenSpec("9876543210", 5, 14),
                TokenSpec("Thanks", 17, 22)},
-              {{"lucid",
+              {{Augmenter::kLabelContainerName,
                 {LabelSpec(Augmenter::kPhoneReplacementLabel, 1, 1)}}})})
           .documents(0);
   ExpectEq(augmented, expected);
@@ -784,11 +792,11 @@ TEST(AugmenterTest, ReplacePhoneMissingLucid) {
 // Replacing addresses is very similiar to replacing phone numbers, so not all
 // respective tests are repeated here.
 TEST(AugmenterTest, DontReplaceAddress) {
-  bert_annotator::Documents documents = ConstructBertDocument(
-      {DocumentSpec("Visit Zurich! Thanks.",
-                    {TokenSpec("Visit", 0, 4), TokenSpec("Zurich", 6, 11),
-                     TokenSpec("Thanks", 13, 18)},
-                    {{"lucid", {LabelSpec("LOCALITY", 1, 1)}}})});
+  bert_annotator::Documents documents = ConstructBertDocument({DocumentSpec(
+      "Visit Zurich! Thanks.",
+      {TokenSpec("Visit", 0, 4), TokenSpec("Zurich", 6, 11),
+       TokenSpec("Thanks", 13, 18)},
+      {{Augmenter::kLabelContainerName, {LabelSpec("LOCALITY", 1, 1)}}})});
   Augmentations augmentations = {.num_total = 1,
                                  .num_lowercasings = 0,
                                  .num_address_replacements = 0,
@@ -814,18 +822,18 @@ TEST(AugmenterTest, DontReplaceAddress) {
               "Visit Zurich! Thanks.",
               {TokenSpec("Visit", 0, 4), TokenSpec("Zurich", 6, 11),
                TokenSpec("Thanks", 13, 18)},
-              {{"lucid",
+              {{Augmenter::kLabelContainerName,
                 {LabelSpec(Augmenter::kAddressReplacementLabel, 1, 1)}}})})
           .documents(0);
   ExpectEq(augmented, expected);
 }
 
 TEST(AugmenterTest, UpdateLabels) {
-  bert_annotator::Documents documents = ConstructBertDocument(
-      {DocumentSpec("Visit Zurich! Thanks.",
-                    {TokenSpec("Visit", 0, 4), TokenSpec("Zurich", 6, 11),
-                     TokenSpec("Thanks", 13, 18)},
-                    {{"lucid", {LabelSpec("LOCALITY", 1, 1)}}})});
+  bert_annotator::Documents documents = ConstructBertDocument({DocumentSpec(
+      "Visit Zurich! Thanks.",
+      {TokenSpec("Visit", 0, 4), TokenSpec("Zurich", 6, 11),
+       TokenSpec("Thanks", 13, 18)},
+      {{Augmenter::kLabelContainerName, {LabelSpec("LOCALITY", 1, 1)}}})});
   Augmentations augmentations = {.num_total = 0,
                                  .num_lowercasings = 0,
                                  .num_address_replacements = 0,
@@ -850,18 +858,18 @@ TEST(AugmenterTest, UpdateLabels) {
               "Visit Zurich! Thanks.",
               {TokenSpec("Visit", 0, 4), TokenSpec("Zurich", 6, 11),
                TokenSpec("Thanks", 13, 18)},
-              {{"lucid",
+              {{Augmenter::kLabelContainerName,
                 {LabelSpec(Augmenter::kAddressReplacementLabel, 1, 1)}}})})
           .documents(0);
   ExpectEq(augmented, expected);
 }
 
 TEST(AugmenterTest, ReplaceAddressSameLength) {
-  bert_annotator::Documents documents = ConstructBertDocument(
-      {DocumentSpec("Visit Zurich! Thanks.",
-                    {TokenSpec("Visit", 0, 4), TokenSpec("Zurich", 6, 11),
-                     TokenSpec("Thanks", 13, 18)},
-                    {{"lucid", {LabelSpec("LOCALITY", 1, 1)}}})});
+  bert_annotator::Documents documents = ConstructBertDocument({DocumentSpec(
+      "Visit Zurich! Thanks.",
+      {TokenSpec("Visit", 0, 4), TokenSpec("Zurich", 6, 11),
+       TokenSpec("Thanks", 13, 18)},
+      {{Augmenter::kLabelContainerName, {LabelSpec("LOCALITY", 1, 1)}}})});
   Augmentations augmentations = {.num_total = 1,
                                  .num_lowercasings = 0,
                                  .num_address_replacements = 1,
@@ -895,7 +903,7 @@ TEST(AugmenterTest, ReplaceAddressSameLength) {
               "Visit Munich! Thanks.",
               {TokenSpec("Visit", 0, 4), TokenSpec("Munich", 6, 11),
                TokenSpec("Thanks", 13, 18)},
-              {{"lucid",
+              {{Augmenter::kLabelContainerName,
                 {LabelSpec(Augmenter::kAddressReplacementLabel, 1, 1)}}})})
           .documents(0);
   ExpectEq(augmented, expected);
@@ -906,7 +914,7 @@ TEST(AugmenterTest, ReplaceAddressFewerTokens) {
       "Visit Zurich City! Thanks.",
       {TokenSpec("Visit", 0, 4), TokenSpec("Zurich", 6, 11),
        TokenSpec("City", 13, 16), TokenSpec("Thanks", 18, 23)},
-      {{"lucid",
+      {{Augmenter::kLabelContainerName,
         {LabelSpec("LOCALITY", 1, 1), LabelSpec("LOCALITY", 2, 2)}}})});
   Augmentations augmentations = {.num_total = 1,
                                  .num_lowercasings = 0,
@@ -941,7 +949,7 @@ TEST(AugmenterTest, ReplaceAddressFewerTokens) {
               "Visit Munich! Thanks.",
               {TokenSpec("Visit", 0, 4), TokenSpec("Munich", 6, 11),
                TokenSpec("Thanks", 13, 18)},
-              {{"lucid",
+              {{Augmenter::kLabelContainerName,
                 {LabelSpec(Augmenter::kAddressReplacementLabel, 1, 1)}}})})
           .documents(0);
   ExpectEq(augmented, expected);
@@ -952,7 +960,7 @@ TEST(AugmenterTest, ReplaceAddressMultiWordReplacement) {
       "Visit Zurich City! Thanks.",
       {TokenSpec("Visit", 0, 4), TokenSpec("Zurich", 6, 11),
        TokenSpec("City", 13, 16), TokenSpec("Thanks", 18, 23)},
-      {{"lucid",
+      {{Augmenter::kLabelContainerName,
         {LabelSpec("LOCALITY", 1, 1), LabelSpec("LOCALITY", 2, 2)}}})});
   Augmentations augmentations = {.num_total = 1,
                                  .num_lowercasings = 0,
@@ -987,19 +995,20 @@ TEST(AugmenterTest, ReplaceAddressMultiWordReplacement) {
               "Visit Munich Centrum! Thanks.",
               {TokenSpec("Visit", 0, 4), TokenSpec("Munich Centrum", 6, 19),
                TokenSpec("Thanks", 21, 26)},
-              {{"lucid",
+              {{Augmenter::kLabelContainerName,
                 {LabelSpec(Augmenter::kAddressReplacementLabel, 1, 1)}}})})
           .documents(0);
   ExpectEq(augmented, expected);
 }
 
 TEST(AugmenterTest, DropContextDetectMultipleDroppableSequences) {
-  bert_annotator::Documents documents = ConstructBertDocument({DocumentSpec(
-      "Prefix tokens 0123456789 Postfix tokens.",
-      {TokenSpec("Prefix", 0, 5), TokenSpec("tokens", 7, 12),
-       TokenSpec("0123456789", 14, 23), TokenSpec("Postfix", 25, 31),
-       TokenSpec("tokens", 33, 38)},
-      {{"lucid", {LabelSpec(Augmenter::kPhoneReplacementLabel, 2, 2)}}})});
+  bert_annotator::Documents documents = ConstructBertDocument(
+      {DocumentSpec("Prefix tokens 0123456789 Postfix tokens.",
+                    {TokenSpec("Prefix", 0, 5), TokenSpec("tokens", 7, 12),
+                     TokenSpec("0123456789", 14, 23),
+                     TokenSpec("Postfix", 25, 31), TokenSpec("tokens", 33, 38)},
+                    {{Augmenter::kLabelContainerName,
+                      {LabelSpec(Augmenter::kPhoneReplacementLabel, 2, 2)}}})});
   Augmentations augmentations = {.num_total = 1,
                                  .num_lowercasings = 0,
                                  .num_address_replacements = 0,
@@ -1035,7 +1044,7 @@ TEST(AugmenterTest, DropContextStartAndEnd) {
        TokenSpec("0123456789", 14, 23), TokenSpec("Middle", 25, 30),
        TokenSpec("tokens", 32, 37), TokenSpec("0123456789", 39, 48),
        TokenSpec("Postfix", 50, 56), TokenSpec("tokens", 58, 63)},
-      {{"lucid",
+      {{Augmenter::kLabelContainerName,
         {LabelSpec(Augmenter::kPhoneReplacementLabel, 2, 2),
          LabelSpec(Augmenter::kPhoneReplacementLabel, 5, 5)}}})});
   Augmentations augmentations = {.num_total = 1,
@@ -1085,7 +1094,7 @@ TEST(AugmenterTest, DropContextStartAndEnd) {
               {TokenSpec("tokens", 0, 5), TokenSpec("0123456789", 7, 16),
                TokenSpec("Middle", 18, 23), TokenSpec("tokens", 25, 30),
                TokenSpec("0123456789", 32, 41), TokenSpec("Postfix", 43, 49)},
-              {{"lucid",
+              {{Augmenter::kLabelContainerName,
                 {LabelSpec(Augmenter::kPhoneReplacementLabel, 1, 1),
                  LabelSpec(Augmenter::kPhoneReplacementLabel, 4, 4)}}})})
           .documents(0);
@@ -1098,7 +1107,7 @@ TEST(AugmenterTest, DropContextRemoveBeginningOfLabel) {
                     {TokenSpec("Prefix", 0, 5), TokenSpec("tokens", 7, 12),
                      TokenSpec("0123456789", 14, 23),
                      TokenSpec("Postfix", 25, 31), TokenSpec("tokens", 33, 38)},
-                    {{"lucid",
+                    {{Augmenter::kLabelContainerName,
                       {LabelSpec("OTHER", 0, 1),
                        LabelSpec(Augmenter::kPhoneReplacementLabel, 2, 2)}}})});
   Augmentations augmentations = {.num_total = 1,
@@ -1139,7 +1148,7 @@ TEST(AugmenterTest, DropContextRemoveBeginningOfLabel) {
               "tokens 0123456789 Postfix tokens.",
               {TokenSpec("tokens", 0, 5), TokenSpec("0123456789", 7, 16),
                TokenSpec("Postfix", 18, 24), TokenSpec("tokens", 26, 31)},
-              {{"lucid",
+              {{Augmenter::kLabelContainerName,
                 {LabelSpec(Augmenter::kPhoneReplacementLabel, 1, 1)}}})})
           .documents(0);
   ExpectEq(augmented, expected);
@@ -1152,7 +1161,7 @@ TEST(AugmenterTest, DropContextRemoveMiddleOfLabel) {
                      TokenSpec("prefix", 7, 12), TokenSpec("tokens", 14, 19),
                      TokenSpec("0123456789", 21, 30),
                      TokenSpec("Postfix", 32, 38), TokenSpec("tokens", 40, 45)},
-                    {{"lucid",
+                    {{Augmenter::kLabelContainerName,
                       {LabelSpec(Augmenter::kPhoneReplacementLabel, 0, 0),
                        LabelSpec("OTHER", 1, 3),
                        LabelSpec(Augmenter::kPhoneReplacementLabel, 4, 4)}}})});
@@ -1198,7 +1207,7 @@ TEST(AugmenterTest, DropContextRemoveMiddleOfLabel) {
               {TokenSpec("0", 0, 0), TokenSpec("Many", 2, 5),
                TokenSpec("tokens", 7, 12), TokenSpec("0123456789", 14, 23),
                TokenSpec("Postfix", 25, 31), TokenSpec("tokens", 33, 38)},
-              {{"lucid",
+              {{Augmenter::kLabelContainerName,
                 {LabelSpec(Augmenter::kPhoneReplacementLabel, 0, 0),
                  LabelSpec(Augmenter::kPhoneReplacementLabel, 3, 3)}}})})
           .documents(0);
@@ -1211,7 +1220,7 @@ TEST(AugmenterTest, DropContextRemoveEndOfLabel) {
                     {TokenSpec("Prefix", 0, 5), TokenSpec("tokens", 7, 12),
                      TokenSpec("0123456789", 14, 23),
                      TokenSpec("Postfix", 25, 31), TokenSpec("tokens", 33, 38)},
-                    {{"lucid",
+                    {{Augmenter::kLabelContainerName,
                       {LabelSpec(Augmenter::kPhoneReplacementLabel, 2, 2),
                        LabelSpec("OTHER", 3, 4)}}})});
   Augmentations augmentations = {.num_total = 1,
@@ -1254,7 +1263,7 @@ TEST(AugmenterTest, DropContextRemoveEndOfLabel) {
               "Prefix tokens 0123456789 Postfix.",
               {TokenSpec("Prefix", 0, 5), TokenSpec("tokens", 7, 12),
                TokenSpec("0123456789", 14, 23), TokenSpec("Postfix", 25, 31)},
-              {{"lucid",
+              {{Augmenter::kLabelContainerName,
                 {LabelSpec(Augmenter::kPhoneReplacementLabel, 2, 2)}}})})
           .documents(0);
   ExpectEq(augmented, expected);
@@ -1310,7 +1319,7 @@ TEST(AugmenterTest, DropContextNoLabels) {
   ExpectEq(augmented, expected);
 }
 
-TEST(AugmenterTest, DropContextNoLabelsNoLucid) {
+TEST(AugmenterTest, DropContextNoLabelsNoLabelContainer) {
   bert_annotator::Documents documents = ConstructBertDocument(
       {DocumentSpec("Text without any tokens.",
                     {TokenSpec("Text", 0, 3), TokenSpec("without", 5, 11),
@@ -1412,7 +1421,7 @@ TEST(AugmenterTest, DropContextDropLabelsNoLabels) {
   ExpectEq(augmented, expected);
 }
 
-TEST(AugmenterTest, DropContextDropLabelsNoLabelsNoLucid) {
+TEST(AugmenterTest, DropContextDropLabelsNoLabelsNoLabelContainer) {
   bert_annotator::Documents documents = ConstructBertDocument(
       {DocumentSpec("Text without any tokens.",
                     {TokenSpec("Text", 0, 3), TokenSpec("without", 5, 11),
@@ -1471,7 +1480,7 @@ TEST(AugmenterTest, DropContextDropLabelsPrefix) {
                      TokenSpec("prefix", 7, 12), TokenSpec("tokens", 14, 19),
                      TokenSpec("0123456789", 21, 30),
                      TokenSpec("Postfix", 32, 38), TokenSpec("tokens", 40, 45)},
-                    {{"lucid",
+                    {{Augmenter::kLabelContainerName,
                       {LabelSpec(Augmenter::kPhoneReplacementLabel, 0, 0),
                        LabelSpec("OTHER", 1, 3),
                        LabelSpec(Augmenter::kPhoneReplacementLabel, 4, 4)}}})});
@@ -1521,7 +1530,7 @@ TEST(AugmenterTest, DropContextDropLabelsPrefix) {
               {TokenSpec("Many", 0, 3), TokenSpec("prefix", 5, 10),
                TokenSpec("tokens", 12, 17), TokenSpec("0123456789", 19, 28),
                TokenSpec("Postfix", 30, 36)},
-              {{"lucid",
+              {{Augmenter::kLabelContainerName,
                 {LabelSpec("OTHER", 0, 2),
                  LabelSpec(Augmenter::kPhoneReplacementLabel, 3, 3)}}})})
           .documents(0);
@@ -1535,7 +1544,7 @@ TEST(AugmenterTest, DropContextDropLabelsSuffix) {
                      TokenSpec("prefix", 7, 12), TokenSpec("tokens", 14, 19),
                      TokenSpec("0123456789", 21, 30),
                      TokenSpec("Postfix", 32, 38), TokenSpec("tokens", 40, 45)},
-                    {{"lucid",
+                    {{Augmenter::kLabelContainerName,
                       {LabelSpec(Augmenter::kPhoneReplacementLabel, 0, 0),
                        LabelSpec("OTHER", 1, 3),
                        LabelSpec(Augmenter::kPhoneReplacementLabel, 4, 4)}}})});
@@ -1580,7 +1589,7 @@ TEST(AugmenterTest, DropContextDropLabelsSuffix) {
               "0 Many prefix.",
               {TokenSpec("0", 0, 0), TokenSpec("Many", 2, 5),
                TokenSpec("prefix", 7, 12)},
-              {{"lucid",
+              {{Augmenter::kLabelContainerName,
                 {LabelSpec(Augmenter::kPhoneReplacementLabel, 0, 0)}}})})
           .documents(0);
   ExpectEq(augmented, expected);
@@ -1630,7 +1639,7 @@ TEST(AugmenterTest, MaskDigits) {
       {TokenSpec("Text", 0, 3), TokenSpec("with", 5, 8),
        TokenSpec("[LABEL]", 10, 16), TokenSpec("num_0123_bers", 18, 30),
        TokenSpec("99", 32, 33)},
-      {{"lucid", {LabelSpec("LOCALITY", 2, 2)}}})});
+      {{Augmenter::kLabelContainerName, {LabelSpec("LOCALITY", 2, 2)}}})});
   Augmentations augmentations = {.num_total = 1,
                                  .num_lowercasings = 0,
                                  .num_address_replacements = 1,
@@ -1665,7 +1674,8 @@ TEST(AugmenterTest, MaskDigits) {
               {TokenSpec("Text", 0, 3), TokenSpec("with", 5, 8),
                TokenSpec("[LABEL]", 10, 16), TokenSpec("num_0000_bers", 18, 30),
                TokenSpec("00", 32, 33)},
-              {{"lucid", {LabelSpec("ADDRESS", 2, 2)}}})})
+              {{Augmenter::kLabelContainerName,
+                {LabelSpec("ADDRESS", 2, 2)}}})})
           .documents(0);
   ExpectEq(augmented, expected);
 
@@ -1677,7 +1687,8 @@ TEST(AugmenterTest, MaskDigits) {
               {TokenSpec("Text", 0, 3), TokenSpec("with", 5, 8),
                TokenSpec("Addr. 0", 10, 16), TokenSpec("num_0000_bers", 18, 30),
                TokenSpec("00", 32, 33)},
-              {{"lucid", {LabelSpec("ADDRESS", 2, 2)}}})})
+              {{Augmenter::kLabelContainerName,
+                {LabelSpec("ADDRESS", 2, 2)}}})})
           .documents(0);
   ExpectEq(augmented, expected);
 }
@@ -1710,7 +1721,8 @@ TEST(AugmenterTest, ContextlessAddress) {
       ConstructBertDocument(
           {DocumentSpec("Sample Address 1",
                         {TokenSpec("Sample Address 1", 0, 15)},
-                        {{"lucid", {LabelSpec("ADDRESS", 0, 0)}}})})
+                        {{Augmenter::kLabelContainerName,
+                          {LabelSpec("ADDRESS", 0, 0)}}})})
           .documents(0);
   ExpectEq(augmented, expected);
 }
@@ -1742,7 +1754,8 @@ TEST(AugmenterTest, ContextlessPhone) {
   const bert_annotator::Document expected =
       ConstructBertDocument(
           {DocumentSpec("0123456789", {TokenSpec("0123456789", 0, 9)},
-                        {{"lucid", {LabelSpec("TELEPHONE", 0, 0)}}})})
+                        {{Augmenter::kLabelContainerName,
+                          {LabelSpec("TELEPHONE", 0, 0)}}})})
           .documents(0);
   ExpectEq(augmented, expected);
 }
@@ -1774,7 +1787,8 @@ TEST(AugmenterTest, ContextlessPhoneMaskedDigits) {
   const bert_annotator::Document expected =
       ConstructBertDocument(
           {DocumentSpec("0000000000", {TokenSpec("0000000000", 0, 9)},
-                        {{"lucid", {LabelSpec("TELEPHONE", 0, 0)}}})})
+                        {{Augmenter::kLabelContainerName,
+                          {LabelSpec("TELEPHONE", 0, 0)}}})})
           .documents(0);
   ExpectEq(augmented, expected);
 }

@@ -148,7 +148,7 @@ void Augmenter::AugmentContextless(const absl::string_view label,
   labeled_span->set_label(std::string(label));
   labeled_span->set_token_start(0);
   labeled_span->set_token_end(0);
-  (*document->mutable_labeled_spans())["lucid"] = labeled_spans;
+  (*document->mutable_labeled_spans())[kLabelContainerName] = labeled_spans;
 }
 
 void Augmenter::Augment() {
@@ -577,12 +577,12 @@ Augmenter::GetLabelListWithDefault(
     const bert_annotator::Document& document,
     google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan> defaults_to)
     const {
-  if (document.labeled_spans().find("lucid") ==
+  if (document.labeled_spans().find(kLabelContainerName) ==
       document.labeled_spans().end()) {
     return defaults_to;
   }
 
-  return document.labeled_spans().at("lucid").labeled_span();
+  return document.labeled_spans().at(kLabelContainerName).labeled_span();
 }
 
 google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>*
@@ -590,12 +590,14 @@ Augmenter::GetLabelListWithDefault(
     bert_annotator::Document* document,
     google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>*
         defaults_to) const {
-  if (document->labeled_spans().find("lucid") ==
+  if (document->labeled_spans().find(kLabelContainerName) ==
       document->labeled_spans().end()) {
     return defaults_to;
   }
 
-  return document->mutable_labeled_spans()->at("lucid").mutable_labeled_span();
+  return document->mutable_labeled_spans()
+      ->at(kLabelContainerName)
+      .mutable_labeled_span();
 }
 
 void Augmenter::MaskDigits(std::string* text) const {
@@ -634,5 +636,7 @@ const absl::flat_hash_set<absl::string_view>& Augmenter::kPhoneLabels = {
     "TELEPHONE"};
 
 constexpr absl::string_view Augmenter::kPhoneReplacementLabel;
+
+const std::string& Augmenter::kLabelContainerName = *new std::string("lucid");
 
 }  // namespace augmenter
