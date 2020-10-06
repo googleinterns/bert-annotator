@@ -51,6 +51,9 @@ ABSL_FLAG(double, prob_context_drop_between_labels, 0,
 ABSL_FLAG(double, prob_context_drop_outside_one_label, 0,
           "Probability of selecting a label and dropping context to its left "
           "and right. May drop other labels");
+ABSL_FLAG(double, prob_punctuation_change_between_tokens, 0,
+          "Probability of changing the punctuation between tokens to be one of "
+          "{\", \", \": \", \"; \", \" - \"}");
 ABSL_FLAG(
     int, num_contextless_addresses, 0,
     "Number of sentences solely consisting of an address, without any context");
@@ -88,6 +91,8 @@ int main(int argc, char* argv[]) {
           absl::GetFlag(FLAGS_prob_context_drop_between_labels),
       .prob_context_drop_outside_one_label =
           absl::GetFlag(FLAGS_prob_context_drop_outside_one_label),
+      .prob_punctuation_change_between_tokens =
+          absl::GetFlag(FLAGS_prob_punctuation_change_between_tokens),
       .num_contextless_addresses =
           absl::GetFlag(FLAGS_num_contextless_addresses),
       .num_contextless_phones = absl::GetFlag(FLAGS_num_contextless_phones),
