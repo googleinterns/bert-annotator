@@ -91,9 +91,8 @@ Augmenter::Augmenter(const bert_annotator::Documents& documents,
       }
     }
 
-    // The input uses more detailed address labels. To have a consistent
-    // output, all those labels have to be switched to the generall "ADDRESS"
-    // label.
+    // The input uses more detailed address labels. To have a consistent output,
+    // all those labels have to be switched to the generall "ADDRESS" label.
     google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan> empty_list;
     google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>* const
         labeled_spans = GetLabelListWithDefault(&document, &empty_list);
@@ -115,7 +114,7 @@ Augmenter::Augmenter(const bert_annotator::Documents& documents,
       }
     }
   }
-}  // namespace augmenter
+}
 
 Augmenter::Augmenter(const bert_annotator::Documents& documents,
                      Augmentations augmentations,
