@@ -154,7 +154,7 @@ void Augmenter::AugmentCase(bert_annotator::Document* const document) {
     // Sample one of the five actions (lower/upper case complete token/first
     // letter, keep unmodified). Using a discrete distribution would be cleaner,
     // but cannot be mocked in tests.
-    double random_double = absl::Uniform<double>(bitgenref_, 0.0, 1.0);
+    double random_value = absl::Uniform<double>(bitgenref_, 0.0, 1.0);
     double boundary_lowercase_complete_token =
         augmentations_.prob_lowercasing_complete_token;
     double boundary_lowercase_first_letter =
@@ -167,13 +167,13 @@ void Augmenter::AugmentCase(bert_annotator::Document* const document) {
         boundary_uppercase_complete_token +
         augmentations_.prob_uppercasing_first_letter;
 
-    if (random_double < boundary_lowercase_complete_token) {
+    if (random_value < boundary_lowercase_complete_token) {
       absl::AsciiStrToLower(word);
-    } else if (random_double < boundary_lowercase_first_letter) {
+    } else if (random_value < boundary_lowercase_first_letter) {
       word->at(0) = std::tolower(word->at(0));
-    } else if (random_double < boundary_uppercase_complete_token) {
+    } else if (random_value < boundary_uppercase_complete_token) {
       absl::AsciiStrToUpper(word);
-    } else if (random_double < boundary_uppercase_first_letter) {
+    } else if (random_value < boundary_uppercase_first_letter) {
       word->at(0) = std::toupper(word->at(0));
     }
 
