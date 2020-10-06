@@ -286,58 +286,6 @@ TEST(AugmenterTest, LowercasingCompleteTokens) {
   ExpectEq(augmented, expected);
 }
 
-TEST(AugmenterTest, LowercasingCompleteTokensDontCountUnneeded) {
-  bert_annotator::Documents documents = ConstructBertDocument(
-      {DocumentSpec("Text with [Non-Token] some InterWordCapitalization",
-                    {TokenSpec("Text", 0, 3), TokenSpec("with", 5, 8),
-                     TokenSpec("some", 22, 25),
-                     TokenSpec("InterWordCapitalization", 27, 49)})});
-  augmenter::Augmentations augmentations{
-      .num_total = 1,
-      .prob_lowercasing_complete_token = 0.5,
-      .prob_lowercasing_first_letter = 0,
-      .prob_uppercasing_complete_token = 0,
-      .prob_uppercasing_first_letter = 0,
-      .prob_address_replacement = 0,
-      .prob_phone_replacement = 0,
-      .prob_context_drop_between_labels = 0,
-      .prob_context_drop_outside_one_label = 0,
-      .num_contextless_addresses = 0,
-      .num_contextless_phones = 0,
-      .mask_digits = false};
-  MockRandomSampler address_sampler;
-  MockRandomSampler phone_sampler;
-  absl::MockingBitGen bitgen;
-  EXPECT_CALL(absl::MockUniform<int>(),
-              Call(absl::IntervalClosed, bitgen, 0, 0))
-      .Times(2)
-      .WillRepeatedly(Return(0));
-  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
-      .WillRepeatedly(Return(false));
-  EXPECT_CALL(absl::MockUniform<double>(), Call(bitgen, 0.0, 1.0))
-      .WillOnce(Return(0.99))
-      .WillOnce(Return(
-          0.4))  // First, attempt to lowercase an already lowercased token.
-      .WillOnce(Return(0.99))
-      .WillOnce(Return(0.99))
-      .WillOnce(Return(0.4))  // Lowercase a token with uppercase letters.
-      .WillRepeatedly(Return(0.99));
-
-  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
-                                  &phone_sampler, bitgen);
-  augmenter.Augment();
-
-  bert_annotator::Document augmented = augmenter.documents().documents(1);
-  bert_annotator::Document expected =
-      ConstructBertDocument(
-          {DocumentSpec("text with [Non-Token] some InterWordCapitalization",
-                        {TokenSpec("text", 0, 3), TokenSpec("with", 5, 8),
-                         TokenSpec("some", 22, 25),
-                         TokenSpec("InterWordCapitalization", 27, 49)})})
-          .documents(0);
-  ExpectEq(augmented, expected);
-}
-
 TEST(AugmenterTest, LowercasingFirstLetter) {
   bert_annotator::Documents documents = ConstructBertDocument(
       {DocumentSpec("Text with [Non-Token] some InterWordCapitalization",
@@ -379,59 +327,6 @@ TEST(AugmenterTest, LowercasingFirstLetter) {
                         {TokenSpec("Text", 0, 3), TokenSpec("with", 5, 8),
                          TokenSpec("some", 22, 25),
                          TokenSpec("interWordCapitalization", 27, 49)})})
-          .documents(0);
-  ExpectEq(augmented, expected);
-}
-
-TEST(AugmenterTest, LowercasingFirstLetterDontCountUnneeded) {
-  bert_annotator::Documents documents = ConstructBertDocument(
-      {DocumentSpec("Text wITH [Non-Token] some InterWordCapitalization",
-                    {TokenSpec("Text", 0, 3), TokenSpec("wITH", 5, 8),
-                     TokenSpec("some", 22, 25),
-                     TokenSpec("InterWordCapitalization", 27, 49)})});
-  augmenter::Augmentations augmentations{
-      .num_total = 1,
-      .prob_lowercasing_complete_token = 0,
-      .prob_lowercasing_first_letter = 0.5,
-      .prob_uppercasing_complete_token = 0,
-      .prob_uppercasing_first_letter = 0,
-      .prob_address_replacement = 0,
-      .prob_phone_replacement = 0,
-      .prob_context_drop_between_labels = 0,
-      .prob_context_drop_outside_one_label = 0,
-      .num_contextless_addresses = 0,
-      .num_contextless_phones = 0,
-      .mask_digits = false};
-  MockRandomSampler address_sampler;
-  MockRandomSampler phone_sampler;
-  absl::MockingBitGen bitgen;
-  EXPECT_CALL(absl::MockUniform<int>(),
-              Call(absl::IntervalClosed, bitgen, 0, 0))
-      .Times(2)
-      .WillRepeatedly(Return(0));
-  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
-      .WillRepeatedly(Return(false));
-  EXPECT_CALL(absl::MockUniform<double>(), Call(bitgen, 0.0, 1.0))
-      .Times(8)
-      .WillOnce(Return(0.99))
-      .WillOnce(Return(
-          0.4))  // First, attempt to lowercase an already lowercased token.
-      .WillOnce(Return(0.99))
-      .WillOnce(Return(0.99))
-      .WillOnce(Return(0.4))  // Lowercase a token with uppercase letters.
-      .WillRepeatedly(Return(0.99));
-
-  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
-                                  &phone_sampler, bitgen);
-  augmenter.Augment();
-
-  bert_annotator::Document augmented = augmenter.documents().documents(1);
-  bert_annotator::Document expected =
-      ConstructBertDocument(
-          {DocumentSpec("text wITH [Non-Token] some InterWordCapitalization",
-                        {TokenSpec("text", 0, 3), TokenSpec("wITH", 5, 8),
-                         TokenSpec("some", 22, 25),
-                         TokenSpec("InterWordCapitalization", 27, 49)})})
           .documents(0);
   ExpectEq(augmented, expected);
 }
@@ -481,59 +376,6 @@ TEST(AugmenterTest, UppercasingCompleteTokens) {
   ExpectEq(augmented, expected);
 }
 
-TEST(AugmenterTest, UppercasingCompleteTokensDontCountUnneeded) {
-  bert_annotator::Documents documents = ConstructBertDocument(
-      {DocumentSpec("Text WITH [Non-Token] some InterWordCapitalization",
-                    {TokenSpec("Text", 0, 3), TokenSpec("WITH", 5, 8),
-                     TokenSpec("some", 22, 25),
-                     TokenSpec("InterWordCapitalization", 27, 49)})});
-  augmenter::Augmentations augmentations{
-      .num_total = 1,
-      .prob_lowercasing_complete_token = 0,
-      .prob_lowercasing_first_letter = 0,
-      .prob_uppercasing_complete_token = 0.5,
-      .prob_uppercasing_first_letter = 0,
-      .prob_address_replacement = 0,
-      .prob_phone_replacement = 0,
-      .prob_context_drop_between_labels = 0,
-      .prob_context_drop_outside_one_label = 0,
-      .num_contextless_addresses = 0,
-      .num_contextless_phones = 0,
-      .mask_digits = false};
-  MockRandomSampler address_sampler;
-  MockRandomSampler phone_sampler;
-  absl::MockingBitGen bitgen;
-  EXPECT_CALL(absl::MockUniform<int>(),
-              Call(absl::IntervalClosed, bitgen, 0, 0))
-      .Times(2)
-      .WillRepeatedly(Return(0));
-  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
-      .WillRepeatedly(Return(false));
-  EXPECT_CALL(absl::MockUniform<double>(), Call(bitgen, 0.0, 1.0))
-      .Times(8)
-      .WillOnce(Return(0.99))
-      .WillOnce(Return(
-          0.4))  // First, attempt to uppercase an already uppercased token.
-      .WillOnce(Return(0.99))
-      .WillOnce(Return(0.99))
-      .WillOnce(Return(0.4))  // Uppercase a token with lowercase letters.
-      .WillRepeatedly(Return(0.99));
-
-  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
-                                  &phone_sampler, bitgen);
-  augmenter.Augment();
-
-  bert_annotator::Document augmented = augmenter.documents().documents(1);
-  bert_annotator::Document expected =
-      ConstructBertDocument(
-          {DocumentSpec("TEXT WITH [Non-Token] some InterWordCapitalization",
-                        {TokenSpec("TEXT", 0, 3), TokenSpec("WITH", 5, 8),
-                         TokenSpec("some", 22, 25),
-                         TokenSpec("InterWordCapitalization", 27, 49)})})
-          .documents(0);
-  ExpectEq(augmented, expected);
-}
-
 TEST(AugmenterTest, UppercasingFirstLetter) {
   bert_annotator::Documents documents = ConstructBertDocument(
       {DocumentSpec("Text with [Non-Token] some interWordCapitalization",
@@ -573,59 +415,6 @@ TEST(AugmenterTest, UppercasingFirstLetter) {
       ConstructBertDocument(
           {DocumentSpec("Text with [Non-Token] some InterWordCapitalization",
                         {TokenSpec("Text", 0, 3), TokenSpec("with", 5, 8),
-                         TokenSpec("some", 22, 25),
-                         TokenSpec("InterWordCapitalization", 27, 49)})})
-          .documents(0);
-  ExpectEq(augmented, expected);
-}
-
-TEST(AugmenterTest, UppercasingFirstLetterDontCountUnneeded) {
-  bert_annotator::Documents documents = ConstructBertDocument(
-      {DocumentSpec("text With [Non-Token] some InterWordCapitalization",
-                    {TokenSpec("text", 0, 3), TokenSpec("With", 5, 8),
-                     TokenSpec("some", 22, 25),
-                     TokenSpec("InterWordCapitalization", 27, 49)})});
-  augmenter::Augmentations augmentations{
-      .num_total = 1,
-      .prob_lowercasing_complete_token = 0,
-      .prob_lowercasing_first_letter = 0,
-      .prob_uppercasing_complete_token = 0,
-      .prob_uppercasing_first_letter = 0.5,
-      .prob_address_replacement = 0,
-      .prob_phone_replacement = 0,
-      .prob_context_drop_between_labels = 0,
-      .prob_context_drop_outside_one_label = 0,
-      .num_contextless_addresses = 0,
-      .num_contextless_phones = 0,
-      .mask_digits = false};
-  MockRandomSampler address_sampler;
-  MockRandomSampler phone_sampler;
-  absl::MockingBitGen bitgen;
-  EXPECT_CALL(absl::MockUniform<int>(),
-              Call(absl::IntervalClosed, bitgen, 0, 0))
-      .Times(2)
-      .WillRepeatedly(Return(0));
-  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
-      .WillRepeatedly(Return(false));
-  EXPECT_CALL(absl::MockUniform<double>(), Call(bitgen, 0.0, 1.0))
-      .Times(8)
-      .WillOnce(Return(0.99))
-      .WillOnce(Return(
-          0.4))  // First, attempt to uppercase an already uppercased token.
-      .WillOnce(Return(0.99))
-      .WillOnce(Return(0.99))
-      .WillOnce(Return(0.4))  // Uppercase a token with lowercase letters.
-      .WillRepeatedly(Return(0.99));
-
-  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
-                                  &phone_sampler, bitgen);
-  augmenter.Augment();
-
-  bert_annotator::Document augmented = augmenter.documents().documents(1);
-  bert_annotator::Document expected =
-      ConstructBertDocument(
-          {DocumentSpec("Text With [Non-Token] some InterWordCapitalization",
-                        {TokenSpec("Text", 0, 3), TokenSpec("With", 5, 8),
                          TokenSpec("some", 22, 25),
                          TokenSpec("InterWordCapitalization", 27, 49)})})
           .documents(0);
@@ -1002,7 +791,7 @@ TEST(AugmenterTest, ReplacePhoneMissingLabelContainer) {
                     {{Augmenter::kLabelContainerName,
                       {LabelSpec(Augmenter::kPhoneReplacementLabel, 1, 1)}}})});
   augmenter::Augmentations augmentations{
-      .num_total = 1,
+      .num_total = 2,
       .prob_lowercasing_complete_token = 0,
       .prob_lowercasing_first_letter = 0,
       .prob_uppercasing_complete_token = 0,
@@ -1035,8 +824,8 @@ TEST(AugmenterTest, ReplacePhoneMissingLabelContainer) {
 
   augmenter.Augment();
 
-  ASSERT_EQ(augmenter.documents().documents_size(), 3);
-  const bert_annotator::Document augmented = augmenter.documents().documents(2);
+  ASSERT_EQ(augmenter.documents().documents_size(), 4);
+  const bert_annotator::Document augmented = augmenter.documents().documents(3);
   const bert_annotator::Document expected =
       ConstructBertDocument(
           {DocumentSpec(
