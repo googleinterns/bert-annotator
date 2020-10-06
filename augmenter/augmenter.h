@@ -83,8 +83,8 @@ class Augmenter {
                         const std::string& replacement,
                         bert_annotator::Document* const document) const;
   // Removes the specified range of tokens from the text. Tries to keep the
-  // sentence structure logical by also removing now obsolete non-tokens
-  // (spaces, punctuation). Returns the number of deleted characters.
+  // sentence structure logical by also removing now obsolete punctuation.
+  // Returns the number of deleted characters.
   const int DropText(const TokenRange& boundaries,
                      bert_annotator::Document* const document) const;
   // May introduce tokens longer than one word.
@@ -104,7 +104,7 @@ class Augmenter {
                             const std::string& replacement,
                             const absl::string_view replacement_label,
                             bert_annotator::Document* const document) const;
-  // Changes the the complete token or the first letter of a token to
+  // Changes the complete token or the first letter of a token to
   // lower/upper case. Processes only the specified tokens and returns the ids
   // of all unmodified tokens.
   std::vector<int> MaybeChangeCase(const CaseAugmentation case_augmentation,

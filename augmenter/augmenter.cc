@@ -607,33 +607,33 @@ std::vector<int> Augmenter::MaybeChangeCase(
   std::string new_text;
   int text_index = 0;
   std::vector<int> unmodified_ids;
-  for (int token_id : token_ids) {
+  for (const int token_id : token_ids) {
     bert_annotator::Token* const token = document->mutable_token(token_id);
     std::string* const word = token->mutable_word();
 
-    // Adds the non-tokens before the current token as they are.
+    // Adds punctuation before the current token as it is.
     const int token_start = token->start();
     const int token_end = token->end();
     if (text_index < token_start) {
       new_text.append(text->begin() + text_index, text->begin() + token_start);
     }
 
-    bool skip_this_token = !absl::Bernoulli(bitgenref_, probability_per_token);
-    if (!skip_this_token &&
+    const bool change_case = absl::Bernoulli(bitgenref_, probability_per_token);
+    if (change_case &&
         case_augmentation == CaseAugmentation::kLowercaseCompleteToken &&
         absl::c_any_of(*word,
                        [](unsigned char c) { return std::isupper(c); })) {
       absl::AsciiStrToLower(word);
-    } else if (!skip_this_token &&
+    } else if (change_case &&
                case_augmentation == CaseAugmentation::kLowercaseFirstLetter &&
                word->size() > 0 && std::isupper(word->at(0))) {
       word->at(0) = std::tolower(word->at(0));
-    } else if (!skip_this_token &&
+    } else if (change_case &&
                case_augmentation == CaseAugmentation::kUppercaseCompleteToken &&
                absl::c_any_of(
                    *word, [](unsigned char c) { return std::islower(c); })) {
       absl::AsciiStrToUpper(word);
-    } else if (!skip_this_token &&
+    } else if (change_case &&
                case_augmentation == CaseAugmentation::kUppercaseFirstLetter &&
                word->size() > 0 && std::islower(word->at(0))) {
       word->at(0) = std::toupper(word->at(0));
