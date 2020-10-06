@@ -1035,6 +1035,10 @@ TEST(AugmenterTest, ReplacePhoneChooseLabel) {
       .Times(2)
       .WillRepeatedly(ReturnRef(replacement));
   absl::MockingBitGen bitgen;
+  EXPECT_CALL(absl::MockUniform<int>(),
+              Call(absl::IntervalClosed, bitgen, 0, 0))
+      .Times(2)
+      .WillRepeatedly(Return(0));  // Use first document.
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
       .Times(14)  // 2 x address, 8 x casing, 4 x context.
       .WillRepeatedly(Return(false));
@@ -1042,7 +1046,7 @@ TEST(AugmenterTest, ReplacePhoneChooseLabel) {
       .Times(2)  // 2 x phone.
       .WillRepeatedly(Return(true));
   // Token selection.
-  EXPECT_CALL(absl::MockUniform<size_t>(),
+  EXPECT_CALL(absl::MockUniform<int>(),
               Call(absl::IntervalClosed, bitgen, 0, 1))
       .WillOnce(Return(0))
       .WillOnce(Return(1));
@@ -1107,15 +1111,16 @@ TEST(AugmenterTest, ReplacePhoneChooseDocument) {
   std::string replacement = "9876543210";
   EXPECT_CALL(phone_sampler, Sample()).WillOnce(ReturnRef(replacement));
   absl::MockingBitGen bitgen;
+  EXPECT_CALL(absl::MockUniform<int>(),
+              Call(absl::IntervalClosed, bitgen, 0, 0))
+      .Times(3)
+      .WillRepeatedly(
+          Return(0));  // 2 x use first document, 1 x token selection.
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
       .Times(15)  // 2 x address, 8 x casing, 1 x phone, 4 x context.
       .WillRepeatedly(Return(false));
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0.5))
       .WillOnce(Return(true));  // Replace phone in first document.
-  // Token selection.
-  EXPECT_CALL(absl::MockUniform<size_t>(),
-              Call(absl::IntervalClosed, bitgen, 0, 0))
-      .WillOnce(Return(0));
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
                                   &phone_sampler, bitgen);
@@ -1181,6 +1186,9 @@ TEST(AugmenterTest, ReplacePhoneMissingLabelContainer) {
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 1))
       .Times(2)  // 2 x phone.
       .WillRepeatedly(Return(true));
+  EXPECT_CALL(absl::MockUniform<int>(),
+              Call(absl::IntervalClosed, bitgen, 0, 0))
+      .WillOnce(Return(0));
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
                                   &phone_sampler, bitgen);
@@ -1297,7 +1305,8 @@ TEST(AugmenterTest, ReplaceAddressSameLength) {
       "Visit Zurich! Thanks.",
       {TokenSpec("Visit", 0, 4), TokenSpec("Zurich", 6, 11),
        TokenSpec("Thanks", 13, 18)},
-      {{Augmenter::kLabelContainerName, {LabelSpec("LOCALITY", 1, 1)}}})});
+      {{Augmenter::kLabelContainerName,
+        {LabelSpec("LOCALITY", 1, 1), LabelSpec("OTHER", 2, 2)}}})});
   Augmentations augmentations = {
       .num_total = 1,
       .num_lowercasings_complete_token = 0,
@@ -1335,23 +1344,24 @@ TEST(AugmenterTest, ReplaceAddressSameLength) {
   const bert_annotator::Document augmented = augmenter.documents().documents(1);
   const bert_annotator::Document expected =
       ConstructBertDocument(
-          {DocumentSpec(
-              "Visit Munich! Thanks.",
-              {TokenSpec("Visit", 0, 4), TokenSpec("Munich", 6, 11),
-               TokenSpec("Thanks", 13, 18)},
-              {{Augmenter::kLabelContainerName,
-                {LabelSpec(Augmenter::kAddressReplacementLabel, 1, 1)}}})})
+          {DocumentSpec("Visit Munich! Thanks.",
+                        {TokenSpec("Visit", 0, 4), TokenSpec("Munich", 6, 11),
+                         TokenSpec("Thanks", 13, 18)},
+                        {{Augmenter::kLabelContainerName,
+                          {LabelSpec(Augmenter::kAddressReplacementLabel, 1, 1),
+                           LabelSpec("OTHER", 2, 2)}}})})
           .documents(0);
   ExpectEq(augmented, expected);
 }
 
 TEST(AugmenterTest, ReplaceAddressFewerTokens) {
-  bert_annotator::Documents documents = ConstructBertDocument({DocumentSpec(
-      "Visit Zurich City! Thanks.",
-      {TokenSpec("Visit", 0, 4), TokenSpec("Zurich", 6, 11),
-       TokenSpec("City", 13, 16), TokenSpec("Thanks", 18, 23)},
-      {{Augmenter::kLabelContainerName,
-        {LabelSpec("LOCALITY", 1, 1), LabelSpec("LOCALITY", 2, 2)}}})});
+  bert_annotator::Documents documents = ConstructBertDocument(
+      {DocumentSpec("Visit Zurich City! Thanks.",
+                    {TokenSpec("Visit", 0, 4), TokenSpec("Zurich", 6, 11),
+                     TokenSpec("City", 13, 16), TokenSpec("Thanks", 18, 23)},
+                    {{Augmenter::kLabelContainerName,
+                      {LabelSpec("LOCALITY", 1, 1), LabelSpec("LOCALITY", 2, 2),
+                       LabelSpec("OTHER", 3, 3)}}})});
   Augmentations augmentations = {
       .num_total = 1,
       .num_lowercasings_complete_token = 0,
@@ -1389,23 +1399,24 @@ TEST(AugmenterTest, ReplaceAddressFewerTokens) {
   const bert_annotator::Document augmented = augmenter.documents().documents(1);
   const bert_annotator::Document expected =
       ConstructBertDocument(
-          {DocumentSpec(
-              "Visit Munich! Thanks.",
-              {TokenSpec("Visit", 0, 4), TokenSpec("Munich", 6, 11),
-               TokenSpec("Thanks", 13, 18)},
-              {{Augmenter::kLabelContainerName,
-                {LabelSpec(Augmenter::kAddressReplacementLabel, 1, 1)}}})})
+          {DocumentSpec("Visit Munich! Thanks.",
+                        {TokenSpec("Visit", 0, 4), TokenSpec("Munich", 6, 11),
+                         TokenSpec("Thanks", 13, 18)},
+                        {{Augmenter::kLabelContainerName,
+                          {LabelSpec(Augmenter::kAddressReplacementLabel, 1, 1),
+                           LabelSpec("OTHER", 2, 2)}}})})
           .documents(0);
   ExpectEq(augmented, expected);
 }
 
 TEST(AugmenterTest, ReplaceAddressMultiWordReplacement) {
-  bert_annotator::Documents documents = ConstructBertDocument({DocumentSpec(
-      "Visit Zurich City! Thanks.",
-      {TokenSpec("Visit", 0, 4), TokenSpec("Zurich", 6, 11),
-       TokenSpec("City", 13, 16), TokenSpec("Thanks", 18, 23)},
-      {{Augmenter::kLabelContainerName,
-        {LabelSpec("LOCALITY", 1, 1), LabelSpec("LOCALITY", 2, 2)}}})});
+  bert_annotator::Documents documents = ConstructBertDocument(
+      {DocumentSpec("Visit Zurich City! Thanks.",
+                    {TokenSpec("Visit", 0, 4), TokenSpec("Zurich", 6, 11),
+                     TokenSpec("City", 13, 16), TokenSpec("Thanks", 18, 23)},
+                    {{Augmenter::kLabelContainerName,
+                      {LabelSpec("LOCALITY", 1, 1), LabelSpec("LOCALITY", 2, 2),
+                       LabelSpec("OTHER", 3, 3)}}})});
   Augmentations augmentations = {
       .num_total = 1,
       .num_lowercasings_complete_token = 0,
@@ -1445,10 +1456,121 @@ TEST(AugmenterTest, ReplaceAddressMultiWordReplacement) {
       ConstructBertDocument(
           {DocumentSpec(
               "Visit Munich Centrum! Thanks.",
-              {TokenSpec("Visit", 0, 4), TokenSpec("Munich Centrum", 6, 19),
-               TokenSpec("Thanks", 21, 26)},
+              {TokenSpec("Visit", 0, 4), TokenSpec("Munich", 6, 11),
+               TokenSpec("Centrum", 13, 19), TokenSpec("Thanks", 21, 26)},
               {{Augmenter::kLabelContainerName,
-                {LabelSpec(Augmenter::kAddressReplacementLabel, 1, 1)}}})})
+                {LabelSpec(Augmenter::kAddressReplacementLabel, 1, 2),
+                 LabelSpec("OTHER", 3, 3)}}})})
+          .documents(0);
+  ExpectEq(augmented, expected);
+}
+
+TEST(AugmenterTest, ReplaceAddressMoreTokensReplacement) {
+  bert_annotator::Documents documents = ConstructBertDocument({DocumentSpec(
+      "Visit Zurich! Thanks.",
+      {TokenSpec("Visit", 0, 4), TokenSpec("Zurich", 6, 11),
+       TokenSpec("Thanks", 13, 18)},
+      {{Augmenter::kLabelContainerName,
+        {LabelSpec("LOCALITY", 1, 1), LabelSpec("OTHER", 2, 2)}}})});
+  Augmentations augmentations = {
+      .num_total = 1,
+      .num_lowercasings_complete_token = 0,
+      .probability_per_lowercasing_complete_token = 0.5,
+      .num_lowercasings_first_letter = 0,
+      .probability_per_lowercasing_first_letter = 0.5,
+      .num_uppercasings_complete_token = 0,
+      .probability_per_uppercasing_complete_token = 0.5,
+      .num_uppercasings_first_letter = 0,
+      .probability_per_uppercasing_first_letter = 0.5,
+      .num_address_replacements = 1,
+      .num_phone_replacements = 0,
+      .num_context_drops_between_labels = 0,
+      .num_context_drops_outside_one_label = 0,
+      .probability_per_drop = 0.5,
+      .num_contextless_addresses = 0,
+      .num_contextless_phones = 0,
+      .mask_digits = false};
+  MockRandomSampler address_sampler;
+  MockRandomSampler phone_sampler;
+  std::string replacement = "Munich Centrum";
+  EXPECT_CALL(address_sampler, Sample()).WillOnce(ReturnRef(replacement));
+  absl::MockingBitGen bitgen;
+  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
+      .Times(7)  // 1 x phone, 4 x casing, 2 x context.
+      .WillRepeatedly(Return(false));
+  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 1))
+      .WillOnce(Return(true));  // 1 x address.
+
+  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+                                  &phone_sampler, bitgen);
+
+  augmenter.Augment();
+
+  const bert_annotator::Document augmented = augmenter.documents().documents(1);
+  const bert_annotator::Document expected =
+      ConstructBertDocument(
+          {DocumentSpec(
+              "Visit Munich Centrum! Thanks.",
+              {TokenSpec("Visit", 0, 4), TokenSpec("Munich", 6, 11),
+               TokenSpec("Centrum", 13, 19), TokenSpec("Thanks", 21, 26)},
+              {{Augmenter::kLabelContainerName,
+                {LabelSpec(Augmenter::kAddressReplacementLabel, 1, 2),
+                 LabelSpec("OTHER", 3, 3)}}})})
+          .documents(0);
+  ExpectEq(augmented, expected);
+}
+
+TEST(AugmenterTest, ReplaceAddressPunctuation) {
+  bert_annotator::Documents documents = ConstructBertDocument({DocumentSpec(
+      "Visit Zurich! Thanks.",
+      {TokenSpec("Visit", 0, 4), TokenSpec("Zurich", 6, 11),
+       TokenSpec("Thanks", 13, 18)},
+      {{Augmenter::kLabelContainerName,
+        {LabelSpec("LOCALITY", 1, 1), LabelSpec("OTHER", 2, 2)}}})});
+  Augmentations augmentations = {
+      .num_total = 1,
+      .num_lowercasings_complete_token = 0,
+      .probability_per_lowercasing_complete_token = 0.5,
+      .num_lowercasings_first_letter = 0,
+      .probability_per_lowercasing_first_letter = 0.5,
+      .num_uppercasings_complete_token = 0,
+      .probability_per_uppercasing_complete_token = 0.5,
+      .num_uppercasings_first_letter = 0,
+      .probability_per_uppercasing_first_letter = 0.5,
+      .num_address_replacements = 1,
+      .num_phone_replacements = 0,
+      .num_context_drops_between_labels = 0,
+      .num_context_drops_outside_one_label = 0,
+      .probability_per_drop = 0.5,
+      .num_contextless_addresses = 0,
+      .num_contextless_phones = 0,
+      .mask_digits = false};
+  MockRandomSampler address_sampler;
+  MockRandomSampler phone_sampler;
+  std::string replacement = "Str. A, 1 - a";
+  EXPECT_CALL(address_sampler, Sample()).WillOnce(ReturnRef(replacement));
+  absl::MockingBitGen bitgen;
+  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
+      .Times(7)  // 1 x phone, 4 x casing, 2 x context.
+      .WillRepeatedly(Return(false));
+  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 1))
+      .WillOnce(Return(true));  // 1 x address.
+
+  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+                                  &phone_sampler, bitgen);
+
+  augmenter.Augment();
+
+  const bert_annotator::Document augmented = augmenter.documents().documents(1);
+  const bert_annotator::Document expected =
+      ConstructBertDocument(
+          {DocumentSpec("Visit Str. A, 1 - a! Thanks.",
+                        {TokenSpec("Visit", 0, 4), TokenSpec("Str", 6, 8),
+                         TokenSpec("A", 11, 11), TokenSpec("1", 14, 14),
+                         TokenSpec("a", 18, 18), TokenSpec("Thanks", 20, 25)},
+                        {{Augmenter::kLabelContainerName,
+                          {LabelSpec(Augmenter::kAddressReplacementLabel, 1, 4),
+                           LabelSpec("OTHER", 5, 5)}}})})
           .documents(0);
   ExpectEq(augmented, expected);
 }
@@ -2208,7 +2330,7 @@ TEST(AugmenterTest, MaskDigits) {
       .mask_digits = true};
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
-  std::string replacement = "Addr. 1";
+  std::string replacement = "Addr.01";
   EXPECT_CALL(address_sampler, Sample()).WillOnce(ReturnRef(replacement));
   absl::MockingBitGen bitgen;
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
@@ -2239,9 +2361,9 @@ TEST(AugmenterTest, MaskDigits) {
   expected =
       ConstructBertDocument(
           {DocumentSpec(
-              "Text with Addr. 0 num_0000_bers 00 00",
+              "Text with Addr.00 num_0000_bers 00 00",
               {TokenSpec("Text", 0, 3), TokenSpec("with", 5, 8),
-               TokenSpec("Addr. 0", 10, 16), TokenSpec("num_0000_bers", 18, 30),
+               TokenSpec("Addr.00", 10, 16), TokenSpec("num_0000_bers", 18, 30),
                TokenSpec("00", 32, 33)},
               {{Augmenter::kLabelContainerName,
                 {LabelSpec("ADDRESS", 2, 2)}}})})

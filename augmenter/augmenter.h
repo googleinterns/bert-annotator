@@ -50,6 +50,8 @@ class Augmenter {
   // Cannot be an absl::string_view because it's used for lookups in maps that
   // expect the key to be a string.
   static const std::string& kLabelContainerName;
+  static const std::vector<absl::string_view>&
+      kPunctuationReplacementsWithinText;
 
  private:
   bool AugmentAddress(bert_annotator::Document* const augmented_document);
@@ -59,6 +61,7 @@ class Augmenter {
                           RandomSampler* const sampler);
   bool MaybeReplaceLabel(const double probability, RandomSampler* const sampler,
                          const absl::string_view replacement_label,
+                         const bool split_into_tokens,
                          bert_annotator::Document* const document);
   bool AugmentContext(bert_annotator::Document* const augmented_document);
   // Returns the ranges of all tokens not labeled as an address or phone number.
@@ -88,21 +91,27 @@ class Augmenter {
   const int DropText(const TokenRange& boundaries,
                      bert_annotator::Document* const document) const;
   // May introduce tokens longer than one word.
-  void ReplaceToken(const int token_id, const std::string& replacement,
+  void InsertTokens(int index, const std::vector<bert_annotator::Token> tokens,
                     bert_annotator::Document* const document) const;
   void ShiftTokenBoundaries(const int first_token, const int shift,
                             bert_annotator::Document* const document) const;
-  void ReplaceLabeledSpan(const int token_id,
-                          const absl::string_view replacement_label,
-                          bert_annotator::Document* const document) const;
   // Drops labeled spans if associated tokens were dropped. Otherwise updates
   // the start and end indices to reflect the new token ids.
-  void UpdateLabeledSpansForDroppedTokens(
-      const TokenRange& removed_tokens,
+  void ShiftLabeledSpansForDroppedTokens(
+      const int start, const int shift,
       bert_annotator::Document* const document) const;
+  void DropLabeledSpans(const TokenRange& removed_tokens,
+                        bert_annotator::Document* const document) const;
+  void InsertLabeledSpan(const TokenRange& range, const absl::string_view label,
+                         bert_annotator::Document* const document) const;
+  int RemovePrefixPunctuation(absl::string_view* const string) const;
+  int RemoveSuffixPunctuation(absl::string_view* const string) const;
+  std::vector<bert_annotator::Token> SplitTextIntoTokens(
+      int text_start, const absl::string_view text) const;
   void ReplaceLabeledTokens(const TokenRange& boundaries,
-                            const std::string& replacement,
+                            const absl::string_view replacement,
                             const absl::string_view replacement_label,
+                            const bool split_into_tokens,
                             bert_annotator::Document* const document) const;
   // Changes the complete token or the first letter of a token to
   // lower/upper case. Processes only the specified tokens and returns the ids
