@@ -115,10 +115,7 @@ class Augmenter {
   // Changes the complete token or the first letter of a token to
   // lower/upper case. Processes only the specified tokens and returns the ids
   // of all unmodified tokens.
-  std::vector<int> MaybeChangeCase(const CaseAugmentation case_augmentation,
-                                   const double probability,
-                                   const std::vector<int>& token_ids,
-                                   bert_annotator::Document* const document);
+  bool MaybeChangeCase(bert_annotator::Document* const document);
   google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>
   GetLabelListWithDefault(
       const bert_annotator::Document& document,

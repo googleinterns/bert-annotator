@@ -265,12 +265,11 @@ TEST(AugmenterTest, LowercasingCompleteTokens) {
   absl::MockingBitGen bitgen;
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
       .WillRepeatedly(Return(false));
-  EXPECT_CALL(absl::MockBernoulli(),
-              Call(bitgen, augmentations.prob_lowercasing_complete_token))
-      .WillOnce(Return(false))
-      .WillOnce(Return(false))
-      .WillOnce(Return(false))
-      .WillOnce(Return(true));  // Only lowercase last token.
+  EXPECT_CALL(absl::MockUniform<double>(), Call(bitgen, 0, 1))
+      .WillOnce(Return(0.99))
+      .WillOnce(Return(0.99))
+      .WillOnce(Return(0.99))
+      .WillOnce(Return(0.4));  // Only lowercase last token.
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
                                   &phone_sampler, bitgen);
@@ -315,17 +314,14 @@ TEST(AugmenterTest, LowercasingCompleteTokensDontCountUnneeded) {
       .WillRepeatedly(Return(0));
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
       .WillRepeatedly(Return(false));
-  EXPECT_CALL(absl::MockBernoulli(),
-              Call(bitgen,
-                   augmentations.prob_lowercasing_complete_token))
-      .Times(8)
-      .WillOnce(Return(false))
+  EXPECT_CALL(absl::MockUniform<double>(), Call(bitgen, 0.0, 1.0))
+      .WillOnce(Return(0.99))
       .WillOnce(Return(
-          true))  // First, attempt to lowercase an already lowercased token.
-      .WillOnce(Return(false))
-      .WillOnce(Return(false))
-      .WillOnce(Return(true))  // Lowercase a token with uppercase letters.
-      .WillRepeatedly(Return(false));
+          0.4))  // First, attempt to lowercase an already lowercased token.
+      .WillOnce(Return(0.99))
+      .WillOnce(Return(0.99))
+      .WillOnce(Return(0.4))  // Lowercase a token with uppercase letters.
+      .WillRepeatedly(Return(0.99));
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
                                   &phone_sampler, bitgen);
@@ -366,13 +362,11 @@ TEST(AugmenterTest, LowercasingFirstLetter) {
   absl::MockingBitGen bitgen;
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
       .WillRepeatedly(Return(false));
-  EXPECT_CALL(absl::MockBernoulli(),
-              Call(bitgen,
-                   augmentations.prob_lowercasing_first_letter))
-      .WillOnce(Return(false))
-      .WillOnce(Return(false))
-      .WillOnce(Return(false))
-      .WillOnce(Return(true));  // Only lowercase last token.
+  EXPECT_CALL(absl::MockUniform<double>(), Call(bitgen, 0.0, 1.0))
+      .WillOnce(Return(0.99))
+      .WillOnce(Return(0.99))
+      .WillOnce(Return(0.99))
+      .WillOnce(Return(0.4));  // Only lowercase last token.
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
                                   &phone_sampler, bitgen);
@@ -417,17 +411,15 @@ TEST(AugmenterTest, LowercasingFirstLetterDontCountUnneeded) {
       .WillRepeatedly(Return(0));
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
       .WillRepeatedly(Return(false));
-  EXPECT_CALL(absl::MockBernoulli(),
-              Call(bitgen,
-                   augmentations.prob_lowercasing_first_letter))
+  EXPECT_CALL(absl::MockUniform<double>(), Call(bitgen, 0.0, 1.0))
       .Times(8)
-      .WillOnce(Return(false))
+      .WillOnce(Return(0.99))
       .WillOnce(Return(
-          true))  // First, attempt to lowercase an already lowercased token.
-      .WillOnce(Return(false))
-      .WillOnce(Return(false))
-      .WillOnce(Return(true))  // Lowercase a token with uppercase letters.
-      .WillRepeatedly(Return(false));
+          0.4))  // First, attempt to lowercase an already lowercased token.
+      .WillOnce(Return(0.99))
+      .WillOnce(Return(0.99))
+      .WillOnce(Return(0.4))  // Lowercase a token with uppercase letters.
+      .WillRepeatedly(Return(0.99));
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
                                   &phone_sampler, bitgen);
@@ -468,13 +460,11 @@ TEST(AugmenterTest, UppercasingCompleteTokens) {
   absl::MockingBitGen bitgen;
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
       .WillRepeatedly(Return(false));
-  EXPECT_CALL(absl::MockBernoulli(),
-              Call(bitgen,
-                   augmentations.prob_uppercasing_complete_token))
-      .WillOnce(Return(false))
-      .WillOnce(Return(false))
-      .WillOnce(Return(false))
-      .WillOnce(Return(true));  // Only uppercase last token.
+  EXPECT_CALL(absl::MockUniform<double>(), Call(bitgen, 0.0, 1.0))
+      .WillOnce(Return(0.99))
+      .WillOnce(Return(0.99))
+      .WillOnce(Return(0.99))
+      .WillOnce(Return(0.4));  // Only uppercase last token.
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
                                   &phone_sampler, bitgen);
@@ -519,17 +509,15 @@ TEST(AugmenterTest, UppercasingCompleteTokensDontCountUnneeded) {
       .WillRepeatedly(Return(0));
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
       .WillRepeatedly(Return(false));
-  EXPECT_CALL(absl::MockBernoulli(),
-              Call(bitgen,
-                   augmentations.prob_uppercasing_complete_token))
+  EXPECT_CALL(absl::MockUniform<double>(), Call(bitgen, 0.0, 1.0))
       .Times(8)
-      .WillOnce(Return(false))
+      .WillOnce(Return(0.99))
       .WillOnce(Return(
-          true))  // First, attempt to uppercase an already uppercased token.
-      .WillOnce(Return(false))
-      .WillOnce(Return(false))
-      .WillOnce(Return(true))  // Uppercase a token with lowercase letters.
-      .WillRepeatedly(Return(false));
+          0.4))  // First, attempt to uppercase an already uppercased token.
+      .WillOnce(Return(0.99))
+      .WillOnce(Return(0.99))
+      .WillOnce(Return(0.4))  // Uppercase a token with lowercase letters.
+      .WillRepeatedly(Return(0.99));
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
                                   &phone_sampler, bitgen);
@@ -570,13 +558,11 @@ TEST(AugmenterTest, UppercasingFirstLetter) {
   absl::MockingBitGen bitgen;
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
       .WillRepeatedly(Return(false));
-  EXPECT_CALL(absl::MockBernoulli(),
-              Call(bitgen,
-                   augmentations.prob_uppercasing_first_letter))
-      .WillOnce(Return(false))
-      .WillOnce(Return(false))
-      .WillOnce(Return(false))
-      .WillOnce(Return(true));  // Only uppercase last token.
+  EXPECT_CALL(absl::MockUniform<double>(), Call(bitgen, 0.0, 1.0))
+      .WillOnce(Return(0.99))
+      .WillOnce(Return(0.99))
+      .WillOnce(Return(0.99))
+      .WillOnce(Return(0.4));  // Only uppercase last token.
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
                                   &phone_sampler, bitgen);
@@ -621,17 +607,15 @@ TEST(AugmenterTest, UppercasingFirstLetterDontCountUnneeded) {
       .WillRepeatedly(Return(0));
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
       .WillRepeatedly(Return(false));
-  EXPECT_CALL(absl::MockBernoulli(),
-              Call(bitgen,
-                   augmentations.prob_uppercasing_first_letter))
+  EXPECT_CALL(absl::MockUniform<double>(), Call(bitgen, 0.0, 1.0))
       .Times(8)
-      .WillOnce(Return(false))
+      .WillOnce(Return(0.99))
       .WillOnce(Return(
-          true))  // First, attempt to uppercase an already uppercased token.
-      .WillOnce(Return(false))
-      .WillOnce(Return(false))
-      .WillOnce(Return(true))  // Uppercase a token with lowercase letters.
-      .WillRepeatedly(Return(false));
+          0.4))  // First, attempt to uppercase an already uppercased token.
+      .WillOnce(Return(0.99))
+      .WillOnce(Return(0.99))
+      .WillOnce(Return(0.4))  // Uppercase a token with lowercase letters.
+      .WillRepeatedly(Return(0.99));
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
                                   &phone_sampler, bitgen);
@@ -644,6 +628,53 @@ TEST(AugmenterTest, UppercasingFirstLetterDontCountUnneeded) {
                         {TokenSpec("Text", 0, 3), TokenSpec("With", 5, 8),
                          TokenSpec("some", 22, 25),
                          TokenSpec("InterWordCapitalization", 27, 49)})})
+          .documents(0);
+  ExpectEq(augmented, expected);
+}
+
+TEST(AugmenterTest, MultipleCaseChanges) {
+  bert_annotator::Documents documents = ConstructBertDocument(
+      {DocumentSpec("Text WITH [Non-Token] some more InterWordCapitalization",
+                    {TokenSpec("Text", 0, 3), TokenSpec("WITH", 5, 8),
+                     TokenSpec("some", 22, 25), TokenSpec("more", 27, 30),
+                     TokenSpec("InterWordCapitalization", 32, 54)})});
+  augmenter::Augmentations augmentations{
+      .num_total = 1,
+      .prob_lowercasing_complete_token = 0.2,
+      .prob_lowercasing_first_letter = 0.2,
+      .prob_uppercasing_complete_token = 0.2,
+      .prob_uppercasing_first_letter = 0.2,
+      .prob_address_replacement = 0,
+      .prob_phone_replacement = 0,
+      .prob_context_drop_between_labels = 0,
+      .prob_context_drop_outside_one_label = 0,
+      .num_contextless_addresses = 0,
+      .num_contextless_phones = 0,
+      .mask_digits = false};
+  MockRandomSampler address_sampler;
+  MockRandomSampler phone_sampler;
+  absl::MockingBitGen bitgen;
+  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
+      .WillRepeatedly(Return(false));
+  EXPECT_CALL(absl::MockUniform<double>(), Call(bitgen, 0.0, 1.0))
+      .WillOnce(Return(0.1))   // Lowercase complete first token.
+      .WillOnce(Return(0.3))   // Lowercase first letter of second token.
+      .WillOnce(Return(0.5))   // Uppercase complete third token.
+      .WillOnce(Return(0.7))   // Uppercase first letter of third token.
+      .WillOnce(Return(0.9));  // Do not change fourth token.
+
+  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+                                  &phone_sampler, bitgen);
+  augmenter.Augment();
+
+  bert_annotator::Document augmented = augmenter.documents().documents(1);
+  bert_annotator::Document expected =
+      ConstructBertDocument(
+          {DocumentSpec(
+              "text wITH [Non-Token] SOME More InterWordCapitalization",
+              {TokenSpec("text", 0, 3), TokenSpec("wITH", 5, 8),
+               TokenSpec("SOME", 22, 25), TokenSpec("More", 27, 30),
+               TokenSpec("InterWordCapitalization", 32, 54)})})
           .documents(0);
   ExpectEq(augmented, expected);
 }
