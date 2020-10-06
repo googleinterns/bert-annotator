@@ -52,6 +52,8 @@ class Augmenter {
   static const std::string& kLabelContainerName;
   static const std::vector<absl::string_view>&
       kPunctuationReplacementsWithinText;
+  static const std::vector<absl::string_view>&
+      kPunctuationReplacementsAtSentenceEnd;
 
  private:
   void AugmentAddress(bert_annotator::Document* const augmented_document);

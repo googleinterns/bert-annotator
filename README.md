@@ -55,6 +55,7 @@ Valid flags are:
  - `--prob_context_drop_between_labels=[Probability of dropping context in between labels. Keeps at least the token directly to the left and right of each label]`
  - `--prob_context_drop_outside_one_label=[Probability of selecting a label and dropping context to its left and right. May drop other labels]`
   - `--prob_punctuation_change_between_tokens=[Probability of changing the punctuation between tokens to be one of {", ", ". ", "; ", " - "}]`
+  - `--prob_punctuation_change_at_sentence_end=[Probability of changing the punctuation at the sentence end to be one of {"?", "!", ".", ":", ";", " - "}]`
  - `--num_contextless_addresses=[Number of entries solely consisting of an address, without any context]`
  - `--num_contextless_phones=[Number of entries solely consisting of a phone number, without any context]`
  - `--mask_digits` (to replace all digits with zeros)
