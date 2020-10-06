@@ -229,10 +229,41 @@ void Augmenter::Augment() {
     AugmentPunctuation(augmented_document);
   }
 
+  for (int i = documents_.documents_size() - 1; i > 0; --i) {
+    if (absl::Bernoulli(bitgenref_,
+                        augmentations_.prob_sentence_concatenation)) {
+      AppendDocument(documents_.mutable_documents(i - 1),
+                     documents_.mutable_documents(i));
+      documents_.mutable_documents()->erase(
+          documents_.mutable_documents()->begin() + i);
+    }
+  }
+
   if (augmentations_.mask_digits) {
     for (bert_annotator::Document& document : *documents_.mutable_documents()) {
       MaskDigits(&document);
     }
+  }
+}
+
+void Augmenter::AppendDocument(
+    bert_annotator::Document* const first_document,
+    bert_annotator::Document* const second_document) const {
+  ShiftTokenBoundaries(0, first_document->text().size() + 1, second_document);
+  ShiftLabeledSpansForDroppedTokens(0, first_document->token_size(),
+                                    second_document);
+  first_document->mutable_text()->append(" " + second_document->text());
+  InsertTokens(
+      first_document->token_size(),
+      std::vector<bert_annotator::Token>(second_document->token().begin(),
+                                         second_document->token().end()),
+      first_document);
+  const google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>&
+      labeled_spans = GetLabelListWithDefault(*second_document, {});
+  for (const bert_annotator::LabeledSpan& labeled_span : labeled_spans) {
+    InsertLabeledSpan(TokenRange{.start = labeled_span.token_start(),
+                                 .end = labeled_span.token_end()},
+                      labeled_span.label(), first_document);
   }
 }
 

@@ -119,6 +119,7 @@ augmenter::Augmentations GetDefaultAugmentations() {
       .prob_context_drop_outside_one_label = 0.0,
       .prob_punctuation_change_between_tokens = 0.0,
       .prob_punctuation_change_at_sentence_end = 0.0,
+      .prob_sentence_concatenation = 0.0,
       .num_contextless_addresses = 0,
       .num_contextless_phones = 0,
       .mask_digits = false};
@@ -1596,6 +1597,50 @@ TEST(AugmenterTest, RemoveSeparatorTokens) {
           {DocumentSpec("Text, more ... t.e.x.t.!",
                         {TokenSpec("Text", 0, 3), TokenSpec("more", 6, 9),
                          TokenSpec("t.e.x.t.", 15, 22)})})
+          .documents(0);
+  ExpectEq(augmented, expected);
+}
+
+TEST(AugmenterTest, MergeDocuments) {
+  bert_annotator::Documents documents = ConstructBertDocument(
+      {DocumentSpec(
+           "Some labeled text.",
+           {TokenSpec("Some", 0, 3), TokenSpec("labeled", 5, 11),
+            TokenSpec("text", 13, 16)},
+           {{Augmenter::kLabelContainerName, {LabelSpec("OTHER_A", 1, 1)}}}),
+       DocumentSpec(
+           "Some more labeled text.",
+           {TokenSpec("Some", 0, 3), TokenSpec("more", 5, 8),
+            TokenSpec("labeled", 10, 16), TokenSpec("text", 18, 21)},
+           {{Augmenter::kLabelContainerName, {LabelSpec("OTHER_B", 1, 2)}}})});
+
+  augmenter::Augmentations augmentations = GetDefaultAugmentations();
+  augmentations.prob_sentence_concatenation = 0.5;
+  MockRandomSampler address_sampler;
+  MockRandomSampler phone_sampler;
+  absl::MockingBitGen bitgen;
+  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
+      .WillRepeatedly(Return(false));
+  EXPECT_CALL(absl::MockBernoulli(),
+              Call(bitgen, augmentations.prob_sentence_concatenation))
+      .WillOnce(Return(true));
+
+  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+                                  &phone_sampler, bitgen);
+  augmenter.Augment();
+
+  ASSERT_EQ(augmenter.documents().documents_size(), 1);
+  bert_annotator::Document augmented = augmenter.documents().documents(0);
+  bert_annotator::Document expected =
+      ConstructBertDocument(
+          {DocumentSpec(
+              "Some labeled text. Some more labeled text.",
+              {TokenSpec("Some", 0, 3), TokenSpec("labeled", 5, 11),
+               TokenSpec("text", 13, 16), TokenSpec("Some", 19, 22),
+               TokenSpec("more", 24, 27), TokenSpec("labeled", 29, 35),
+               TokenSpec("text", 37, 40)},
+              {{Augmenter::kLabelContainerName,
+                {LabelSpec("OTHER_A", 1, 1), LabelSpec("OTHER_B", 4, 5)}}})})
           .documents(0);
   ExpectEq(augmented, expected);
 }
