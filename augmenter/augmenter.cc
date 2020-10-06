@@ -530,7 +530,7 @@ void Augmenter::InsertTokens(int index,
                              const std::vector<bert_annotator::Token> tokens,
                              bert_annotator::Document* const document) const {
   for (bert_annotator::Token token : tokens) {
-    bert_annotator::Token* new_token = document->add_token();
+    bert_annotator::Token* const new_token = document->add_token();
     new_token->CopyFrom(token);
 
     for (int i = document->token_size() - 1; i > index; --i) {
@@ -565,7 +565,7 @@ void Augmenter::DropLabeledSpans(
   google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>* const
       labeled_spans = GetLabelListWithDefault(document, &empty_list);
   for (int i = labeled_spans->size() - 1; i >= 0; --i) {
-    bert_annotator::LabeledSpan* labeled_span = labeled_spans->Mutable(i);
+    bert_annotator::LabeledSpan* const labeled_span = labeled_spans->Mutable(i);
     if (labeled_span->token_end() >= removed_tokens.start &&
         labeled_span->token_start() <= removed_tokens.end) {
       labeled_spans->erase(labeled_spans->begin() + i);
@@ -579,7 +579,7 @@ void Augmenter::InsertLabeledSpan(
   google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan> empty_list;
   google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>* const
       labeled_spans = GetLabelListWithDefault(document, &empty_list);
-  bert_annotator::LabeledSpan* new_span = labeled_spans->Add();
+  bert_annotator::LabeledSpan* const new_span = labeled_spans->Add();
   new_span->set_label(std::string(label));
   new_span->set_token_start(range.start);
   new_span->set_token_end(range.end);
@@ -645,17 +645,14 @@ std::vector<bert_annotator::Token> Augmenter::SplitTextIntoTokens(
     replacement_text_index += RemovePrefixPunctuation(&potential_token_text);
     int trailing_punctuation = RemoveSuffixPunctuation(&potential_token_text);
 
-    if (potential_token_text.size() == 0) {
-      replacement_text_index += trailing_punctuation + 1;
-      continue;
+    if (potential_token_text.size() > 0) {
+      bert_annotator::Token token;
+      token.set_word(std::string(potential_token_text));
+      token.set_start(text_start + replacement_text_index);
+      token.set_end(text_start + replacement_text_index +
+                    potential_token_text.size() - 1);
+      new_tokens.push_back(token);
     }
-
-    bert_annotator::Token token;
-    token.set_word(std::string(potential_token_text));
-    token.set_start(text_start + replacement_text_index);
-    token.set_end(text_start + replacement_text_index +
-                  potential_token_text.size() - 1);
-    new_tokens.push_back(token);
     replacement_text_index +=
         potential_token_text.size() + 1 + trailing_punctuation;
   }
@@ -769,7 +766,7 @@ Augmenter::GetLabelListWithDefault(
   return document.labeled_spans().at(kLabelContainerName).labeled_span();
 }
 
-google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>*
+google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>* const
 Augmenter::GetLabelListWithDefault(
     bert_annotator::Document* document,
     google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>*

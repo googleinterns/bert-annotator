@@ -126,7 +126,7 @@ class Augmenter {
       const bert_annotator::Document& document,
       google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>
           defaults_to) const;
-  google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>*
+  google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>* const
   GetLabelListWithDefault(
       bert_annotator::Document* document,
       google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>*
