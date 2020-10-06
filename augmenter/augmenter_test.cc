@@ -107,18 +107,21 @@ bert_annotator::Documents ConstructBertDocument(
 }
 
 augmenter::Augmentations GetDefaultAugmentations() {
-  return augmenter::Augmentations{.num_total = 0,
-                                  .prob_lowercasing_complete_token = 0.0,
-                                  .prob_lowercasing_first_letter = 0.0,
-                                  .prob_uppercasing_complete_token = 0.0,
-                                  .prob_uppercasing_first_letter = 0.0,
-                                  .prob_address_replacement = 0.0,
-                                  .prob_phone_replacement = 0.0,
-                                  .prob_context_drop_between_labels = 0.0,
-                                  .prob_context_drop_outside_one_label = 0.0,
-                                  .num_contextless_addresses = 0,
-                                  .num_contextless_phones = 0,
-                                  .mask_digits = false};
+  return augmenter::Augmentations{
+      .num_total = 0,
+      .prob_lowercasing_complete_token = 0.0,
+      .prob_lowercasing_first_letter = 0.0,
+      .prob_uppercasing_complete_token = 0.0,
+      .prob_uppercasing_first_letter = 0.0,
+      .prob_address_replacement = 0.0,
+      .prob_phone_replacement = 0.0,
+      .prob_context_drop_between_labels = 0.0,
+      .prob_context_drop_outside_one_label = 0.0,
+      .prob_punctuation_change_between_tokens = 0.0,
+      .prob_punctuation_change_at_sentence_end = 0.0,
+      .num_contextless_addresses = 0,
+      .num_contextless_phones = 0,
+      .mask_digits = false};
 }
 
 void ExpectEq(const bert_annotator::Document a,
@@ -1431,20 +1434,9 @@ TEST(AugmenterTest, ChangePunctuationBetweenWords) {
                     {TokenSpec("Text", 0, 3), TokenSpec("with", 7, 10),
                      TokenSpec("some", 13, 16), TokenSpec("more", 19, 22),
                      TokenSpec("punctuation", 24, 34)})});
-  augmenter::Augmentations augmentations{
-      .num_total = 1,
-      .prob_lowercasing_complete_token = 0,
-      .prob_lowercasing_first_letter = 0,
-      .prob_uppercasing_complete_token = 0,
-      .prob_uppercasing_first_letter = 0,
-      .prob_address_replacement = 0,
-      .prob_phone_replacement = 0,
-      .prob_context_drop_between_labels = 0,
-      .prob_context_drop_outside_one_label = 0,
-      .prob_punctuation_change_between_tokens = 1,
-      .num_contextless_addresses = 0,
-      .num_contextless_phones = 0,
-      .mask_digits = false};
+  augmenter::Augmentations augmentations = GetDefaultAugmentations();
+  augmentations.num_total = 1;
+  augmentations.prob_punctuation_change_between_tokens = 1;
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
@@ -1482,21 +1474,9 @@ TEST(AugmenterTest, ChangePunctuationAtSentenceEnd) {
   bert_annotator::Documents documents =
       ConstructBertDocument({DocumentSpec("Text", {TokenSpec("Text", 0, 3)}),
                              DocumentSpec("Text!", {TokenSpec("Text", 0, 3)})});
-  augmenter::Augmentations augmentations{
-      .num_total = 6,
-      .prob_lowercasing_complete_token = 0,
-      .prob_lowercasing_first_letter = 0,
-      .prob_uppercasing_complete_token = 0,
-      .prob_uppercasing_first_letter = 0,
-      .prob_address_replacement = 0,
-      .prob_phone_replacement = 0,
-      .prob_context_drop_between_labels = 0,
-      .prob_context_drop_outside_one_label = 0,
-      .prob_punctuation_change_between_tokens = 0,
-      .prob_punctuation_change_at_sentence_end = 1,
-      .num_contextless_addresses = 0,
-      .num_contextless_phones = 0,
-      .mask_digits = false};
+  augmenter::Augmentations augmentations = GetDefaultAugmentations();
+  augmentations.num_total = 6;
+  augmentations.prob_punctuation_change_at_sentence_end = 1;
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
