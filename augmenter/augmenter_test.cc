@@ -148,19 +148,9 @@ void ExpectEq(const bert_annotator::Document a,
 
 TEST(AugmenterDeathTest, NegativeProbability) {
   bert_annotator::Documents documents = ConstructBertDocument({});
-  augmenter::Augmentations augmentations{
-      .num_total = 1,
-      .prob_lowercasing_complete_token = 0,
-      .prob_lowercasing_first_letter = 0,
-      .prob_uppercasing_complete_token = 0,
-      .prob_uppercasing_first_letter = 0,
-      .prob_address_replacement = -0.5,
-      .prob_phone_replacement = 0,
-      .prob_context_drop_between_labels = 0,
-      .prob_context_drop_outside_one_label = 0,
-      .num_contextless_addresses = 0,
-      .num_contextless_phones = 0,
-      .mask_digits = false};
+  augmenter::Augmentations augmentations = GetDefaultAugmentations();
+  augmentations.num_total = 1;
+  augmentations.prob_address_replacement = -0.5;
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
@@ -175,19 +165,9 @@ TEST(AugmenterDeathTest, NegativeProbability) {
 
 TEST(AugmenterDeathTest, ProbabilityGreaterOne) {
   bert_annotator::Documents documents = ConstructBertDocument({});
-  augmenter::Augmentations augmentations{
-      .num_total = 1,
-      .prob_lowercasing_complete_token = 0,
-      .prob_lowercasing_first_letter = 0,
-      .prob_uppercasing_complete_token = 0,
-      .prob_uppercasing_first_letter = 0,
-      .prob_address_replacement = 1.5,
-      .prob_phone_replacement = 0,
-      .prob_context_drop_between_labels = 0,
-      .prob_context_drop_outside_one_label = 0,
-      .num_contextless_addresses = 0,
-      .num_contextless_phones = 0,
-      .mask_digits = false};
+  augmenter::Augmentations augmentations = GetDefaultAugmentations();
+  augmentations.num_total = 1;
+  augmentations.prob_address_replacement = 1.5;
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
