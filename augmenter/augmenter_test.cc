@@ -106,6 +106,21 @@ bert_annotator::Documents ConstructBertDocument(
   return documents;
 }
 
+augmenter::Augmentations GetDefaultAugmentations() {
+  return augmenter::Augmentations{.num_total = 0,
+                                  .prob_lowercasing_complete_token = 0.0,
+                                  .prob_lowercasing_first_letter = 0.0,
+                                  .prob_uppercasing_complete_token = 0.0,
+                                  .prob_uppercasing_first_letter = 0.0,
+                                  .prob_address_replacement = 0.0,
+                                  .prob_phone_replacement = 0.0,
+                                  .prob_context_drop_between_labels = 0.0,
+                                  .prob_context_drop_outside_one_label = 0.0,
+                                  .num_contextless_addresses = 0,
+                                  .num_contextless_phones = 0,
+                                  .mask_digits = false};
+}
+
 void ExpectEq(const bert_annotator::Document a,
               const bert_annotator::Document b) {
   EXPECT_STREQ(a.text().c_str(), b.text().c_str());
@@ -189,19 +204,7 @@ TEST(AugmenterTest, NoAugmentation) {
   bert_annotator::Documents documents = ConstructBertDocument(
       {DocumentSpec("Text with some InterWordCapitalization", {})});
 
-  augmenter::Augmentations augmentations{
-      .num_total = 0,
-      .prob_lowercasing_complete_token = 0,
-      .prob_lowercasing_first_letter = 0,
-      .prob_uppercasing_complete_token = 0,
-      .prob_uppercasing_first_letter = 0,
-      .prob_address_replacement = 0,
-      .prob_phone_replacement = 0,
-      .prob_context_drop_between_labels = 0,
-      .prob_context_drop_outside_one_label = 0,
-      .num_contextless_addresses = 0,
-      .num_contextless_phones = 0,
-      .mask_digits = false};
+  augmenter::Augmentations augmentations = GetDefaultAugmentations();
 
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
@@ -215,19 +218,12 @@ TEST(AugmenterTest, NoAugmentation) {
 
 TEST(AugmenterDeathTest, InvalidCaseProbabilitySum) {
   bert_annotator::Documents documents = ConstructBertDocument({});
-  augmenter::Augmentations augmentations{
-      .num_total = 1,
-      .prob_lowercasing_complete_token = 0.3,
-      .prob_lowercasing_first_letter = 0.3,
-      .prob_uppercasing_complete_token = 0.3,
-      .prob_uppercasing_first_letter = 0.3,
-      .prob_address_replacement = 0,
-      .prob_phone_replacement = 0,
-      .prob_context_drop_between_labels = 0,
-      .prob_context_drop_outside_one_label = 0,
-      .num_contextless_addresses = 0,
-      .num_contextless_phones = 0,
-      .mask_digits = false};
+  augmenter::Augmentations augmentations = GetDefaultAugmentations();
+  augmentations.num_total = 1;
+  augmentations.prob_lowercasing_complete_token = 0.3;
+  augmentations.prob_lowercasing_first_letter = 0.3;
+  augmentations.prob_uppercasing_complete_token = 0.3;
+  augmentations.prob_uppercasing_first_letter = 0.3;
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
@@ -247,19 +243,9 @@ TEST(AugmenterTest, LowercasingCompleteTokens) {
                     {TokenSpec("Text", 0, 3), TokenSpec("with", 5, 8),
                      TokenSpec("some", 22, 25),
                      TokenSpec("InterWordCapitalization", 27, 49)})});
-  augmenter::Augmentations augmentations{
-      .num_total = 1,
-      .prob_lowercasing_complete_token = 0.5,
-      .prob_lowercasing_first_letter = 0,
-      .prob_uppercasing_complete_token = 0,
-      .prob_uppercasing_first_letter = 0,
-      .prob_address_replacement = 0,
-      .prob_phone_replacement = 0,
-      .prob_context_drop_between_labels = 0,
-      .prob_context_drop_outside_one_label = 0,
-      .num_contextless_addresses = 0,
-      .num_contextless_phones = 0,
-      .mask_digits = false};
+  augmenter::Augmentations augmentations = GetDefaultAugmentations();
+  augmentations.num_total = 1;
+  augmentations.prob_lowercasing_complete_token = 0.5;
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
@@ -292,19 +278,9 @@ TEST(AugmenterTest, LowercasingFirstLetter) {
                     {TokenSpec("Text", 0, 3), TokenSpec("with", 5, 8),
                      TokenSpec("some", 22, 25),
                      TokenSpec("InterWordCapitalization", 27, 49)})});
-  augmenter::Augmentations augmentations{
-      .num_total = 1,
-      .prob_lowercasing_complete_token = 0,
-      .prob_lowercasing_first_letter = 0.5,
-      .prob_uppercasing_complete_token = 0,
-      .prob_uppercasing_first_letter = 0,
-      .prob_address_replacement = 0,
-      .prob_phone_replacement = 0,
-      .prob_context_drop_between_labels = 0,
-      .prob_context_drop_outside_one_label = 0,
-      .num_contextless_addresses = 0,
-      .num_contextless_phones = 0,
-      .mask_digits = false};
+  augmenter::Augmentations augmentations = GetDefaultAugmentations();
+  augmentations.num_total = 1;
+  augmentations.prob_lowercasing_first_letter = 0.5;
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
@@ -337,19 +313,9 @@ TEST(AugmenterTest, UppercasingCompleteTokens) {
                     {TokenSpec("Text", 0, 3), TokenSpec("with", 5, 8),
                      TokenSpec("some", 22, 25),
                      TokenSpec("InterWordCapitalization", 27, 49)})});
-  augmenter::Augmentations augmentations{
-      .num_total = 1,
-      .prob_lowercasing_complete_token = 0,
-      .prob_lowercasing_first_letter = 0,
-      .prob_uppercasing_complete_token = 0.5,
-      .prob_uppercasing_first_letter = 0,
-      .prob_address_replacement = 0,
-      .prob_phone_replacement = 0,
-      .prob_context_drop_between_labels = 0,
-      .prob_context_drop_outside_one_label = 0,
-      .num_contextless_addresses = 0,
-      .num_contextless_phones = 0,
-      .mask_digits = false};
+  augmenter::Augmentations augmentations = GetDefaultAugmentations();
+  augmentations.num_total = 1;
+  augmentations.prob_uppercasing_complete_token = 0.5;
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
@@ -382,19 +348,9 @@ TEST(AugmenterTest, UppercasingFirstLetter) {
                     {TokenSpec("Text", 0, 3), TokenSpec("with", 5, 8),
                      TokenSpec("some", 22, 25),
                      TokenSpec("interWordCapitalization", 27, 49)})});
-  augmenter::Augmentations augmentations{
-      .num_total = 1,
-      .prob_lowercasing_complete_token = 0,
-      .prob_lowercasing_first_letter = 0,
-      .prob_uppercasing_complete_token = 0,
-      .prob_uppercasing_first_letter = 0.5,
-      .prob_address_replacement = 0,
-      .prob_phone_replacement = 0,
-      .prob_context_drop_between_labels = 0,
-      .prob_context_drop_outside_one_label = 0,
-      .num_contextless_addresses = 0,
-      .num_contextless_phones = 0,
-      .mask_digits = false};
+  augmenter::Augmentations augmentations = GetDefaultAugmentations();
+  augmentations.num_total = 1;
+  augmentations.prob_uppercasing_first_letter = 0.5;
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
@@ -427,19 +383,12 @@ TEST(AugmenterTest, MultipleCaseChanges) {
                     {TokenSpec("Text", 0, 3), TokenSpec("WITH", 5, 8),
                      TokenSpec("some", 22, 25), TokenSpec("more", 27, 30),
                      TokenSpec("InterWordCapitalization", 32, 54)})});
-  augmenter::Augmentations augmentations{
-      .num_total = 1,
-      .prob_lowercasing_complete_token = 0.2,
-      .prob_lowercasing_first_letter = 0.2,
-      .prob_uppercasing_complete_token = 0.2,
-      .prob_uppercasing_first_letter = 0.2,
-      .prob_address_replacement = 0,
-      .prob_phone_replacement = 0,
-      .prob_context_drop_between_labels = 0,
-      .prob_context_drop_outside_one_label = 0,
-      .num_contextless_addresses = 0,
-      .num_contextless_phones = 0,
-      .mask_digits = false};
+  augmenter::Augmentations augmentations = GetDefaultAugmentations();
+  augmentations.num_total = 1;
+  augmentations.prob_lowercasing_complete_token = 0.2;
+  augmentations.prob_lowercasing_first_letter = 0.2;
+  augmentations.prob_uppercasing_complete_token = 0.2;
+  augmentations.prob_uppercasing_first_letter = 0.2;
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
@@ -475,19 +424,9 @@ TEST(AugmenterTest, ReplacePhoneSameLength) {
                      TokenSpec("Thanks", 17, 22)},
                     {{Augmenter::kLabelContainerName,
                       {LabelSpec(Augmenter::kPhoneReplacementLabel, 1, 1)}}})});
-  augmenter::Augmentations augmentations{
-      .num_total = 1,
-      .prob_lowercasing_complete_token = 0,
-      .prob_lowercasing_first_letter = 0,
-      .prob_uppercasing_complete_token = 0,
-      .prob_uppercasing_first_letter = 0,
-      .prob_address_replacement = 0,
-      .prob_phone_replacement = 0.5,
-      .prob_context_drop_between_labels = 0,
-      .prob_context_drop_outside_one_label = 0,
-      .num_contextless_addresses = 0,
-      .num_contextless_phones = 0,
-      .mask_digits = false};
+  augmenter::Augmentations augmentations = GetDefaultAugmentations();
+  augmentations.num_total = 1;
+  augmentations.prob_phone_replacement = 0.5;
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   std::string replacement = "9876543210";
@@ -524,19 +463,9 @@ TEST(AugmenterTest, ReplacePhoneLongerLength) {
                      TokenSpec("Thanks", 17, 22)},
                     {{Augmenter::kLabelContainerName,
                       {LabelSpec(Augmenter::kPhoneReplacementLabel, 1, 1)}}})});
-  augmenter::Augmentations augmentations{
-      .num_total = 1,
-      .prob_lowercasing_complete_token = 0,
-      .prob_lowercasing_first_letter = 0,
-      .prob_uppercasing_complete_token = 0,
-      .prob_uppercasing_first_letter = 0,
-      .prob_address_replacement = 0,
-      .prob_phone_replacement = 0.5,
-      .prob_context_drop_between_labels = 0,
-      .prob_context_drop_outside_one_label = 0,
-      .num_contextless_addresses = 0,
-      .num_contextless_phones = 0,
-      .mask_digits = false};
+  augmenter::Augmentations augmentations = GetDefaultAugmentations();
+  augmentations.num_total = 1;
+  augmentations.prob_phone_replacement = 0.5;
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   std::string replacement = "98765432109876543210";
@@ -574,19 +503,9 @@ TEST(AugmenterTest, ReplacePhoneShorterLength) {
                      TokenSpec("Thanks", 17, 22)},
                     {{Augmenter::kLabelContainerName,
                       {LabelSpec(Augmenter::kPhoneReplacementLabel, 1, 1)}}})});
-  augmenter::Augmentations augmentations{
-      .num_total = 1,
-      .prob_lowercasing_complete_token = 0,
-      .prob_lowercasing_first_letter = 0,
-      .prob_uppercasing_complete_token = 0,
-      .prob_uppercasing_first_letter = 0,
-      .prob_address_replacement = 0,
-      .prob_phone_replacement = 0.5,
-      .prob_context_drop_between_labels = 0,
-      .prob_context_drop_outside_one_label = 0,
-      .num_contextless_addresses = 0,
-      .num_contextless_phones = 0,
-      .mask_digits = false};
+  augmenter::Augmentations augmentations = GetDefaultAugmentations();
+  augmentations.num_total = 1;
+  augmentations.prob_phone_replacement = 0.5;
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   std::string replacement = "98";
@@ -622,19 +541,9 @@ TEST(AugmenterTest, ReplacePhoneStart) {
       {TokenSpec("0123456789", 0, 9), TokenSpec("Thanks", 12, 17)},
       {{Augmenter::kLabelContainerName,
         {LabelSpec(Augmenter::kPhoneReplacementLabel, 0, 0)}}})});
-  augmenter::Augmentations augmentations{
-      .num_total = 1,
-      .prob_lowercasing_complete_token = 0,
-      .prob_lowercasing_first_letter = 0,
-      .prob_uppercasing_complete_token = 0,
-      .prob_uppercasing_first_letter = 0,
-      .prob_address_replacement = 0,
-      .prob_phone_replacement = 0.5,
-      .prob_context_drop_between_labels = 0,
-      .prob_context_drop_outside_one_label = 0,
-      .num_contextless_addresses = 0,
-      .num_contextless_phones = 0,
-      .mask_digits = false};
+  augmenter::Augmentations augmentations = GetDefaultAugmentations();
+  augmentations.num_total = 1;
+  augmentations.prob_phone_replacement = 0.5;
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   std::string replacement = "9876543210";
@@ -669,19 +578,9 @@ TEST(AugmenterTest, ReplacePhoneEnd) {
                     {TokenSpec("Call", 0, 3), TokenSpec("0123456789", 5, 14)},
                     {{Augmenter::kLabelContainerName,
                       {LabelSpec(Augmenter::kPhoneReplacementLabel, 1, 1)}}})});
-  augmenter::Augmentations augmentations{
-      .num_total = 1,
-      .prob_lowercasing_complete_token = 0,
-      .prob_lowercasing_first_letter = 0,
-      .prob_uppercasing_complete_token = 0,
-      .prob_uppercasing_first_letter = 0,
-      .prob_address_replacement = 0,
-      .prob_phone_replacement = 0.5,
-      .prob_context_drop_between_labels = 0,
-      .prob_context_drop_outside_one_label = 0,
-      .num_contextless_addresses = 0,
-      .num_contextless_phones = 0,
-      .mask_digits = false};
+  augmenter::Augmentations augmentations = GetDefaultAugmentations();
+  augmentations.num_total = 1;
+  augmentations.prob_phone_replacement = 0.5;
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   std::string replacement = "9876543210";
@@ -718,19 +617,9 @@ TEST(AugmenterTest, ReplacePhoneChooseLabel) {
                     {{Augmenter::kLabelContainerName,
                       {LabelSpec(Augmenter::kPhoneReplacementLabel, 0, 0),
                        LabelSpec(Augmenter::kPhoneReplacementLabel, 2, 2)}}})});
-  augmenter::Augmentations augmentations{
-      .num_total = 2,
-      .prob_lowercasing_complete_token = 0,
-      .prob_lowercasing_first_letter = 0,
-      .prob_uppercasing_complete_token = 0,
-      .prob_uppercasing_first_letter = 0,
-      .prob_address_replacement = 0,
-      .prob_phone_replacement = 0.5,
-      .prob_context_drop_between_labels = 0,
-      .prob_context_drop_outside_one_label = 0,
-      .num_contextless_addresses = 0,
-      .num_contextless_phones = 0,
-      .mask_digits = false};
+  augmenter::Augmentations augmentations = GetDefaultAugmentations();
+  augmentations.num_total = 2;
+  augmentations.prob_phone_replacement = 0.5;
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   std::string replacement = "9876543210";
@@ -790,19 +679,9 @@ TEST(AugmenterTest, ReplacePhoneMissingLabelContainer) {
                      TokenSpec("Thanks", 17, 22)},
                     {{Augmenter::kLabelContainerName,
                       {LabelSpec(Augmenter::kPhoneReplacementLabel, 1, 1)}}})});
-  augmenter::Augmentations augmentations{
-      .num_total = 2,
-      .prob_lowercasing_complete_token = 0,
-      .prob_lowercasing_first_letter = 0,
-      .prob_uppercasing_complete_token = 0,
-      .prob_uppercasing_first_letter = 0,
-      .prob_address_replacement = 0,
-      .prob_phone_replacement = 0.5,
-      .prob_context_drop_between_labels = 0,
-      .prob_context_drop_outside_one_label = 0,
-      .num_contextless_addresses = 0,
-      .num_contextless_phones = 0,
-      .mask_digits = false};
+  augmenter::Augmentations augmentations = GetDefaultAugmentations();
+  augmentations.num_total = 2;
+  augmentations.prob_phone_replacement = 0.5;
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   std::string replacement = "9876543210";
@@ -846,19 +725,9 @@ TEST(AugmenterTest, UpdateLabels) {
       {TokenSpec("Visit", 0, 4), TokenSpec("Zurich", 6, 11),
        TokenSpec("Thanks", 13, 18)},
       {{Augmenter::kLabelContainerName, {LabelSpec("LOCALITY", 1, 1)}}})});
-  augmenter::Augmentations augmentations{
-      .num_total = 0,
-      .prob_lowercasing_complete_token = 0,
-      .prob_lowercasing_first_letter = 0,
-      .prob_uppercasing_complete_token = 0,
-      .prob_uppercasing_first_letter = 0,
-      .prob_address_replacement = 0,
-      .prob_phone_replacement = 0,
-      .prob_context_drop_between_labels = 0,
-      .prob_context_drop_outside_one_label = 0,
-      .num_contextless_addresses = 0,
-      .num_contextless_phones = 0,
-      .mask_digits = false};
+  augmenter::Augmentations augmentations = GetDefaultAugmentations();
+  augmentations.num_total = 1;
+  augmentations.prob_phone_replacement = 0.5;
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   Augmenter augmenter =
@@ -886,18 +755,9 @@ TEST(AugmenterTest, ReplaceAddressSameLength) {
        TokenSpec("Thanks", 14, 19)},
       {{Augmenter::kLabelContainerName,
         {LabelSpec("LOCALITY", 1, 1), LabelSpec("OTHER", 2, 2)}}})});
-  Augmentations augmentations = {.num_total = 1,
-                                 .prob_lowercasing_complete_token = 0,
-                                 .prob_lowercasing_first_letter = 0,
-                                 .prob_uppercasing_complete_token = 0,
-                                 .prob_uppercasing_first_letter = 0,
-                                 .prob_address_replacement = 0.5,
-                                 .prob_phone_replacement = 0,
-                                 .prob_context_drop_between_labels = 0,
-                                 .prob_context_drop_outside_one_label = 0,
-                                 .num_contextless_addresses = 0,
-                                 .num_contextless_phones = 0,
-                                 .mask_digits = false};
+  augmenter::Augmentations augmentations = GetDefaultAugmentations();
+  augmentations.num_total = 1;
+  augmentations.prob_address_replacement = 0.5;
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   std::string replacement = "Munich";
@@ -935,18 +795,9 @@ TEST(AugmenterTest, ReplaceAddressFewerTokens) {
                     {{Augmenter::kLabelContainerName,
                       {LabelSpec("LOCALITY", 1, 1), LabelSpec("LOCALITY", 2, 2),
                        LabelSpec("OTHER", 3, 3)}}})});
-  Augmentations augmentations = {.num_total = 1,
-                                 .prob_lowercasing_complete_token = 0,
-                                 .prob_lowercasing_first_letter = 0,
-                                 .prob_uppercasing_complete_token = 0,
-                                 .prob_uppercasing_first_letter = 0,
-                                 .prob_address_replacement = 0.5,
-                                 .prob_phone_replacement = 0,
-                                 .prob_context_drop_between_labels = 0,
-                                 .prob_context_drop_outside_one_label = 0,
-                                 .num_contextless_addresses = 0,
-                                 .num_contextless_phones = 0,
-                                 .mask_digits = false};
+  augmenter::Augmentations augmentations = GetDefaultAugmentations();
+  augmentations.num_total = 1;
+  augmentations.prob_address_replacement = 0.5;
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   std::string replacement = "Munich";
@@ -984,18 +835,9 @@ TEST(AugmenterTest, ReplaceAddressMultiWordReplacement) {
                     {{Augmenter::kLabelContainerName,
                       {LabelSpec("LOCALITY", 1, 1), LabelSpec("LOCALITY", 2, 2),
                        LabelSpec("OTHER", 3, 3)}}})});
-  Augmentations augmentations = {.num_total = 1,
-                                 .prob_lowercasing_complete_token = 0,
-                                 .prob_lowercasing_first_letter = 0,
-                                 .prob_uppercasing_complete_token = 0,
-                                 .prob_uppercasing_first_letter = 0,
-                                 .prob_address_replacement = 0.5,
-                                 .prob_phone_replacement = 0,
-                                 .prob_context_drop_between_labels = 0,
-                                 .prob_context_drop_outside_one_label = 0,
-                                 .num_contextless_addresses = 0,
-                                 .num_contextless_phones = 0,
-                                 .mask_digits = false};
+  augmenter::Augmentations augmentations = GetDefaultAugmentations();
+  augmentations.num_total = 1;
+  augmentations.prob_address_replacement = 0.5;
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   std::string replacement = "Munich Centrum";
@@ -1033,18 +875,9 @@ TEST(AugmenterTest, ReplaceAddressMoreTokensReplacement) {
        TokenSpec("Thanks", 14, 19)},
       {{Augmenter::kLabelContainerName,
         {LabelSpec("LOCALITY", 1, 1), LabelSpec("OTHER", 2, 2)}}})});
-  Augmentations augmentations = {.num_total = 1,
-                                 .prob_lowercasing_complete_token = 0,
-                                 .prob_lowercasing_first_letter = 0,
-                                 .prob_uppercasing_complete_token = 0,
-                                 .prob_uppercasing_first_letter = 0,
-                                 .prob_address_replacement = 0.5,
-                                 .prob_phone_replacement = 0,
-                                 .prob_context_drop_between_labels = 0,
-                                 .prob_context_drop_outside_one_label = 0,
-                                 .num_contextless_addresses = 0,
-                                 .num_contextless_phones = 0,
-                                 .mask_digits = false};
+  augmenter::Augmentations augmentations = GetDefaultAugmentations();
+  augmentations.num_total = 1;
+  augmentations.prob_address_replacement = 0.5;
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   std::string replacement = "Munich Centrum";
@@ -1082,18 +915,9 @@ TEST(AugmenterTest, ReplaceAddressPunctuation) {
        TokenSpec("Thanks", 14, 19)},
       {{Augmenter::kLabelContainerName,
         {LabelSpec("LOCALITY", 1, 1), LabelSpec("OTHER", 2, 2)}}})});
-  Augmentations augmentations = {.num_total = 1,
-                                 .prob_lowercasing_complete_token = 0,
-                                 .prob_lowercasing_first_letter = 0,
-                                 .prob_uppercasing_complete_token = 0,
-                                 .prob_uppercasing_first_letter = 0,
-                                 .prob_address_replacement = 0.5,
-                                 .prob_phone_replacement = 0,
-                                 .prob_context_drop_between_labels = 0,
-                                 .prob_context_drop_outside_one_label = 0,
-                                 .num_contextless_addresses = 0,
-                                 .num_contextless_phones = 0,
-                                 .mask_digits = false};
+  augmenter::Augmentations augmentations = GetDefaultAugmentations();
+  augmentations.num_total = 1;
+  augmentations.prob_address_replacement = 0.5;
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   std::string replacement = "Str. A, 1 - a";
@@ -1132,19 +956,9 @@ TEST(AugmenterTest, DropContextDetectMultipleDroppableSequences) {
                      TokenSpec("Postfix", 25, 31), TokenSpec("tokens", 33, 38)},
                     {{Augmenter::kLabelContainerName,
                       {LabelSpec(Augmenter::kPhoneReplacementLabel, 2, 2)}}})});
-  augmenter::Augmentations augmentations{
-      .num_total = 1,
-      .prob_lowercasing_complete_token = 0,
-      .prob_lowercasing_first_letter = 0,
-      .prob_uppercasing_complete_token = 0,
-      .prob_uppercasing_first_letter = 0,
-      .prob_address_replacement = 0,
-      .prob_phone_replacement = 0,
-      .prob_context_drop_between_labels = 0.5,
-      .prob_context_drop_outside_one_label = 0,
-      .num_contextless_addresses = 0,
-      .num_contextless_phones = 0,
-      .mask_digits = false};
+  augmenter::Augmentations augmentations = GetDefaultAugmentations();
+  augmentations.num_total = 1;
+  augmentations.prob_context_drop_between_labels = 0.5;
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
@@ -1171,19 +985,9 @@ TEST(AugmenterTest, DropContextStartAndEnd) {
       {{Augmenter::kLabelContainerName,
         {LabelSpec(Augmenter::kPhoneReplacementLabel, 2, 2),
          LabelSpec(Augmenter::kPhoneReplacementLabel, 5, 5)}}})});
-  augmenter::Augmentations augmentations{
-      .num_total = 1,
-      .prob_lowercasing_complete_token = 0,
-      .prob_lowercasing_first_letter = 0,
-      .prob_uppercasing_complete_token = 0,
-      .prob_uppercasing_first_letter = 0,
-      .prob_address_replacement = 0,
-      .prob_phone_replacement = 0,
-      .prob_context_drop_between_labels = 0.5,
-      .prob_context_drop_outside_one_label = 0,
-      .num_contextless_addresses = 0,
-      .num_contextless_phones = 0,
-      .mask_digits = false};
+  augmenter::Augmentations augmentations = GetDefaultAugmentations();
+  augmentations.num_total = 1;
+  augmentations.prob_context_drop_between_labels = 0.5;
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
@@ -1235,19 +1039,9 @@ TEST(AugmenterTest, DropContextRemoveBeginningOfLabel) {
                     {{Augmenter::kLabelContainerName,
                       {LabelSpec("OTHER", 0, 1),
                        LabelSpec(Augmenter::kPhoneReplacementLabel, 2, 2)}}})});
-  augmenter::Augmentations augmentations{
-      .num_total = 1,
-      .prob_lowercasing_complete_token = 0,
-      .prob_lowercasing_first_letter = 0,
-      .prob_uppercasing_complete_token = 0,
-      .prob_uppercasing_first_letter = 0,
-      .prob_address_replacement = 0,
-      .prob_phone_replacement = 0,
-      .prob_context_drop_between_labels = 0.5,
-      .prob_context_drop_outside_one_label = 0,
-      .num_contextless_addresses = 0,
-      .num_contextless_phones = 0,
-      .mask_digits = false};
+  augmenter::Augmentations augmentations = GetDefaultAugmentations();
+  augmentations.num_total = 1;
+  augmentations.prob_context_drop_between_labels = 0.5;
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
@@ -1291,19 +1085,9 @@ TEST(AugmenterTest, DropContextRemoveMiddleOfLabel) {
                       {LabelSpec(Augmenter::kPhoneReplacementLabel, 0, 0),
                        LabelSpec("OTHER", 1, 3),
                        LabelSpec(Augmenter::kPhoneReplacementLabel, 4, 4)}}})});
-  augmenter::Augmentations augmentations{
-      .num_total = 1,
-      .prob_lowercasing_complete_token = 0,
-      .prob_lowercasing_first_letter = 0,
-      .prob_uppercasing_complete_token = 0,
-      .prob_uppercasing_first_letter = 0,
-      .prob_address_replacement = 0,
-      .prob_phone_replacement = 0,
-      .prob_context_drop_between_labels = 0.5,
-      .prob_context_drop_outside_one_label = 0,
-      .num_contextless_addresses = 0,
-      .num_contextless_phones = 0,
-      .mask_digits = false};
+  augmenter::Augmentations augmentations = GetDefaultAugmentations();
+  augmentations.num_total = 1;
+  augmentations.prob_context_drop_between_labels = 0.5;
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
@@ -1350,19 +1134,9 @@ TEST(AugmenterTest, DropContextRemoveEndOfLabel) {
                     {{Augmenter::kLabelContainerName,
                       {LabelSpec(Augmenter::kPhoneReplacementLabel, 2, 2),
                        LabelSpec("OTHER", 3, 4)}}})});
-  augmenter::Augmentations augmentations{
-      .num_total = 1,
-      .prob_lowercasing_complete_token = 0,
-      .prob_lowercasing_first_letter = 0,
-      .prob_uppercasing_complete_token = 0,
-      .prob_uppercasing_first_letter = 0,
-      .prob_address_replacement = 0,
-      .prob_phone_replacement = 0,
-      .prob_context_drop_between_labels = 0.5,
-      .prob_context_drop_outside_one_label = 0,
-      .num_contextless_addresses = 0,
-      .num_contextless_phones = 0,
-      .mask_digits = false};
+  augmenter::Augmentations augmentations = GetDefaultAugmentations();
+  augmentations.num_total = 1;
+  augmentations.prob_context_drop_between_labels = 0.5;
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
@@ -1402,19 +1176,9 @@ TEST(AugmenterTest, DropContextNoLabels) {
       {DocumentSpec("Text without any tokens.",
                     {TokenSpec("Text", 0, 3), TokenSpec("without", 5, 11),
                      TokenSpec("any", 13, 15), TokenSpec("tokens", 17, 22)})});
-  augmenter::Augmentations augmentations{
-      .num_total = 1,
-      .prob_lowercasing_complete_token = 0,
-      .prob_lowercasing_first_letter = 0,
-      .prob_uppercasing_complete_token = 0,
-      .prob_uppercasing_first_letter = 0,
-      .prob_address_replacement = 0,
-      .prob_phone_replacement = 0,
-      .prob_context_drop_between_labels = 0.5,
-      .prob_context_drop_outside_one_label = 0,
-      .num_contextless_addresses = 0,
-      .num_contextless_phones = 0,
-      .mask_digits = false};
+  augmenter::Augmentations augmentations = GetDefaultAugmentations();
+  augmentations.num_total = 1;
+  augmentations.prob_context_drop_between_labels = 0.5;
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
@@ -1454,19 +1218,9 @@ TEST(AugmenterTest, DropContextNoLabelsNoLabelContainer) {
                     {TokenSpec("Text", 0, 3), TokenSpec("without", 5, 11),
                      TokenSpec("any", 13, 15), TokenSpec("tokens", 17, 22)},
                     {})});
-  augmenter::Augmentations augmentations{
-      .num_total = 1,
-      .prob_lowercasing_complete_token = 0,
-      .prob_lowercasing_first_letter = 0,
-      .prob_uppercasing_complete_token = 0,
-      .prob_uppercasing_first_letter = 0,
-      .prob_address_replacement = 0,
-      .prob_phone_replacement = 0,
-      .prob_context_drop_between_labels = 0.5,
-      .prob_context_drop_outside_one_label = 0,
-      .num_contextless_addresses = 0,
-      .num_contextless_phones = 0,
-      .mask_digits = false};
+  augmenter::Augmentations augmentations = GetDefaultAugmentations();
+  augmentations.num_total = 1;
+  augmentations.prob_context_drop_between_labels = 0.5;
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
@@ -1506,19 +1260,9 @@ TEST(AugmenterTest, DropContextDropLabelsNoLabels) {
       {DocumentSpec("Text without any tokens.",
                     {TokenSpec("Text", 0, 3), TokenSpec("without", 5, 11),
                      TokenSpec("any", 13, 15), TokenSpec("tokens", 17, 22)})});
-  augmenter::Augmentations augmentations{
-      .num_total = 1,
-      .prob_lowercasing_complete_token = 0,
-      .prob_lowercasing_first_letter = 0,
-      .prob_uppercasing_complete_token = 0,
-      .prob_uppercasing_first_letter = 0,
-      .prob_address_replacement = 0,
-      .prob_phone_replacement = 0,
-      .prob_context_drop_between_labels = 0,
-      .prob_context_drop_outside_one_label = 0.5,
-      .num_contextless_addresses = 0,
-      .num_contextless_phones = 0,
-      .mask_digits = false};
+  augmenter::Augmentations augmentations = GetDefaultAugmentations();
+  augmentations.num_total = 1;
+  augmentations.prob_context_drop_outside_one_label = 0.5;
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
@@ -1559,19 +1303,9 @@ TEST(AugmenterTest, DropContextDropLabelsNoLabelsNoLabelContainer) {
                     {TokenSpec("Text", 0, 3), TokenSpec("without", 5, 11),
                      TokenSpec("any", 13, 15), TokenSpec("tokens", 17, 22)},
                     {})});
-  augmenter::Augmentations augmentations{
-      .num_total = 1,
-      .prob_lowercasing_complete_token = 0,
-      .prob_lowercasing_first_letter = 0,
-      .prob_uppercasing_complete_token = 0,
-      .prob_uppercasing_first_letter = 0,
-      .prob_address_replacement = 0,
-      .prob_phone_replacement = 0,
-      .prob_context_drop_between_labels = 0,
-      .prob_context_drop_outside_one_label = 0.5,
-      .num_contextless_addresses = 0,
-      .num_contextless_phones = 0,
-      .mask_digits = false};
+  augmenter::Augmentations augmentations = GetDefaultAugmentations();
+  augmentations.num_total = 1;
+  augmentations.prob_context_drop_outside_one_label = 0.5;
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
@@ -1618,19 +1352,9 @@ TEST(AugmenterTest, DropContextDropLabelsPrefix) {
                       {LabelSpec(Augmenter::kPhoneReplacementLabel, 0, 0),
                        LabelSpec("OTHER", 1, 3),
                        LabelSpec(Augmenter::kPhoneReplacementLabel, 4, 4)}}})});
-  augmenter::Augmentations augmentations{
-      .num_total = 1,
-      .prob_lowercasing_complete_token = 0,
-      .prob_lowercasing_first_letter = 0,
-      .prob_uppercasing_complete_token = 0,
-      .prob_uppercasing_first_letter = 0,
-      .prob_address_replacement = 0,
-      .prob_phone_replacement = 0,
-      .prob_context_drop_between_labels = 0,
-      .prob_context_drop_outside_one_label = 0.5,
-      .num_contextless_addresses = 0,
-      .num_contextless_phones = 0,
-      .mask_digits = false};
+  augmenter::Augmentations augmentations = GetDefaultAugmentations();
+  augmentations.num_total = 1;
+  augmentations.prob_context_drop_outside_one_label = 0.5;
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
@@ -1683,19 +1407,9 @@ TEST(AugmenterTest, DropContextDropLabelsSuffix) {
                       {LabelSpec(Augmenter::kPhoneReplacementLabel, 0, 0),
                        LabelSpec("OTHER", 1, 3),
                        LabelSpec(Augmenter::kPhoneReplacementLabel, 4, 4)}}})});
-  augmenter::Augmentations augmentations{
-      .num_total = 1,
-      .prob_lowercasing_complete_token = 0,
-      .prob_lowercasing_first_letter = 0,
-      .prob_uppercasing_complete_token = 0,
-      .prob_uppercasing_first_letter = 0,
-      .prob_address_replacement = 0,
-      .prob_phone_replacement = 0,
-      .prob_context_drop_between_labels = 0,
-      .prob_context_drop_outside_one_label = 0.5,
-      .num_contextless_addresses = 0,
-      .num_contextless_phones = 0,
-      .mask_digits = false};
+  augmenter::Augmentations augmentations = GetDefaultAugmentations();
+  augmentations.num_total = 1;
+  augmentations.prob_context_drop_outside_one_label = 0.5;
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
@@ -1737,19 +1451,7 @@ TEST(AugmenterTest, RemoveSeparatorTokens) {
                     {TokenSpec("Text", 0, 3), TokenSpec(",", 4, 4),
                      TokenSpec("more", 6, 9), TokenSpec("...", 11, 13),
                      TokenSpec("t.e.x.t.", 15, 22), TokenSpec("!", 23, 23)})});
-  augmenter::Augmentations augmentations{
-      .num_total = 0,
-      .prob_lowercasing_complete_token = 0,
-      .prob_lowercasing_first_letter = 0,
-      .prob_uppercasing_complete_token = 0,
-      .prob_uppercasing_first_letter = 0,
-      .prob_address_replacement = 0,
-      .prob_phone_replacement = 0,
-      .prob_context_drop_between_labels = 0,
-      .prob_context_drop_outside_one_label = 0,
-      .num_contextless_addresses = 0,
-      .num_contextless_phones = 0,
-      .mask_digits = false};
+  augmenter::Augmentations augmentations = GetDefaultAugmentations();
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
@@ -1779,19 +1481,10 @@ TEST(AugmenterTest, MaskDigits) {
        TokenSpec("[LABEL]", 10, 16), TokenSpec("num_0123_bers", 18, 30),
        TokenSpec("99", 32, 33)},
       {{Augmenter::kLabelContainerName, {LabelSpec("LOCALITY", 2, 2)}}})});
-  augmenter::Augmentations augmentations{
-      .num_total = 1,
-      .prob_lowercasing_complete_token = 0,
-      .prob_lowercasing_first_letter = 0,
-      .prob_uppercasing_complete_token = 0,
-      .prob_uppercasing_first_letter = 0,
-      .prob_address_replacement = 0.5,
-      .prob_phone_replacement = 0,
-      .prob_context_drop_between_labels = 0,
-      .prob_context_drop_outside_one_label = 0,
-      .num_contextless_addresses = 0,
-      .num_contextless_phones = 0,
-      .mask_digits = true};
+  augmenter::Augmentations augmentations = GetDefaultAugmentations();
+  augmentations.num_total = 1;
+  augmentations.prob_address_replacement = 0.5;
+  augmentations.mask_digits = true;
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   std::string replacement = "Addr.01";
@@ -1837,19 +1530,9 @@ TEST(AugmenterTest, MaskDigits) {
 
 TEST(AugmenterTest, ContextlessAddress) {
   bert_annotator::Documents documents = ConstructBertDocument({});
-  augmenter::Augmentations augmentations{
-      .num_total = 1,
-      .prob_lowercasing_complete_token = 0,
-      .prob_lowercasing_first_letter = 0,
-      .prob_uppercasing_complete_token = 0,
-      .prob_uppercasing_first_letter = 0,
-      .prob_address_replacement = 0,
-      .prob_phone_replacement = 0,
-      .prob_context_drop_between_labels = 0,
-      .prob_context_drop_outside_one_label = 0,
-      .num_contextless_addresses = 1,
-      .num_contextless_phones = 0,
-      .mask_digits = false};
+  augmenter::Augmentations augmentations = GetDefaultAugmentations();
+  augmentations.num_total = 1;
+  augmentations.num_contextless_addresses = 1;
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   std::string replacement = "Sample Address 1";
@@ -1874,19 +1557,9 @@ TEST(AugmenterTest, ContextlessAddress) {
 
 TEST(AugmenterTest, ContextlessPhone) {
   bert_annotator::Documents documents = ConstructBertDocument({});
-  augmenter::Augmentations augmentations{
-      .num_total = 1,
-      .prob_lowercasing_complete_token = 0,
-      .prob_lowercasing_first_letter = 0,
-      .prob_uppercasing_complete_token = 0,
-      .prob_uppercasing_first_letter = 0,
-      .prob_address_replacement = 0,
-      .prob_phone_replacement = 0,
-      .prob_context_drop_between_labels = 0,
-      .prob_context_drop_outside_one_label = 0,
-      .num_contextless_addresses = 0,
-      .num_contextless_phones = 1,
-      .mask_digits = false};
+  augmenter::Augmentations augmentations = GetDefaultAugmentations();
+  augmentations.num_total = 1;
+  augmentations.num_contextless_phones = 1;
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   std::string replacement = "0123456789";
@@ -1910,19 +1583,10 @@ TEST(AugmenterTest, ContextlessPhone) {
 
 TEST(AugmenterTest, ContextlessPhoneMaskedDigits) {
   bert_annotator::Documents documents = ConstructBertDocument({});
-  augmenter::Augmentations augmentations{
-      .num_total = 1,
-      .prob_lowercasing_complete_token = 0,
-      .prob_lowercasing_first_letter = 0,
-      .prob_uppercasing_complete_token = 0,
-      .prob_uppercasing_first_letter = 0,
-      .prob_address_replacement = 0,
-      .prob_phone_replacement = 0,
-      .prob_context_drop_between_labels = 0,
-      .prob_context_drop_outside_one_label = 0,
-      .num_contextless_addresses = 0,
-      .num_contextless_phones = 1,
-      .mask_digits = true};
+  augmenter::Augmentations augmentations = GetDefaultAugmentations();
+  augmentations.num_total = 1;
+  augmentations.num_contextless_phones = 1;
+  augmentations.mask_digits = true;
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   std::string replacement = "0123456789";
