@@ -75,11 +75,13 @@ Augmenter::Augmenter(const bert_annotator::Documents& documents,
   }
 
   for (bert_annotator::Document& document : *documents_.mutable_documents()) {
+    InitializeLabelList(&document);
+
     // Some tokens only contain separator characters like "," or ".". Keeping
     // track of those complicates the identification of longer labels, because
     // those separators may split longer labels into multiple short ones. By
-    // ignoring the separators, this can be avoided. It also avoids that
-    // context dropping *only* drops punctuation.
+    // ignoring the separators, this can be avoided. It also avoids that context
+    // dropping *only* drops punctuation.
     for (int i = document.token_size() - 1; i >= 0; --i) {
       const bert_annotator::Token& token = document.token(i);
       // TODO(brix): depends on the installed C locale, may need to be changed
@@ -95,9 +97,8 @@ Augmenter::Augmenter(const bert_annotator::Documents& documents,
 
     // The input uses more detailed address labels. To have a consistent output,
     // all those labels have to be switched to the generall "ADDRESS" label.
-    google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan> empty_list;
     google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>* const
-        labeled_spans = GetLabelListWithDefault(&document, &empty_list);
+        labeled_spans = GetLabelList(&document);
     for (int i = labeled_spans->size() - 1; i >= 0; --i) {
       bert_annotator::LabeledSpan& labeled_span = labeled_spans->at(i);
       if (kAddressLabels.contains(labeled_span.label())) {
@@ -179,46 +180,58 @@ void Augmenter::AugmentCase(bert_annotator::Document* const document) {
   document->set_text(new_text);
 }
 
-void Augmenter::AugmentContextless(const absl::string_view label,
-                                   RandomSampler* const sampler) {
+bert_annotator::Document* Augmenter::AugmentContextless(
+    const absl::string_view label, const bool split_into_tokens,
+    RandomSampler* const sampler) {
   bert_annotator::Document* document = documents_.add_documents();
 
   const std::string sample = sampler->Sample();
   document->set_text(sample);
-  bert_annotator::Token* token = document->add_token();
-  token->set_word(sample);
-  token->set_start(0);
-  token->set_end(sample.size() - 1);
-  bert_annotator::LabeledSpans labeled_spans = {};
-  bert_annotator::LabeledSpan* labeled_span = labeled_spans.add_labeled_span();
-  labeled_span->set_label(std::string(label));
-  labeled_span->set_token_start(0);
-  labeled_span->set_token_end(0);
-  (*document->mutable_labeled_spans())[kLabelContainerName] = labeled_spans;
+  std::vector<bert_annotator::Token> new_tokens;
+  if (split_into_tokens) {
+    new_tokens = SplitTextIntoTokens(0, sample);
+  } else {
+    bert_annotator::Token token;
+    token.set_word(sample);
+    token.set_start(0);
+    token.set_end(sample.size() - 1);
+    new_tokens.push_back(token);
+  }
+  InsertTokens(0, new_tokens, document);
+  InitializeLabelList(document);
+  InsertLabeledSpan(
+      TokenRange{.start = 0, .end = static_cast<int>(new_tokens.size()) - 1},
+      label, document);
+
+  return document;
 }
 
 void Augmenter::Augment() {
   const int original_document_number = documents_.documents_size();
 
-  for (int i = 0; i < augmentations_.num_contextless_addresses; ++i) {
-    AugmentContextless(kAddressReplacementLabel, address_sampler_);
-    --augmentations_.num_total;
-  }
-  for (int i = 0; i < augmentations_.num_contextless_phones; ++i) {
-    AugmentContextless(kPhoneReplacementLabel, phone_sampler_);
-    --augmentations_.num_total;
-  }
-
   for (int i = 0; i < augmentations_.num_total; ++i) {
-    const int document_id = absl::Uniform(absl::IntervalClosed, bitgenref_, 0,
-                                          original_document_number - 1);
-    const bert_annotator::Document& original_document =
-        documents_.documents(document_id);
-    bert_annotator::Document* augmented_document = documents_.add_documents();
-    augmented_document->CopyFrom(original_document);
+    bert_annotator::Document* augmented_document;
 
-    AugmentAddress(augmented_document);
-    AugmentPhone(augmented_document);
+    if (i < augmentations_.num_contextless_addresses) {
+      augmented_document =
+          AugmentContextless(kAddressReplacementLabel,
+                             /*split_into_tokens=*/true, address_sampler_);
+    } else if (i < augmentations_.num_contextless_addresses +
+                       augmentations_.num_contextless_phones) {
+      augmented_document = AugmentContextless(
+          kPhoneReplacementLabel, /*split_into_tokens=*/false, phone_sampler_);
+    } else {
+      const int document_id = absl::Uniform(absl::IntervalClosed, bitgenref_, 0,
+                                            original_document_number - 1);
+      const bert_annotator::Document& original_document =
+          documents_.documents(document_id);
+      augmented_document = documents_.add_documents();
+      augmented_document->CopyFrom(original_document);
+
+      AugmentAddress(augmented_document);
+      AugmentPhone(augmented_document);
+    }
+
     AugmentCase(augmented_document);
     AugmentContext(augmented_document);
     AugmentPunctuation(augmented_document);
@@ -263,7 +276,7 @@ void Augmenter::AddConcatenatedDocument(
                    tmp_copy_of_second_document.token().end()),
                concatenated_document);
   const google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>&
-      labeled_spans = GetLabelListWithDefault(tmp_copy_of_second_document, {});
+      labeled_spans = GetLabelList(tmp_copy_of_second_document);
   for (const bert_annotator::LabeledSpan& labeled_span : labeled_spans) {
     InsertLabeledSpan(TokenRange{.start = labeled_span.token_start(),
                                  .end = labeled_span.token_end()},
@@ -325,7 +338,7 @@ std::vector<TokenRange> Augmenter::GetUnlabeledRanges(
   int start = 0;
 
   const google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>&
-      labeled_spans = GetLabelListWithDefault(document, {});
+      labeled_spans = GetLabelList(document);
   for (const bert_annotator::LabeledSpan& labeled_span : labeled_spans) {
     if (labeled_span.label() == Augmenter::kAddressReplacementLabel ||
         labeled_span.label() == Augmenter::kPhoneReplacementLabel) {
@@ -349,7 +362,7 @@ std::vector<TokenRange> Augmenter::GetLabeledRanges(
     absl::flat_hash_set<absl::string_view> labels) {
   std::vector<TokenRange> labeled_ranges;
   const google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>&
-      labeled_spans = GetLabelListWithDefault(document, {});
+      labeled_spans = GetLabelList(document);
   for (const bert_annotator::LabeledSpan& labeled_span : labeled_spans) {
     if (labels.contains(labeled_span.label())) {
       labeled_ranges.push_back(TokenRange{.start = labeled_span.token_start(),
@@ -440,6 +453,10 @@ void Augmenter::MaybeDropContextKeepLabels(
 
 void Augmenter::MaybeDropContextDropLabels(
     bert_annotator::Document* const augmented_document) {
+  if (augmentations_.prob_context_drop_outside_one_label == 0) {
+    return;
+  }
+
   const int token_count = augmented_document->token_size();
   std::vector<TokenRange> labeled_ranges = GetLabeledRanges(
       *augmented_document, {kAddressReplacementLabel, kPhoneReplacementLabel});
@@ -588,9 +605,8 @@ void Augmenter::ShiftTokenBoundaries(
 void Augmenter::DropLabeledSpans(
     const TokenRange& removed_tokens,
     bert_annotator::Document* const document) const {
-  google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan> empty_list;
   google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>* const
-      labeled_spans = GetLabelListWithDefault(document, &empty_list);
+      labeled_spans = GetLabelList(document);
   for (int i = labeled_spans->size() - 1; i >= 0; --i) {
     bert_annotator::LabeledSpan* const labeled_span = labeled_spans->Mutable(i);
     if (labeled_span->token_end() >= removed_tokens.start &&
@@ -603,9 +619,8 @@ void Augmenter::DropLabeledSpans(
 void Augmenter::InsertLabeledSpan(
     const TokenRange& range, const absl::string_view label,
     bert_annotator::Document* const document) const {
-  google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan> empty_list;
   google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>* const
-      labeled_spans = GetLabelListWithDefault(document, &empty_list);
+      labeled_spans = GetLabelList(document);
   bert_annotator::LabeledSpan* const new_span = labeled_spans->Add();
   new_span->set_label(std::string(label));
   new_span->set_token_start(range.start);
@@ -622,9 +637,8 @@ void Augmenter::InsertLabeledSpan(
 void Augmenter::ShiftLabeledSpansForDroppedTokens(
     const int start, const int shift,
     bert_annotator::Document* const document) const {
-  google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan> empty_list;
   google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>* const
-      labeled_spans = GetLabelListWithDefault(document, &empty_list);
+      labeled_spans = GetLabelList(document);
   for (int i = labeled_spans->size() - 1; i >= 0; --i) {
     bert_annotator::LabeledSpan* const labeled_span = labeled_spans->Mutable(i);
     if (labeled_span->token_end() >= start) {
@@ -722,29 +736,21 @@ void Augmenter::ReplaceLabeledTokens(
                     replacement_label, document);
 }
 
-google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>
-Augmenter::GetLabelListWithDefault(
-    const bert_annotator::Document& document,
-    google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan> defaults_to)
-    const {
-  if (document.labeled_spans().find(kLabelContainerName) ==
-      document.labeled_spans().end()) {
-    return defaults_to;
+void Augmenter::InitializeLabelList(
+    bert_annotator::Document* const document) const {
+  if (document->labeled_spans().find(kLabelContainerName) ==
+      document->labeled_spans().end()) {
+    (*document->mutable_labeled_spans())[kLabelContainerName] = {};
   }
+}
 
+google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>
+Augmenter::GetLabelList(const bert_annotator::Document& document) const {
   return document.labeled_spans().at(kLabelContainerName).labeled_span();
 }
 
 google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>* const
-Augmenter::GetLabelListWithDefault(
-    bert_annotator::Document* document,
-    google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>*
-        defaults_to) const {
-  if (document->labeled_spans().find(kLabelContainerName) ==
-      document->labeled_spans().end()) {
-    return defaults_to;
-  }
-
+Augmenter::GetLabelList(bert_annotator::Document* document) const {
   return document->mutable_labeled_spans()
       ->at(kLabelContainerName)
       .mutable_labeled_span();

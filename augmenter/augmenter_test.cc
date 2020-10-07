@@ -236,6 +236,28 @@ TEST(AugmenterDeathTest, InvalidCaseProbabilitySum) {
       "most one.");
 }
 
+TEST(AugmenterTest, CreateMissingLabelList) {
+  bert_annotator::Documents documents = ConstructBertDocument(
+      {DocumentSpec("Text", {TokenSpec("Text", 0, 3)}, {})});
+  augmenter::Augmentations augmentations = GetDefaultAugmentations();
+  MockRandomSampler address_sampler;
+  MockRandomSampler phone_sampler;
+  absl::MockingBitGen bitgen;
+  ShufflerStub shuffler;
+
+  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+                                  &phone_sampler, &shuffler, bitgen);
+  augmenter.Augment();
+
+  bert_annotator::Document augmented = augmenter.documents().documents(0);
+  bert_annotator::Document expected =
+      ConstructBertDocument(
+          {DocumentSpec("Text", {TokenSpec("Text", 0, 3)},
+                        {{Augmenter::kLabelContainerName, {}}})})
+          .documents(0);
+  ExpectEq(augmented, expected);
+}
+
 TEST(AugmenterTest, LowercasingCompleteTokens) {
   bert_annotator::Documents documents = ConstructBertDocument(
       {DocumentSpec("Text with [Non-Token] some InterWordCapitalization",
@@ -677,54 +699,6 @@ TEST(AugmenterTest, ReplacePhoneChooseLabel) {
                        {LabelSpec(Augmenter::kPhoneReplacementLabel, 0, 0),
                         LabelSpec(Augmenter::kPhoneReplacementLabel, 2, 2)}}})})
                  .documents(0);
-  ExpectEq(augmented, expected);
-}
-
-TEST(AugmenterTest, ReplacePhoneMissingLabelContainer) {
-  bert_annotator::Documents documents = ConstructBertDocument(
-      {DocumentSpec("MissingLabelContainer",
-                    {TokenSpec("MissingLabelContainer", 0, 20)}, {}),
-       DocumentSpec("Call 0123456789! Thanks.",
-                    {TokenSpec("Call", 0, 3), TokenSpec("0123456789", 5, 14),
-                     TokenSpec("Thanks", 17, 22)},
-                    {{Augmenter::kLabelContainerName,
-                      {LabelSpec(Augmenter::kPhoneReplacementLabel, 1, 1)}}})});
-  augmenter::Augmentations augmentations = GetDefaultAugmentations();
-  augmentations.num_total = 2;
-  augmentations.prob_phone_replacement = 0.5;
-  MockRandomSampler address_sampler;
-  MockRandomSampler phone_sampler;
-  std::string replacement = "9876543210";
-  EXPECT_CALL(phone_sampler, Sample()).WillOnce(ReturnRef(replacement));
-  absl::MockingBitGen bitgen;
-  // Document sampling.
-  EXPECT_CALL(absl::MockUniform<int>(),
-              Call(absl::IntervalClosed, bitgen, 0, 1))
-      .WillOnce(Return(0))
-      .WillOnce(Return(1));
-  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
-      .WillRepeatedly(Return(false));
-  EXPECT_CALL(absl::MockBernoulli(),
-              Call(bitgen, augmentations.prob_phone_replacement))
-      .WillOnce(Return(true));
-  ShufflerStub shuffler;
-
-  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
-                                  &phone_sampler, &shuffler, bitgen);
-
-  augmenter.Augment();
-
-  ASSERT_EQ(augmenter.documents().documents_size(), 4);
-  const bert_annotator::Document augmented = augmenter.documents().documents(3);
-  const bert_annotator::Document expected =
-      ConstructBertDocument(
-          {DocumentSpec(
-              "Call 9876543210! Thanks.",
-              {TokenSpec("Call", 0, 3), TokenSpec("9876543210", 5, 14),
-               TokenSpec("Thanks", 17, 22)},
-              {{Augmenter::kLabelContainerName,
-                {LabelSpec(Augmenter::kPhoneReplacementLabel, 1, 1)}}})})
-          .documents(0);
   ExpectEq(augmented, expected);
 }
 
@@ -1237,50 +1211,6 @@ TEST(AugmenterTest, DropContextNoLabels) {
   ExpectEq(augmented, expected);
 }
 
-TEST(AugmenterTest, DropContextNoLabelsNoLabelContainer) {
-  bert_annotator::Documents documents = ConstructBertDocument(
-      {DocumentSpec("Text without any tokens.",
-                    {TokenSpec("Text", 0, 3), TokenSpec("without", 5, 11),
-                     TokenSpec("any", 13, 15), TokenSpec("tokens", 17, 22)},
-                    {})});
-  augmenter::Augmentations augmentations = GetDefaultAugmentations();
-  augmentations.num_total = 1;
-  augmentations.prob_context_drop_between_labels = 0.5;
-  MockRandomSampler address_sampler;
-  MockRandomSampler phone_sampler;
-  absl::MockingBitGen bitgen;
-  EXPECT_CALL(absl::MockUniform<int>(),
-              Call(absl::IntervalClosed, bitgen, 0, 0))
-      .WillOnce(Return(0));  // Use first document.
-  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
-      .WillRepeatedly(Return(false));
-  EXPECT_CALL(absl::MockBernoulli(),
-              Call(bitgen, augmentations.prob_context_drop_between_labels))
-      .Times(2)
-      .WillRepeatedly(Return(true));  //  Drop from beginning and end.
-  EXPECT_CALL(absl::MockUniform<int>(),
-              Call(absl::IntervalClosed, bitgen, 1, 3))
-      .WillOnce(Return(3));
-  EXPECT_CALL(absl::MockUniform<int>(),
-              Call(absl::IntervalClosed, bitgen, 0, 2))
-      .WillOnce(Return(0));
-  ShufflerStub shuffler;
-
-  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
-                                  &phone_sampler, &shuffler, bitgen);
-
-  augmenter.Augment();
-
-  const bert_annotator::Document augmented = augmenter.documents().documents(1);
-  const bert_annotator::Document expected =
-      ConstructBertDocument(
-          {DocumentSpec("without any.",
-                        {TokenSpec("without", 0, 6), TokenSpec("any", 8, 10)},
-                        {})})
-          .documents(0);
-  ExpectEq(augmented, expected);
-}
-
 TEST(AugmenterTest, DropContextDropLabelsNoLabels) {
   bert_annotator::Documents documents = ConstructBertDocument(
       {DocumentSpec("Text without any tokens.",
@@ -1320,51 +1250,6 @@ TEST(AugmenterTest, DropContextDropLabelsNoLabels) {
       ConstructBertDocument(
           {DocumentSpec("without any.",
                         {TokenSpec("without", 0, 6), TokenSpec("any", 8, 10)})})
-          .documents(0);
-  ExpectEq(augmented, expected);
-}
-
-TEST(AugmenterTest, DropContextDropLabelsNoLabelsNoLabelContainer) {
-  bert_annotator::Documents documents = ConstructBertDocument(
-      {DocumentSpec("Text without any tokens.",
-                    {TokenSpec("Text", 0, 3), TokenSpec("without", 5, 11),
-                     TokenSpec("any", 13, 15), TokenSpec("tokens", 17, 22)},
-                    {})});
-  augmenter::Augmentations augmentations = GetDefaultAugmentations();
-  augmentations.num_total = 1;
-  augmentations.prob_context_drop_outside_one_label = 0.5;
-  MockRandomSampler address_sampler;
-  MockRandomSampler phone_sampler;
-  absl::MockingBitGen bitgen;
-  EXPECT_CALL(absl::MockUniform<int>(),
-              Call(absl::IntervalClosed, bitgen, 0, 0))
-      .WillOnce(Return(0));  // Use first document.
-  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
-      .WillRepeatedly(Return(false));
-  EXPECT_CALL(absl::MockBernoulli(),
-              Call(bitgen,
-                   augmentations.prob_context_drop_outside_one_label))
-      .Times(2)
-      .WillRepeatedly(Return(true));  //  Drop from beginning and end.
-  EXPECT_CALL(absl::MockUniform<int>(),
-              Call(absl::IntervalClosed, bitgen, 1, 3))
-      .WillOnce(Return(3));
-  EXPECT_CALL(absl::MockUniform<int>(),
-              Call(absl::IntervalClosed, bitgen, 0, 2))
-      .WillOnce(Return(0));
-  ShufflerStub shuffler;
-
-  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
-                                  &phone_sampler, &shuffler, bitgen);
-
-  augmenter.Augment();
-
-  const bert_annotator::Document augmented = augmenter.documents().documents(1);
-  const bert_annotator::Document expected =
-      ConstructBertDocument(
-          {DocumentSpec("without any.",
-                        {TokenSpec("without", 0, 6), TokenSpec("any", 8, 10)},
-                        {})})
           .documents(0);
   ExpectEq(augmented, expected);
 }
@@ -1764,6 +1649,8 @@ TEST(AugmenterTest, ContextlessAddress) {
   std::string replacement = "Sample Address 1";
   EXPECT_CALL(address_sampler, Sample()).WillOnce(ReturnRef(replacement));
   absl::MockingBitGen bitgen;
+  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
+      .WillRepeatedly(Return(false));
   ShufflerStub shuffler;
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
@@ -1775,9 +1662,65 @@ TEST(AugmenterTest, ContextlessAddress) {
   const bert_annotator::Document expected =
       ConstructBertDocument(
           {DocumentSpec("Sample Address 1",
-                        {TokenSpec("Sample Address 1", 0, 15)},
+                        {TokenSpec("Sample", 0, 5), TokenSpec("Address", 7, 13),
+                         TokenSpec("1", 15, 15)},
                         {{Augmenter::kLabelContainerName,
-                          {LabelSpec("ADDRESS", 0, 0)}}})})
+                          {LabelSpec("ADDRESS", 0, 2)}}})})
+          .documents(0);
+  ExpectEq(augmented, expected);
+}
+
+TEST(AugmenterTest, ContextlessAddressChangeCaseAndPunctuation) {
+  bert_annotator::Documents documents = ConstructBertDocument({});
+  augmenter::Augmentations augmentations = GetDefaultAugmentations();
+  augmentations.num_total = 1;
+  augmentations.num_contextless_addresses = 1;
+  augmentations.prob_lowercasing_complete_token = 0.9;
+  augmentations.prob_punctuation_change_between_tokens = 0.8;
+  augmentations.prob_punctuation_change_at_sentence_end = 0.7;
+  MockRandomSampler address_sampler;
+  MockRandomSampler phone_sampler;
+  std::string replacement = "Sample Address 1";
+  EXPECT_CALL(address_sampler, Sample()).WillOnce(ReturnRef(replacement));
+  absl::MockingBitGen bitgen;
+  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
+      .WillRepeatedly(Return(false));
+  EXPECT_CALL(absl::MockUniform<double>(), Call(bitgen, 0, 1))
+      .Times(3)
+      .WillRepeatedly(Return(0.5));  // Lowercase all tokens.
+  EXPECT_CALL(
+      absl::MockBernoulli(),
+      Call(bitgen, augmentations.prob_punctuation_change_between_tokens))
+      .Times(2)
+      .WillRepeatedly(Return(true));
+  EXPECT_CALL(
+      absl::MockUniform<int>(),
+      Call(bitgen, 0, Augmenter::kPunctuationReplacementsWithinText.size()))
+      .Times(2)
+      .WillRepeatedly(Return(0));
+  EXPECT_CALL(
+      absl::MockBernoulli(),
+      Call(bitgen, augmentations.prob_punctuation_change_at_sentence_end))
+      .WillOnce(Return(true));
+  EXPECT_CALL(
+      absl::MockUniform<int>(),
+      Call(bitgen, 0, Augmenter::kPunctuationReplacementsAtSentenceEnd.size()))
+      .WillOnce(Return(0));
+  ShufflerStub shuffler;
+
+  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+                                  &phone_sampler, &shuffler, bitgen);
+
+  augmenter.Augment();
+
+  const bert_annotator::Document augmented = augmenter.documents().documents(0);
+  const bert_annotator::Document expected =
+      ConstructBertDocument(
+          {DocumentSpec("sample, address, 1?",
+                        {TokenSpec("sample", 0, 5), TokenSpec("address", 8, 14),
+                         TokenSpec("1", 17, 17)},
+                        {{Augmenter::kLabelContainerName,
+                          {LabelSpec("ADDRESS", 0, 2)}}})})
           .documents(0);
   ExpectEq(augmented, expected);
 }
@@ -1792,6 +1735,8 @@ TEST(AugmenterTest, ContextlessPhone) {
   std::string replacement = "0123456789";
   EXPECT_CALL(phone_sampler, Sample()).WillOnce(ReturnRef(replacement));
   absl::MockingBitGen bitgen;
+  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
+      .WillRepeatedly(Return(false));
   ShufflerStub shuffler;
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
@@ -1820,6 +1765,8 @@ TEST(AugmenterTest, ContextlessPhoneMaskedDigits) {
   std::string replacement = "0123456789";
   EXPECT_CALL(phone_sampler, Sample()).WillOnce(ReturnRef(replacement));
   absl::MockingBitGen bitgen;
+  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
+      .WillRepeatedly(Return(false));
   ShufflerStub shuffler;
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,

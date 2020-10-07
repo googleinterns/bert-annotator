@@ -58,8 +58,9 @@ class Augmenter {
   void AugmentAddress(bert_annotator::Document* const augmented_document);
   void AugmentPhone(bert_annotator::Document* const augmented_document);
   void AugmentCase(bert_annotator::Document* const augmented_document);
-  void AugmentContextless(const absl::string_view label,
-                          RandomSampler* const sampler);
+  bert_annotator::Document* AugmentContextless(const absl::string_view label,
+                                               const bool split_into_tokens,
+                                               RandomSampler* const sampler);
   void MaybeReplaceLabel(const double probability, RandomSampler* const sampler,
                          const absl::string_view replacement_label,
                          const bool split_into_tokens,
@@ -118,19 +119,13 @@ class Augmenter {
                             const absl::string_view replacement_label,
                             const bool split_into_tokens,
                             bert_annotator::Document* const document) const;
-  // Changes the complete token or the first letter of a token to
-  // lower/upper case. Processes only the specified tokens and returns the ids
-  // of all unmodified tokens.
-  google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>
-  GetLabelListWithDefault(
-      const bert_annotator::Document& document,
-      google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>
-          defaults_to) const;
+  // Some tokens do not have a label list set. To remove this edge case, an
+  // empty list is added.
+  void InitializeLabelList(bert_annotator::Document* const document) const;
+  google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan> GetLabelList(
+      const bert_annotator::Document& document) const;
   google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>* const
-  GetLabelListWithDefault(
-      bert_annotator::Document* document,
-      google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>*
-          defaults_to) const;
+  GetLabelList(bert_annotator::Document* document) const;
   // Masks all digits with zero.
   void MaskDigits(std::string* text) const;
   void MaskDigits(bert_annotator::Document* const document) const;
