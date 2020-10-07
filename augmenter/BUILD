@@ -24,6 +24,7 @@ cc_library(
     ':augmentations',
     ':case_augmentation',
     ":random_sampler",
+    ":shuffler",
     ":token_range",
     "//protocol_buffer:documents_cc_proto",
     "@com_google_absl//absl/container:flat_hash_set",
@@ -56,6 +57,18 @@ cc_library(
   hdrs = ["textproto_io.h"],
   deps = [
     "//protocol_buffer:documents_cc_proto",
+  ]
+)
+
+cc_library(
+  name = "shuffler",
+  srcs = ["shuffler.cc"],
+  hdrs = ["shuffler.h"],
+  deps = [
+    "//protocol_buffer:documents_cc_proto",
+    "@com_google_absl//absl/algorithm:container",
+    "@com_google_absl//absl/random:bit_gen_ref",
+    "@com_google_googletest//:gtest",
   ]
 )
 

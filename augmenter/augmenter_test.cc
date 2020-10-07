@@ -150,6 +150,12 @@ void ExpectEq(const bert_annotator::Document a,
   }
 }
 
+class ShufflerStub : public Shuffler {
+ public:
+  void Shuffle(bert_annotator::Documents* const documents,
+               absl::BitGenRef bitgenref) override {}
+};
+
 TEST(AugmenterDeathTest, NegativeProbability) {
   bert_annotator::Documents documents = ConstructBertDocument({});
   augmenter::Augmentations augmentations = GetDefaultAugmentations();
@@ -158,11 +164,13 @@ TEST(AugmenterDeathTest, NegativeProbability) {
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
+  ShufflerStub shuffler;
 
   EXPECT_DEATH(
       {
-        Augmenter augmenter = Augmenter(
-            documents, augmentations, &address_sampler, &phone_sampler, bitgen);
+        Augmenter augmenter =
+            Augmenter(documents, augmentations, &address_sampler,
+                      &phone_sampler, &shuffler, bitgen);
       },
       "All probabilities must have values between zero and one.");
 }
@@ -175,11 +183,13 @@ TEST(AugmenterDeathTest, ProbabilityGreaterOne) {
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
+  ShufflerStub shuffler;
 
   EXPECT_DEATH(
       {
-        Augmenter augmenter = Augmenter(
-            documents, augmentations, &address_sampler, &phone_sampler, bitgen);
+        Augmenter augmenter =
+            Augmenter(documents, augmentations, &address_sampler,
+                      &phone_sampler, &shuffler, bitgen);
       },
       "All probabilities must have values between zero and one.");
 }
@@ -192,8 +202,11 @@ TEST(AugmenterTest, NoAugmentation) {
 
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
-  Augmenter augmenter =
-      Augmenter(documents, augmentations, &address_sampler, &phone_sampler);
+  absl::MockingBitGen bitgen;
+  ShufflerStub shuffler;
+
+  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+                                  &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
@@ -211,11 +224,13 @@ TEST(AugmenterDeathTest, InvalidCaseProbabilitySum) {
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
+  ShufflerStub shuffler;
 
   EXPECT_DEATH(
       {
-        Augmenter augmenter = Augmenter(
-            documents, augmentations, &address_sampler, &phone_sampler, bitgen);
+        Augmenter augmenter =
+            Augmenter(documents, augmentations, &address_sampler,
+                      &phone_sampler, &shuffler, bitgen);
       },
       "The probabilities for changing the case of tokens must sum up to at "
       "most one.");
@@ -240,9 +255,10 @@ TEST(AugmenterTest, LowercasingCompleteTokens) {
       .WillOnce(Return(0.99))
       .WillOnce(Return(0.99))
       .WillOnce(Return(0.4));  // Only lowercase last token.
+  ShufflerStub shuffler;
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
-                                  &phone_sampler, bitgen);
+                                  &phone_sampler, &shuffler, bitgen);
   augmenter.Augment();
 
   bert_annotator::Document augmented = augmenter.documents().documents(1);
@@ -275,9 +291,10 @@ TEST(AugmenterTest, LowercasingFirstLetter) {
       .WillOnce(Return(0.99))
       .WillOnce(Return(0.99))
       .WillOnce(Return(0.4));  // Only lowercase last token.
+  ShufflerStub shuffler;
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
-                                  &phone_sampler, bitgen);
+                                  &phone_sampler, &shuffler, bitgen);
   augmenter.Augment();
 
   bert_annotator::Document augmented = augmenter.documents().documents(1);
@@ -310,9 +327,10 @@ TEST(AugmenterTest, UppercasingCompleteTokens) {
       .WillOnce(Return(0.99))
       .WillOnce(Return(0.99))
       .WillOnce(Return(0.4));  // Only uppercase last token.
+  ShufflerStub shuffler;
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
-                                  &phone_sampler, bitgen);
+                                  &phone_sampler, &shuffler, bitgen);
   augmenter.Augment();
 
   bert_annotator::Document augmented = augmenter.documents().documents(1);
@@ -345,9 +363,10 @@ TEST(AugmenterTest, UppercasingFirstLetter) {
       .WillOnce(Return(0.99))
       .WillOnce(Return(0.99))
       .WillOnce(Return(0.4));  // Only uppercase last token.
+  ShufflerStub shuffler;
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
-                                  &phone_sampler, bitgen);
+                                  &phone_sampler, &shuffler, bitgen);
   augmenter.Augment();
 
   bert_annotator::Document augmented = augmenter.documents().documents(1);
@@ -384,9 +403,10 @@ TEST(AugmenterTest, MultipleCaseChanges) {
       .WillOnce(Return(0.5))   // Uppercase complete third token.
       .WillOnce(Return(0.7))   // Uppercase first letter of third token.
       .WillOnce(Return(0.9));  // Do not change fourth token.
+  ShufflerStub shuffler;
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
-                                  &phone_sampler, bitgen);
+                                  &phone_sampler, &shuffler, bitgen);
   augmenter.Augment();
 
   bert_annotator::Document augmented = augmenter.documents().documents(1);
@@ -421,9 +441,10 @@ TEST(AugmenterTest, ReplacePhoneSameLength) {
   EXPECT_CALL(absl::MockBernoulli(),
               Call(bitgen, augmentations.prob_phone_replacement))
       .WillOnce(Return(true));
+  ShufflerStub shuffler;
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
-                                  &phone_sampler, bitgen);
+                                  &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
@@ -460,9 +481,10 @@ TEST(AugmenterTest, ReplacePhoneLongerLength) {
   EXPECT_CALL(absl::MockBernoulli(),
               Call(bitgen, augmentations.prob_phone_replacement))
       .WillOnce(Return(true));
+  ShufflerStub shuffler;
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
-                                  &phone_sampler, bitgen);
+                                  &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
@@ -500,9 +522,10 @@ TEST(AugmenterTest, ReplacePhoneShorterLength) {
   EXPECT_CALL(absl::MockBernoulli(),
               Call(bitgen, augmentations.prob_phone_replacement))
       .WillOnce(Return(true));
+  ShufflerStub shuffler;
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
-                                  &phone_sampler, bitgen);
+                                  &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
@@ -538,9 +561,10 @@ TEST(AugmenterTest, ReplacePhoneStart) {
   EXPECT_CALL(absl::MockBernoulli(),
               Call(bitgen, augmentations.prob_phone_replacement))
       .WillOnce(Return(true));
+  ShufflerStub shuffler;
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
-                                  &phone_sampler, bitgen);
+                                  &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
@@ -575,9 +599,10 @@ TEST(AugmenterTest, ReplacePhoneEnd) {
   EXPECT_CALL(absl::MockBernoulli(),
               Call(bitgen, augmentations.prob_phone_replacement))
       .WillOnce(Return(true));
+  ShufflerStub shuffler;
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
-                                  &phone_sampler, bitgen);
+                                  &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
@@ -623,9 +648,10 @@ TEST(AugmenterTest, ReplacePhoneChooseLabel) {
       .WillOnce(Return(false))
       .WillOnce(Return(false))
       .WillOnce(Return(true));
+  ShufflerStub shuffler;
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
-                                  &phone_sampler, bitgen);
+                                  &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
@@ -681,9 +707,10 @@ TEST(AugmenterTest, ReplacePhoneMissingLabelContainer) {
   EXPECT_CALL(absl::MockBernoulli(),
               Call(bitgen, augmentations.prob_phone_replacement))
       .WillOnce(Return(true));
+  ShufflerStub shuffler;
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
-                                  &phone_sampler, bitgen);
+                                  &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
@@ -714,8 +741,11 @@ TEST(AugmenterTest, UpdateLabels) {
   augmentations.prob_phone_replacement = 0.5;
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
-  Augmenter augmenter =
-      Augmenter(documents, augmentations, &address_sampler, &phone_sampler);
+  absl::MockingBitGen bitgen;
+  ShufflerStub shuffler;
+
+  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+                                  &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
@@ -752,9 +782,10 @@ TEST(AugmenterTest, ReplaceAddressSameLength) {
   EXPECT_CALL(absl::MockBernoulli(),
               Call(bitgen, augmentations.prob_address_replacement))
       .WillOnce(Return(true));
+  ShufflerStub shuffler;
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
-                                  &phone_sampler, bitgen);
+                                  &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
@@ -792,9 +823,10 @@ TEST(AugmenterTest, ReplaceAddressFewerTokens) {
   EXPECT_CALL(absl::MockBernoulli(),
               Call(bitgen, augmentations.prob_address_replacement))
       .WillOnce(Return(true));
+  ShufflerStub shuffler;
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
-                                  &phone_sampler, bitgen);
+                                  &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
@@ -832,9 +864,10 @@ TEST(AugmenterTest, ReplaceAddressMultiWordReplacement) {
   EXPECT_CALL(absl::MockBernoulli(),
               Call(bitgen, augmentations.prob_address_replacement))
       .WillOnce(Return(true));
+  ShufflerStub shuffler;
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
-                                  &phone_sampler, bitgen);
+                                  &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
@@ -872,9 +905,10 @@ TEST(AugmenterTest, ReplaceAddressMoreTokensReplacement) {
   EXPECT_CALL(absl::MockBernoulli(),
               Call(bitgen, augmentations.prob_address_replacement))
       .WillOnce(Return(true));
+  ShufflerStub shuffler;
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
-                                  &phone_sampler, bitgen);
+                                  &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
@@ -912,9 +946,10 @@ TEST(AugmenterTest, ReplaceAddressPunctuation) {
   EXPECT_CALL(absl::MockBernoulli(),
               Call(bitgen, augmentations.prob_address_replacement))
       .WillOnce(Return(true));
+  ShufflerStub shuffler;
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
-                                  &phone_sampler, bitgen);
+                                  &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
@@ -952,9 +987,10 @@ TEST(AugmenterTest, DropContextDetectMultipleDroppableSequences) {
               Call(bitgen, augmentations.prob_context_drop_between_labels))
       .Times(2)
       .WillRepeatedly(Return(true));
+  ShufflerStub shuffler;
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
-                                  &phone_sampler, bitgen);
+                                  &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 }
@@ -993,9 +1029,10 @@ TEST(AugmenterTest, DropContextStartAndEnd) {
               Call(absl::IntervalClosed, bitgen, 7, 7))
       .WillOnce(Return(7));
   // Dropping "Prefix" is defined above.
+  ShufflerStub shuffler;
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
-                                  &phone_sampler, bitgen);
+                                  &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
@@ -1039,9 +1076,10 @@ TEST(AugmenterTest, DropContextRemoveBeginningOfLabel) {
               Call(bitgen, augmentations.prob_context_drop_between_labels))
       .WillOnce(Return(false))  // Do not drop from second sequence.
       .WillOnce(Return(true));  //  Drop from first sequence.
+  ShufflerStub shuffler;
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
-                                  &phone_sampler, bitgen);
+                                  &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
@@ -1088,9 +1126,10 @@ TEST(AugmenterTest, DropContextRemoveMiddleOfLabel) {
               Call(absl::IntervalClosed, bitgen, 2, 2))
       .Times(2)
       .WillRepeatedly(Return(2));
+  ShufflerStub shuffler;
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
-                                  &phone_sampler, bitgen);
+                                  &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
@@ -1136,9 +1175,10 @@ TEST(AugmenterTest, DropContextRemoveEndOfLabel) {
   EXPECT_CALL(absl::MockUniform<int>(),
               Call(absl::IntervalClosed, bitgen, 4, 4))
       .WillOnce(Return(4));
+  ShufflerStub shuffler;
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
-                                  &phone_sampler, bitgen);
+                                  &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
@@ -1181,9 +1221,10 @@ TEST(AugmenterTest, DropContextNoLabels) {
   EXPECT_CALL(absl::MockUniform<int>(),
               Call(absl::IntervalClosed, bitgen, 0, 2))
       .WillOnce(Return(0));
+  ShufflerStub shuffler;
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
-                                  &phone_sampler, bitgen);
+                                  &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
@@ -1223,9 +1264,10 @@ TEST(AugmenterTest, DropContextNoLabelsNoLabelContainer) {
   EXPECT_CALL(absl::MockUniform<int>(),
               Call(absl::IntervalClosed, bitgen, 0, 2))
       .WillOnce(Return(0));
+  ShufflerStub shuffler;
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
-                                  &phone_sampler, bitgen);
+                                  &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
@@ -1266,9 +1308,10 @@ TEST(AugmenterTest, DropContextDropLabelsNoLabels) {
   EXPECT_CALL(absl::MockUniform<int>(),
               Call(absl::IntervalClosed, bitgen, 0, 2))
       .WillOnce(Return(0));
+  ShufflerStub shuffler;
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
-                                  &phone_sampler, bitgen);
+                                  &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
@@ -1309,9 +1352,10 @@ TEST(AugmenterTest, DropContextDropLabelsNoLabelsNoLabelContainer) {
   EXPECT_CALL(absl::MockUniform<int>(),
               Call(absl::IntervalClosed, bitgen, 0, 2))
       .WillOnce(Return(0));
+  ShufflerStub shuffler;
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
-                                  &phone_sampler, bitgen);
+                                  &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
@@ -1359,9 +1403,10 @@ TEST(AugmenterTest, DropContextDropLabelsPrefix) {
   EXPECT_CALL(absl::MockUniform<int>(),
               Call(absl::IntervalClosed, bitgen, 0, 2))
       .WillOnce(Return(0));  // Drop first token.
+  ShufflerStub shuffler;
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
-                                  &phone_sampler, bitgen);
+                                  &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
@@ -1410,9 +1455,10 @@ TEST(AugmenterTest, DropContextDropLabelsSuffix) {
   EXPECT_CALL(absl::MockUniform<int>(),
               Call(absl::IntervalClosed, bitgen, 2, 6))
       .WillOnce(Return(3));
+  ShufflerStub shuffler;
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
-                                  &phone_sampler, bitgen);
+                                  &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
@@ -1454,9 +1500,10 @@ TEST(AugmenterTest, ChangePunctuationBetweenWords) {
       .WillOnce(Return(1))
       .WillOnce(Return(2))
       .WillOnce(Return(3));
+  ShufflerStub shuffler;
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
-                                  &phone_sampler, bitgen);
+                                  &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
@@ -1501,9 +1548,10 @@ TEST(AugmenterTest, ChangePunctuationAtSentenceEnd) {
       .WillOnce(Return(3))
       .WillOnce(Return(4))
       .WillOnce(Return(5));
+  ShufflerStub shuffler;
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
-                                  &phone_sampler, bitgen);
+                                  &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
@@ -1563,9 +1611,10 @@ TEST(AugmenterTest, ChangePunctuationAtSentenceEndNoTokens) {
       absl::MockUniform<int>(),
       Call(bitgen, 0, Augmenter::kPunctuationReplacementsAtSentenceEnd.size()))
       .Times(0);
+  ShufflerStub shuffler;
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
-                                  &phone_sampler, bitgen);
+                                  &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
@@ -1585,9 +1634,10 @@ TEST(AugmenterTest, RemoveSeparatorTokens) {
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
   absl::MockingBitGen bitgen;
+  ShufflerStub shuffler;
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
-                                  &phone_sampler, bitgen);
+                                  &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
@@ -1624,9 +1674,10 @@ TEST(AugmenterTest, MergeDocuments) {
   EXPECT_CALL(absl::MockBernoulli(),
               Call(bitgen, augmentations.prob_sentence_concatenation))
       .WillOnce(Return(true));
+  ShufflerStub shuffler;
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
-                                  &phone_sampler, bitgen);
+                                  &phone_sampler, &shuffler, bitgen);
   augmenter.Augment();
 
   ASSERT_EQ(augmenter.documents().documents_size(), 1);
@@ -1669,9 +1720,10 @@ TEST(AugmenterTest, MaskDigits) {
   EXPECT_CALL(absl::MockBernoulli(),
               Call(bitgen, augmentations.prob_address_replacement))
       .WillOnce(Return(true));
+  ShufflerStub shuffler;
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
-                                  &phone_sampler, bitgen);
+                                  &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
@@ -1712,9 +1764,10 @@ TEST(AugmenterTest, ContextlessAddress) {
   std::string replacement = "Sample Address 1";
   EXPECT_CALL(address_sampler, Sample()).WillOnce(ReturnRef(replacement));
   absl::MockingBitGen bitgen;
+  ShufflerStub shuffler;
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
-                                  &phone_sampler, bitgen);
+                                  &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
@@ -1739,9 +1792,10 @@ TEST(AugmenterTest, ContextlessPhone) {
   std::string replacement = "0123456789";
   EXPECT_CALL(phone_sampler, Sample()).WillOnce(ReturnRef(replacement));
   absl::MockingBitGen bitgen;
+  ShufflerStub shuffler;
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
-                                  &phone_sampler, bitgen);
+                                  &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
@@ -1766,9 +1820,10 @@ TEST(AugmenterTest, ContextlessPhoneMaskedDigits) {
   std::string replacement = "0123456789";
   EXPECT_CALL(phone_sampler, Sample()).WillOnce(ReturnRef(replacement));
   absl::MockingBitGen bitgen;
+  ShufflerStub shuffler;
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
-                                  &phone_sampler, bitgen);
+                                  &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 

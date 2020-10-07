@@ -23,6 +23,7 @@
 #include "augmenter/augmentations.h"
 #include "augmenter/augmenter.h"
 #include "augmenter/random_sampler.h"
+#include "augmenter/shuffler.h"
 #include "augmenter/textproto_io.h"
 
 ABSL_FLAG(std::vector<std::string>, corpora, std::vector<std::string>({}),
@@ -142,9 +143,13 @@ int main(int argc, char* argv[]) {
     }
     augmenter::RandomSampler phones_sampler(phones_stream);
 
-    augmenter::Augmenter augmenter =
-        augmenter::Augmenter(textproto_io.documents(), augmentations,
-                             &address_sampler, &phones_sampler);
+    augmenter::Shuffler shuffler;
+
+    absl::BitGen bitgen;
+
+    augmenter::Augmenter augmenter = augmenter::Augmenter(
+        textproto_io.documents(), augmentations, &address_sampler,
+        &phones_sampler, &shuffler, bitgen);
     augmenter.Augment();
     textproto_io.set_documents(augmenter.documents());
     textproto_io.Save(corpus);
