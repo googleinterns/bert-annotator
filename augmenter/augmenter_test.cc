@@ -1543,6 +1543,37 @@ TEST(AugmenterTest, ChangePunctuationAtSentenceEnd) {
   ExpectEq(augmented, expected);
 }
 
+TEST(AugmenterTest, ChangePunctuationAtSentenceEndNoTokens) {
+  bert_annotator::Documents documents =
+      ConstructBertDocument({DocumentSpec("...", {})});
+  augmenter::Augmentations augmentations = GetDefaultAugmentations();
+  augmentations.num_total = 1;
+  augmentations.prob_punctuation_change_at_sentence_end = 1;
+  MockRandomSampler address_sampler;
+  MockRandomSampler phone_sampler;
+  absl::MockingBitGen bitgen;
+  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
+      .WillRepeatedly(Return(false));
+  EXPECT_CALL(
+      absl::MockBernoulli(),
+      Call(bitgen, augmentations.prob_punctuation_change_at_sentence_end))
+      .WillRepeatedly(Return(true));
+  EXPECT_CALL(
+      absl::MockUniform<int>(),
+      Call(bitgen, 0, Augmenter::kPunctuationReplacementsAtSentenceEnd.size()))
+      .Times(0);
+
+  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+                                  &phone_sampler, bitgen);
+
+  augmenter.Augment();
+
+  const bert_annotator::Document augmented = augmenter.documents().documents(1);
+  const bert_annotator::Document expected =
+      ConstructBertDocument({DocumentSpec("...", {})}).documents(0);
+  ExpectEq(augmented, expected);
+}
+
 TEST(AugmenterTest, RemoveSeparatorTokens) {
   bert_annotator::Documents documents = ConstructBertDocument(
       {DocumentSpec("Text, more ... t.e.x.t.!",

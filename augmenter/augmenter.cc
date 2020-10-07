@@ -219,6 +219,7 @@ void Augmenter::Augment() {
                                           original_document_number - 1);
     const bert_annotator::Document& original_document =
         documents_.documents(document_id);
+    std::cout << original_document.text() << std::endl;
     bert_annotator::Document* augmented_document = documents_.add_documents();
     augmented_document->CopyFrom(original_document);
 
@@ -268,7 +269,7 @@ void Augmenter::AugmentPunctuation(bert_annotator::Document* const document) {
 
   const bool do_change_punctuation = absl::Bernoulli(
       bitgenref_, augmentations_.prob_punctuation_change_at_sentence_end);
-  if (do_change_punctuation) {
+  if (do_change_punctuation && document->token_size() > 0) {
     const int punctuation_replacement_id = absl::Uniform(
         bitgenref_, 0,
         static_cast<int>(kPunctuationReplacementsAtSentenceEnd.size()));
