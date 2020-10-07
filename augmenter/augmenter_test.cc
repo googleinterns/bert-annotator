@@ -1665,7 +1665,11 @@ TEST(AugmenterTest, ContextlessAddress) {
                         {TokenSpec("Sample", 0, 5), TokenSpec("Address", 7, 13),
                          TokenSpec("1", 15, 15)},
                         {{Augmenter::kLabelContainerName,
-                          {LabelSpec("ADDRESS", 0, 2)}}})})
+                          {LabelSpec("AD"
+                                     "DR"
+                                     "ES"
+                                     "S",
+                                     0, 2)}}})})
           .documents(0);
   ExpectEq(augmented, expected);
 }
