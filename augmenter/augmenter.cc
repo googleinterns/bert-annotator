@@ -514,7 +514,10 @@ void Augmenter::MaybeReplaceLabel(const double probability,
   const std::vector<TokenRange>& labeled_ranges =
       GetLabeledRanges(*document, {label});
 
-  for (TokenRange labeled_range : labeled_ranges) {
+  // The replacement invalidates the boundaries of labeled ranges that occur to
+  // the right, so it has to be done right to left.
+  for (int i = labeled_ranges.size() - 1; i >= 0; --i) {
+    TokenRange labeled_range = labeled_ranges[i];
     if (!absl::Bernoulli(bitgenref_, probability)) {
       continue;
     }

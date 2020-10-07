@@ -666,10 +666,10 @@ TEST(AugmenterTest, ReplacePhoneChooseLabel) {
       .WillRepeatedly(Return(false));
   EXPECT_CALL(absl::MockBernoulli(),
               Call(bitgen, augmentations.prob_phone_replacement))
+      .WillOnce(Return(false))
       .WillOnce(Return(true))
-      .WillOnce(Return(false))
-      .WillOnce(Return(false))
-      .WillOnce(Return(true));
+      .WillOnce(Return(true))
+      .WillOnce(Return(false));
   ShufflerStub shuffler;
 
   Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
@@ -813,6 +813,53 @@ TEST(AugmenterTest, ReplaceAddressFewerTokens) {
                         {{Augmenter::kLabelContainerName,
                           {LabelSpec(Augmenter::kAddressReplacementLabel, 1, 1),
                            LabelSpec("OTHER", 2, 2)}}})})
+          .documents(0);
+  ExpectEq(augmented, expected);
+}
+
+TEST(AugmenterTest, ReplaceMultipleAddressesFewerTokens) {
+  bert_annotator::Documents documents = ConstructBertDocument({DocumentSpec(
+      "Visit Zurich City! Thanks. Other city",
+      {TokenSpec("Visit", 0, 4), TokenSpec("Zurich", 6, 11),
+       TokenSpec("City", 13, 16), TokenSpec("Thanks", 19, 24),
+       TokenSpec("Other", 27, 31), TokenSpec("city", 33, 36)},
+      {{Augmenter::kLabelContainerName,
+        {LabelSpec("LOCALITY", 1, 1), LabelSpec("LOCALITY", 2, 2),
+         LabelSpec("OTHER", 3, 3), LabelSpec("LOCALITY", 4, 5)}}})});
+  augmenter::Augmentations augmentations = GetDefaultAugmentations();
+  augmentations.num_total = 1;
+  augmentations.prob_address_replacement = 0.5;
+  MockRandomSampler address_sampler;
+  MockRandomSampler phone_sampler;
+  std::string replacement = "Munich";
+  EXPECT_CALL(address_sampler, Sample())
+      .Times(2)
+      .WillRepeatedly(ReturnRef(replacement));
+  absl::MockingBitGen bitgen;
+  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
+      .WillRepeatedly(Return(false));
+  EXPECT_CALL(absl::MockBernoulli(),
+              Call(bitgen, augmentations.prob_address_replacement))
+      .Times(2)
+      .WillRepeatedly(Return(true));
+  ShufflerStub shuffler;
+
+  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+                                  &phone_sampler, &shuffler, bitgen);
+
+  augmenter.Augment();
+
+  const bert_annotator::Document augmented = augmenter.documents().documents(1);
+  const bert_annotator::Document expected =
+      ConstructBertDocument(
+          {DocumentSpec(
+              "Visit Munich! Thanks. Munich",
+              {TokenSpec("Visit", 0, 4), TokenSpec("Munich", 6, 11),
+               TokenSpec("Thanks", 14, 19), TokenSpec("Munich", 22, 27)},
+              {{Augmenter::kLabelContainerName,
+                {LabelSpec(Augmenter::kAddressReplacementLabel, 1, 1),
+                 LabelSpec("OTHER", 2, 2),
+                 LabelSpec(Augmenter::kAddressReplacementLabel, 3, 3)}}})})
           .documents(0);
   ExpectEq(augmented, expected);
 }
