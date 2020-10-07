@@ -55,7 +55,7 @@ Augmenter::Augmenter(const bert_annotator::Documents& documents,
       augmentations_.prob_context_drop_between_labels,
       augmentations_.prob_context_drop_outside_one_label};
   if (absl::c_any_of(probabilities, [](double probability) {
-        return probability < 0 || probability > 1;
+        return probability < 0.0 || probability > 1.0;
       })) {
     std::cerr << "All probabilities must have values between zero and one."
               << std::endl;
@@ -126,15 +126,15 @@ Augmenter::Augmenter(const bert_annotator::Documents& documents,
 void Augmenter::AugmentAddress(
     bert_annotator::Document* const augmented_document) {
   MaybeReplaceLabel(augmentations_.prob_address_replacement, address_sampler_,
-                    Augmenter::kAddressReplacementLabel, true,
-                    augmented_document);
+                    Augmenter::kAddressReplacementLabel,
+                    /*split_into_tokens=*/true, augmented_document);
 }
 
 void Augmenter::AugmentPhone(
     bert_annotator::Document* const augmented_document) {
   MaybeReplaceLabel(augmentations_.prob_phone_replacement, phone_sampler_,
-                    Augmenter::kPhoneReplacementLabel, false,
-                    augmented_document);
+                    Augmenter::kPhoneReplacementLabel,
+                    /*split_into_tokens=*/false, augmented_document);
 }
 
 void Augmenter::AugmentCase(bert_annotator::Document* const document) {
