@@ -76,48 +76,9 @@ Augmenter::Augmenter(const bert_annotator::Documents& documents,
 
   for (bert_annotator::Document& document : *documents_.mutable_documents()) {
     InitializeLabelList(&document);
-
     MergePhoneNumberTokens(&document);
-
-    // Some tokens only contain separator characters like "," or ".". Keeping
-    // track of those complicates the identification of longer labels, because
-    // those separators may split longer labels into multiple short ones. By
-    // ignoring the separators, this can be avoided. It also avoids that context
-    // dropping *only* drops punctuation.
-    for (int i = document.token_size() - 1; i >= 0; --i) {
-      const bert_annotator::Token& token = document.token(i);
-      // TODO(brix): depends on the installed C locale, may need to be changed
-      // for non-english languages.
-      if (absl::c_none_of(token.word(), [](unsigned char c) {
-            return std::isdigit(c) || std::isalpha(c);
-          })) {
-        const TokenRange removed_tokens = TokenRange{.start = i, .end = i};
-        DropTokens(removed_tokens, &document);
-        ShiftLabeledSpansForDroppedTokens(removed_tokens.start, -1, &document);
-      }
-    }
-
-    // The input uses more detailed address labels. To have a consistent output,
-    // all those labels have to be switched to the generall "ADDRESS" label.
-    google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>* const
-        labeled_spans = GetLabelList(&document);
-    for (int i = labeled_spans->size() - 1; i >= 0; --i) {
-      bert_annotator::LabeledSpan& labeled_span = labeled_spans->at(i);
-      if (kAddressLabels.contains(labeled_span.label())) {
-        labeled_span.set_label(
-            std::string(Augmenter::kAddressReplacementLabel));
-
-        // Consecutive address labels should be merged.
-        if (i <= labeled_spans->size() - 2) {
-          bert_annotator::LabeledSpan& successor_span =
-              labeled_spans->at(i + 1);
-          if (successor_span.label() == Augmenter::kAddressReplacementLabel) {
-            labeled_span.set_token_end(successor_span.token_end());
-            labeled_spans->erase(labeled_spans->begin() + i + 1);
-          }
-        }
-      }
-    }
+    DropSeparatorTokens(&document);
+    SimplifyAddressLabels(&document);
   }
 }
 
@@ -533,23 +494,25 @@ void Augmenter::MergePhoneNumberTokens(
     bert_annotator::Document* const document) const {
   const google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>&
       labeled_spans = GetLabelList(*document);
-  for (int label_id = labeled_spans.size() - 1; label_id >= 0; --label_id) {
+  for (int label_index = labeled_spans.size() - 1; label_index >= 0;
+       --label_index) {
     const bert_annotator::LabeledSpan& labeled_span =
-        labeled_spans.at(label_id);
+        labeled_spans.at(label_index);
     const int token_start = labeled_span.token_start();
     const int token_end = labeled_span.token_end();
     if (labeled_span.label() == kPhoneReplacementLabel) {
       std::string merged_token_text;
-      for (int token_id = token_start; token_id <= token_end; ++token_id) {
-        if (token_id > token_start) {
+      for (int token_index = token_start; token_index <= token_end;
+           ++token_index) {
+        if (token_index > token_start) {
           for (int intermediate_char_index =
-                   document->token(token_id - 1).end() + 1;
-               intermediate_char_index < document->token(token_id).start();
+                   document->token(token_index - 1).end() + 1;
+               intermediate_char_index < document->token(token_index).start();
                ++intermediate_char_index) {
             merged_token_text += document->text().at(intermediate_char_index);
           }
         }
-        merged_token_text += document->token(token_id).word();
+        merged_token_text += document->token(token_index).word();
       }
       bert_annotator::Token merged_token;
       merged_token.set_start(document->token(token_start).start());
@@ -560,6 +523,43 @@ void Augmenter::MergePhoneNumberTokens(
       InsertTokens(token_start, {merged_token}, document);
       ShiftLabeledSpansForDroppedTokens(token_start + 1,
                                         -(token_end - token_start), document);
+    }
+  }
+}
+
+void Augmenter::DropSeparatorTokens(
+    bert_annotator::Document* const document) const {
+  for (int i = document->token_size() - 1; i >= 0; --i) {
+    const bert_annotator::Token& token = document->token(i);
+    // TODO(brix): depends on the installed C locale, may need to be changed
+    // for non-english languages.
+    if (absl::c_none_of(token.word(), [](unsigned char c) {
+          return std::isdigit(c) || std::isalpha(c);
+        })) {
+      const TokenRange removed_tokens = TokenRange{.start = i, .end = i};
+      DropTokens(removed_tokens, document);
+      ShiftLabeledSpansForDroppedTokens(removed_tokens.start, -1, document);
+    }
+  }
+}
+
+void Augmenter::SimplifyAddressLabels(
+    bert_annotator::Document* const document) const {
+  google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>* const
+      labeled_spans = GetLabelList(document);
+  for (int i = labeled_spans->size() - 1; i >= 0; --i) {
+    bert_annotator::LabeledSpan& labeled_span = labeled_spans->at(i);
+    if (kAddressLabels.contains(labeled_span.label())) {
+      labeled_span.set_label(std::string(Augmenter::kAddressReplacementLabel));
+
+      // Consecutive address labels should be merged.
+      if (i <= labeled_spans->size() - 2) {
+        bert_annotator::LabeledSpan& successor_span = labeled_spans->at(i + 1);
+        if (successor_span.label() == Augmenter::kAddressReplacementLabel) {
+          labeled_span.set_token_end(successor_span.token_end());
+          labeled_spans->erase(labeled_spans->begin() + i + 1);
+        }
+      }
     }
   }
 }
