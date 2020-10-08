@@ -1556,6 +1556,36 @@ TEST(AugmenterTest, ChangePunctuationAtSentenceEndNoTokens) {
   ExpectEq(augmented, expected);
 }
 
+TEST(AugmenterTest, MergePhoneNumberTokens) {
+  bert_annotator::Documents documents = ConstructBertDocument({DocumentSpec(
+      "A (00) 000 - 000 B",
+      {TokenSpec("A", 0, 0), TokenSpec("(", 2, 2), TokenSpec("00", 3, 4),
+       TokenSpec(")", 5, 5), TokenSpec("000", 7, 9), TokenSpec("-", 11, 11),
+       TokenSpec("000", 13, 15), TokenSpec("B", 17, 17)},
+      {{Augmenter::kLabelContainerName, {LabelSpec("TELEPHONE", 1, 6)}}})});
+  augmenter::Augmentations augmentations = GetDefaultAugmentations();
+  MockRandomSampler address_sampler;
+  MockRandomSampler phone_sampler;
+  absl::MockingBitGen bitgen;
+  ShufflerStub shuffler;
+
+  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+                                  &phone_sampler, &shuffler, bitgen);
+
+  augmenter.Augment();
+
+  const bert_annotator::Document augmented = augmenter.documents().documents(0);
+  const bert_annotator::Document expected =
+      ConstructBertDocument({DocumentSpec("A (00) 000 - 000 B",
+                                          {TokenSpec("A", 0, 0),
+                                           TokenSpec("(00) 000 - 000", 2, 15),
+                                           TokenSpec("B", 17, 17)},
+                                          {{Augmenter::kLabelContainerName,
+                                            {LabelSpec("TELEPHONE", 1, 1)}}})})
+          .documents(0);
+  ExpectEq(augmented, expected);
+}
+
 TEST(AugmenterTest, RemoveSeparatorTokens) {
   bert_annotator::Documents documents = ConstructBertDocument(
       {DocumentSpec("Text, more ... t.e.x.t.!",

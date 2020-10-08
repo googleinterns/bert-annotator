@@ -77,6 +77,8 @@ Augmenter::Augmenter(const bert_annotator::Documents& documents,
   for (bert_annotator::Document& document : *documents_.mutable_documents()) {
     InitializeLabelList(&document);
 
+    MergePhoneNumberTokens(&document);
+
     // Some tokens only contain separator characters like "," or ".". Keeping
     // track of those complicates the identification of longer labels, because
     // those separators may split longer labels into multiple short ones. By
@@ -527,6 +529,41 @@ void Augmenter::MaybeReplaceLabel(const double probability,
   }
 }
 
+void Augmenter::MergePhoneNumberTokens(
+    bert_annotator::Document* const document) const {
+  const google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>&
+      labeled_spans = GetLabelList(*document);
+  for (int label_id = labeled_spans.size() - 1; label_id >= 0; --label_id) {
+    const bert_annotator::LabeledSpan& labeled_span =
+        labeled_spans.at(label_id);
+    const int token_start = labeled_span.token_start();
+    const int token_end = labeled_span.token_end();
+    if (labeled_span.label() == kPhoneReplacementLabel) {
+      std::string merged_token_text;
+      for (int token_id = token_start; token_id <= token_end; ++token_id) {
+        if (token_id > token_start) {
+          for (int intermediate_char_index =
+                   document->token(token_id - 1).end() + 1;
+               intermediate_char_index < document->token(token_id).start();
+               ++intermediate_char_index) {
+            merged_token_text += document->text().at(intermediate_char_index);
+          }
+        }
+        merged_token_text += document->token(token_id).word();
+      }
+      bert_annotator::Token merged_token;
+      merged_token.set_start(document->token(token_start).start());
+      merged_token.set_end(document->token(token_end).end());
+      merged_token.set_word(merged_token_text);
+
+      DropTokens(TokenRange{.start = token_start, .end = token_end}, document);
+      InsertTokens(token_start, {merged_token}, document);
+      ShiftLabeledSpansForDroppedTokens(token_start + 1,
+                                        -(token_end - token_start), document);
+    }
+  }
+}
+
 const int Augmenter::ReplaceText(
     const TokenRange& boundaries, const std::string& replacement,
     bert_annotator::Document* const document) const {
@@ -644,8 +681,10 @@ void Augmenter::ShiftLabeledSpansForDroppedTokens(
       labeled_spans = GetLabelList(document);
   for (int i = labeled_spans->size() - 1; i >= 0; --i) {
     bert_annotator::LabeledSpan* const labeled_span = labeled_spans->Mutable(i);
-    if (labeled_span->token_end() >= start) {
+    if (labeled_span->token_start() >= start) {
       labeled_span->set_token_start(labeled_span->token_start() + shift);
+    }
+    if (labeled_span->token_end() >= start) {
       labeled_span->set_token_end(labeled_span->token_end() + shift);
     }
   }
