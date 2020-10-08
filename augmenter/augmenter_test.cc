@@ -1813,7 +1813,7 @@ TEST(AugmenterTest, ContextlessPhone) {
   augmentations.num_contextless_phones = 1;
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
-  std::string replacement = "0123456789";
+  std::string replacement = "(01)234 - 56789";
   EXPECT_CALL(phone_sampler, Sample()).WillOnce(ReturnRef(replacement));
   absl::MockingBitGen bitgen;
   EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
@@ -1827,10 +1827,10 @@ TEST(AugmenterTest, ContextlessPhone) {
 
   const bert_annotator::Document augmented = augmenter.documents().documents(0);
   const bert_annotator::Document expected =
-      ConstructBertDocument(
-          {DocumentSpec("0123456789", {TokenSpec("0123456789", 0, 9)},
-                        {{Augmenter::kLabelContainerName,
-                          {LabelSpec("TELEPHONE", 0, 0)}}})})
+      ConstructBertDocument({DocumentSpec("(01)234 - 56789",
+                                          {TokenSpec("(01)234 - 56789", 0, 14)},
+                                          {{Augmenter::kLabelContainerName,
+                                            {LabelSpec("TELEPHONE", 0, 0)}}})})
           .documents(0);
   ExpectEq(augmented, expected);
 }
