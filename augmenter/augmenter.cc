@@ -232,10 +232,10 @@ void Augmenter::Augment() {
 
       AugmentAddress(augmented_document);
       AugmentPhone(augmented_document);
+      AugmentContext(augmented_document);
     }
 
     AugmentCase(augmented_document);
-    AugmentContext(augmented_document);
     AugmentPunctuation(augmented_document);
   }
 
