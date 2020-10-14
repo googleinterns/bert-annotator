@@ -44,6 +44,34 @@ Augmenter::Augmenter(const bert_annotator::Documents& documents,
       phone_sampler_(phone_sampler),
       augmentations_(augmentations),
       bitgenref_(bitgenref) {
+  // Assert valid probabilities.
+  const std::vector<double> probabilities = {
+      augmentations_.prob_lowercasing_complete_token,
+      augmentations_.prob_lowercasing_first_letter,
+      augmentations_.prob_uppercasing_complete_token,
+      augmentations_.prob_uppercasing_first_letter,
+      augmentations_.prob_address_replacement,
+      augmentations_.prob_phone_replacement,
+      augmentations_.prob_context_drop_between_labels,
+      augmentations_.prob_context_drop_outside_one_label};
+  if (absl::c_any_of(probabilities, [](double probability) {
+        return probability < 0.0 || probability > 1.0;
+      })) {
+    std::cerr << "All probabilities must have values between zero and one."
+              << std::endl;
+    abort();
+  }
+  if (augmentations_.prob_lowercasing_complete_token +
+          augmentations_.prob_lowercasing_first_letter +
+          augmentations_.prob_uppercasing_complete_token +
+          augmentations_.prob_uppercasing_first_letter >
+      1) {
+    std::cerr << "The probabilities for changing the case of tokens must sum "
+                 "up to at most one."
+              << std::endl;
+    abort();
+  }
+
   for (bert_annotator::Document& document : *documents_.mutable_documents()) {
     // Some tokens only contain separator characters like "," or ".". Keeping
     // track of those complicates the identification of longer labels, because
@@ -95,84 +123,65 @@ Augmenter::Augmenter(const bert_annotator::Documents& documents,
     : Augmenter(documents, augmentations, address_sampler, phone_sampler,
                 bitgen_) {}
 
-bool Augmenter::AugmentAddress(
+void Augmenter::AugmentAddress(
     bert_annotator::Document* const augmented_document) {
-  const bool replaced_address = MaybeReplaceLabel(
-      static_cast<double>(augmentations_.num_address_replacements) /
-          augmentations_.num_total,
-      address_sampler_, Augmenter::kAddressReplacementLabel, true,
-      augmented_document);
-  if (replaced_address) {
-    --augmentations_.num_address_replacements;
-    return true;
-  }
-  return false;
+  MaybeReplaceLabel(augmentations_.prob_address_replacement, address_sampler_,
+                    Augmenter::kAddressReplacementLabel,
+                    /*split_into_tokens=*/true, augmented_document);
 }
 
-bool Augmenter::AugmentPhone(
+void Augmenter::AugmentPhone(
     bert_annotator::Document* const augmented_document) {
-  const bool replaced_phone = MaybeReplaceLabel(
-      static_cast<double>(augmentations_.num_phone_replacements) /
-          augmentations_.num_total,
-      phone_sampler_, Augmenter::kPhoneReplacementLabel, false,
-      augmented_document);
-  if (replaced_phone) {
-    --augmentations_.num_phone_replacements;
-    return true;
-  }
-  return false;
+  MaybeReplaceLabel(augmentations_.prob_phone_replacement, phone_sampler_,
+                    Augmenter::kPhoneReplacementLabel,
+                    /*split_into_tokens=*/false, augmented_document);
 }
 
-bool Augmenter::AugmentCase(
-    bert_annotator::Document* const augmented_document) {
-  std::vector<int> token_ids(augmented_document->token_size());
-  std::iota(token_ids.begin(), token_ids.end(), 0);
+void Augmenter::AugmentCase(bert_annotator::Document* const document) {
+  std::string* const text = document->mutable_text();
+  std::string new_text;
+  int text_index = 0;
+  for (bert_annotator::Token& token : *document->mutable_token()) {
+    std::string* const word = token.mutable_word();
 
-  std::vector<int> unmodified_token_ids = MaybeChangeCase(
-      CaseAugmentation::kLowercaseCompleteToken,
-      static_cast<double>(augmentations_.num_lowercasings_complete_token) /
-          augmentations_.num_total,
-      augmentations_.probability_per_lowercasing_complete_token, token_ids,
-      augmented_document);
-  if (unmodified_token_ids.size() != token_ids.size()) {
-    --augmentations_.num_lowercasings_complete_token;
-    token_ids = unmodified_token_ids;
+    // Adds the non-tokens before the current token as they are.
+    const int token_start = token.start();
+    const int token_end = token.end();
+    if (text_index < token_start) {
+      new_text.append(text->begin() + text_index, text->begin() + token_start);
+    }
+
+    // Sample one of the five actions (lower/upper case complete token/first
+    // letter, keep unmodified). Using a discrete distribution would be cleaner,
+    // but cannot be mocked in tests.
+    double random_value = absl::Uniform<double>(bitgenref_, 0.0, 1.0);
+    double boundary_lowercase_complete_token =
+        augmentations_.prob_lowercasing_complete_token;
+    double boundary_lowercase_first_letter =
+        boundary_lowercase_complete_token +
+        augmentations_.prob_lowercasing_first_letter;
+    double boundary_uppercase_complete_token =
+        boundary_lowercase_first_letter +
+        augmentations_.prob_uppercasing_complete_token;
+    double boundary_uppercase_first_letter =
+        boundary_uppercase_complete_token +
+        augmentations_.prob_uppercasing_first_letter;
+
+    if (random_value < boundary_lowercase_complete_token) {
+      absl::AsciiStrToLower(word);
+    } else if (random_value < boundary_lowercase_first_letter) {
+      word->at(0) = std::tolower(word->at(0));
+    } else if (random_value < boundary_uppercase_complete_token) {
+      absl::AsciiStrToUpper(word);
+    } else if (random_value < boundary_uppercase_first_letter) {
+      word->at(0) = std::toupper(word->at(0));
+    }
+
+    new_text.append(*word);
+    text_index = token_end + 1;
   }
-
-  unmodified_token_ids = MaybeChangeCase(
-      CaseAugmentation::kLowercaseFirstLetter,
-      static_cast<double>(augmentations_.num_lowercasings_first_letter) /
-          augmentations_.num_total,
-      augmentations_.probability_per_lowercasing_first_letter, token_ids,
-      augmented_document);
-  if (unmodified_token_ids.size() != token_ids.size()) {
-    --augmentations_.num_lowercasings_first_letter;
-    token_ids = unmodified_token_ids;
-  }
-
-  unmodified_token_ids = MaybeChangeCase(
-      CaseAugmentation::kUppercaseCompleteToken,
-      static_cast<double>(augmentations_.num_uppercasings_complete_token) /
-          augmentations_.num_total,
-      augmentations_.probability_per_uppercasing_complete_token, token_ids,
-      augmented_document);
-  if (unmodified_token_ids.size() != token_ids.size()) {
-    --augmentations_.num_uppercasings_complete_token;
-    token_ids = unmodified_token_ids;
-  }
-
-  unmodified_token_ids = MaybeChangeCase(
-      CaseAugmentation::kUppercaseFirstLetter,
-      static_cast<double>(augmentations_.num_uppercasings_first_letter) /
-          augmentations_.num_total,
-      augmentations_.probability_per_uppercasing_first_letter, token_ids,
-      augmented_document);
-  if (unmodified_token_ids.size() != token_ids.size()) {
-    --augmentations_.num_uppercasings_first_letter;
-    token_ids = unmodified_token_ids;
-  }
-
-  return static_cast<int>(token_ids.size()) != augmented_document->token_size();
+  new_text.append(text->begin() + text_index, text->end());
+  document->set_text(new_text);
 }
 
 void Augmenter::AugmentContextless(const absl::string_view label,
@@ -205,7 +214,7 @@ void Augmenter::Augment() {
     --augmentations_.num_total;
   }
 
-  while (augmentations_.num_total > 0) {
+  for (int i = 0; i < augmentations_.num_total; ++i) {
     const int document_id = absl::Uniform(absl::IntervalClosed, bitgenref_, 0,
                                           original_document_number - 1);
     const bert_annotator::Document& original_document =
@@ -213,29 +222,10 @@ void Augmenter::Augment() {
     bert_annotator::Document* augmented_document = documents_.add_documents();
     augmented_document->CopyFrom(original_document);
 
-    bool augmentation_performed = false;
-    augmentation_performed |= AugmentAddress(augmented_document);
-    augmentation_performed |= AugmentPhone(augmented_document);
-    augmentation_performed |= AugmentCase(augmented_document);
-    augmentation_performed |= AugmentContext(augmented_document);
-
-    // If no action was performed and all remaining augmentations have to
-    // perform at least one action, drop this sample. It's identical to the
-    // original document. Repeat this augmentation iteration.
-    if (!augmentation_performed &&
-        augmentations_.num_total ==
-            augmentations_.num_lowercasings_complete_token +
-                augmentations_.num_lowercasings_first_letter +
-                augmentations_.num_uppercasings_complete_token +
-                augmentations_.num_uppercasings_first_letter +
-                augmentations_.num_address_replacements +
-                augmentations_.num_phone_replacements +
-                augmentations_.num_context_drops_between_labels +
-                augmentations_.num_context_drops_outside_one_label) {
-      documents_.mutable_documents()->RemoveLast();
-    } else {
-      --augmentations_.num_total;
-    }
+    AugmentAddress(augmented_document);
+    AugmentPhone(augmented_document);
+    AugmentCase(augmented_document);
+    AugmentContext(augmented_document);
   }
 
   if (augmentations_.mask_digits) {
@@ -245,27 +235,11 @@ void Augmenter::Augment() {
   }
 }
 
-bool Augmenter::AugmentContext(
+void Augmenter::AugmentContext(
     bert_annotator::Document* const augmented_document) {
-  const bool dropped_context_keeping_labels = MaybeDropContextKeepLabels(
-      static_cast<double>(augmentations_.num_context_drops_between_labels) /
-          augmentations_.num_total,
-      augmented_document);
-  if (dropped_context_keeping_labels) {
-    --augmentations_.num_context_drops_between_labels;
-    return true;
-  }
-
-  const bool dropped_context_dropping_labels = MaybeDropContextDropLabels(
-      static_cast<double>(augmentations_.num_context_drops_outside_one_label) /
-          augmentations_.num_total,
-      augmented_document);
-  if (dropped_context_dropping_labels) {
-    --augmentations_.num_context_drops_outside_one_label;
-    return true;
-  }
-
-  return false;
+  MaybeDropContextKeepLabels(augmentations_.prob_context_drop_between_labels,
+                             augmented_document);
+  MaybeDropContextDropLabels(augmented_document);
 }
 
 std::vector<TokenRange> Augmenter::GetUnlabeledRanges(
@@ -308,15 +282,9 @@ std::vector<TokenRange> Augmenter::GetLabeledRanges(
   return labeled_ranges;
 }
 
-bool Augmenter::MaybeDropContextKeepLabels(
+void Augmenter::MaybeDropContextKeepLabels(
     const double probability,
     bert_annotator::Document* const augmented_document) {
-  const bool do_drop_context = absl::Bernoulli(bitgenref_, probability);
-  if (!do_drop_context) {
-    return false;
-  }
-
-  bool dropped_context = false;
   std::vector<TokenRange> droppable_ranges =
       GetUnlabeledRanges(*augmented_document);
   // If there are no labels, we will get a single droppable range containing
@@ -333,8 +301,7 @@ bool Augmenter::MaybeDropContextKeepLabels(
   // update the indices in droppable_ranges.
   for (int i = droppable_ranges.size() - 1; i >= 0; --i) {
     const TokenRange& droppable_range = droppable_ranges[i];
-    const bool do_drop =
-        absl::Bernoulli(bitgenref_, augmentations_.probability_per_drop);
+    const bool do_drop = absl::Bernoulli(bitgenref_, probability);
     if (!do_drop) {
       continue;
     }
@@ -344,8 +311,6 @@ bool Augmenter::MaybeDropContextKeepLabels(
     if (droppable_range.end == droppable_range.start) {
       continue;
     }
-
-    dropped_context = true;
 
     int drop_tokens_start;
     int drop_tokens_end;
@@ -394,12 +359,9 @@ bool Augmenter::MaybeDropContextKeepLabels(
         drop_tokens_end + 1, -(drop_tokens_end - drop_tokens_start + 1),
         augmented_document);
   }
-
-  return dropped_context;
 }
 
-bool Augmenter::MaybeDropContextDropLabels(
-    const double probability,
+void Augmenter::MaybeDropContextDropLabels(
     bert_annotator::Document* const augmented_document) {
   const int token_count = augmented_document->token_size();
   std::vector<TokenRange> labeled_ranges = GetLabeledRanges(
@@ -407,22 +369,17 @@ bool Augmenter::MaybeDropContextDropLabels(
   // MaybeDropContextKeepLabels already implements dropping from sentences
   // without any labels.
   if (labeled_ranges.size() == 0) {
-    return MaybeDropContextKeepLabels(probability, augmented_document);
+    return MaybeDropContextKeepLabels(
+        augmentations_.prob_context_drop_outside_one_label, augmented_document);
   }
 
-  const bool do_drop_context = absl::Bernoulli(bitgenref_, probability);
-  if (!do_drop_context || token_count == 1) {
-    return false;
-  }
-
-  bool dropped_context = false;
   const int label_id =
       absl::Uniform(bitgenref_, 0, static_cast<int>(labeled_ranges.size()));
   TokenRange labeled_range = labeled_ranges[label_id];
   if (labeled_range.end < token_count - 2) {
     TokenRange drop_range{.start = 0, .end = token_count - 1};
-    const bool drop_right =
-        absl::Bernoulli(bitgenref_, augmentations_.probability_per_drop);
+    const bool drop_right = absl::Bernoulli(
+        bitgenref_, augmentations_.prob_context_drop_outside_one_label);
     if (drop_right) {
       drop_range.start = absl::Uniform(absl::IntervalClosed, bitgenref_,
                                        labeled_range.end + 2, token_count - 1);
@@ -434,13 +391,12 @@ bool Augmenter::MaybeDropContextDropLabels(
       ShiftLabeledSpansForDroppedTokens(
           drop_range.end + 1, -(drop_range.end - drop_range.start + 1),
           augmented_document);
-      dropped_context = true;
     }
   }
   if (labeled_range.start > 1) {
     TokenRange drop_range{.start = 0, .end = 0};
-    const bool drop_left =
-        absl::Bernoulli(bitgenref_, augmentations_.probability_per_drop);
+    const bool drop_left = absl::Bernoulli(
+        bitgenref_, augmentations_.prob_context_drop_outside_one_label);
     if (drop_left) {
       drop_range.end = absl::Uniform(absl::IntervalClosed, bitgenref_, 0,
                                      labeled_range.start - 2);
@@ -452,32 +408,26 @@ bool Augmenter::MaybeDropContextDropLabels(
       ShiftLabeledSpansForDroppedTokens(
           drop_range.end + 1, -(drop_range.end - drop_range.start + 1),
           augmented_document);
-      dropped_context = true;
     }
   }
-
-  return dropped_context;
 }
 
-bool Augmenter::MaybeReplaceLabel(const double probability,
+void Augmenter::MaybeReplaceLabel(const double probability,
                                   RandomSampler* const sampler,
                                   const absl::string_view label,
                                   const bool split_into_tokens,
                                   bert_annotator::Document* const document) {
-  const std::vector<TokenRange>& boundary_list =
+  const std::vector<TokenRange>& labeled_ranges =
       GetLabeledRanges(*document, {label});
-  const bool do_replace = absl::Bernoulli(bitgenref_, probability);
-  if (do_replace && !boundary_list.empty()) {
-    const int boundary_index =
-        absl::Uniform(absl::IntervalClosed, bitgenref_, 0,
-                      static_cast<int>(boundary_list.size()) - 1);
-    const TokenRange boundaries = boundary_list[boundary_index];
+
+  for (TokenRange labeled_range : labeled_ranges) {
+    if (!absl::Bernoulli(bitgenref_, probability)) {
+      continue;
+    }
     const std::string replacement = sampler->Sample();
-    ReplaceLabeledTokens(boundaries, replacement, label, split_into_tokens,
+    ReplaceLabeledTokens(labeled_range, replacement, label, split_into_tokens,
                          document);
-    return true;
   }
-  return false;
 }
 
 const int Augmenter::ReplaceText(
@@ -693,64 +643,6 @@ void Augmenter::ReplaceLabeledTokens(
                                .end = boundaries.start +
                                       static_cast<int>(new_tokens.size()) - 1},
                     replacement_label, document);
-}
-
-std::vector<int> Augmenter::MaybeChangeCase(
-    const CaseAugmentation case_augmentation,
-    const double probability_per_sentence, const double probability_per_token,
-    const std::vector<int>& token_ids,
-    bert_annotator::Document* const document) {
-  const bool do_change_case =
-      absl::Bernoulli(bitgenref_, probability_per_sentence);
-  if (!do_change_case) {
-    return token_ids;
-  }
-
-  std::string* const text = document->mutable_text();
-  std::string new_text;
-  int text_index = 0;
-  std::vector<int> unmodified_ids;
-  for (const int token_id : token_ids) {
-    bert_annotator::Token* const token = document->mutable_token(token_id);
-    std::string* const word = token->mutable_word();
-
-    // Adds punctuation before the current token as it is.
-    const int token_start = token->start();
-    const int token_end = token->end();
-    if (text_index < token_start) {
-      new_text.append(text->begin() + text_index, text->begin() + token_start);
-    }
-
-    const bool change_case = absl::Bernoulli(bitgenref_, probability_per_token);
-    if (change_case &&
-        case_augmentation == CaseAugmentation::kLowercaseCompleteToken &&
-        absl::c_any_of(*word,
-                       [](unsigned char c) { return std::isupper(c); })) {
-      absl::AsciiStrToLower(word);
-    } else if (change_case &&
-               case_augmentation == CaseAugmentation::kLowercaseFirstLetter &&
-               word->size() > 0 && std::isupper(word->at(0))) {
-      word->at(0) = std::tolower(word->at(0));
-    } else if (change_case &&
-               case_augmentation == CaseAugmentation::kUppercaseCompleteToken &&
-               absl::c_any_of(
-                   *word, [](unsigned char c) { return std::islower(c); })) {
-      absl::AsciiStrToUpper(word);
-    } else if (change_case &&
-               case_augmentation == CaseAugmentation::kUppercaseFirstLetter &&
-               word->size() > 0 && std::islower(word->at(0))) {
-      word->at(0) = std::toupper(word->at(0));
-    } else {
-      unmodified_ids.push_back(token_id);
-    }
-
-    new_text.append(*word);
-    text_index = token_end + 1;
-  }
-  new_text.append(text->begin() + text_index, text->end());
-  document->set_text(new_text);
-
-  return unmodified_ids;
 }
 
 google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>

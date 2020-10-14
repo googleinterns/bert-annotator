@@ -21,19 +21,14 @@ namespace augmenter {
 
 struct Augmentations {
   int num_total;
-  int num_lowercasings_complete_token;
-  double probability_per_lowercasing_complete_token;
-  int num_lowercasings_first_letter;
-  double probability_per_lowercasing_first_letter;
-  int num_uppercasings_complete_token;
-  double probability_per_uppercasing_complete_token;
-  int num_uppercasings_first_letter;
-  double probability_per_uppercasing_first_letter;
-  int num_address_replacements;
-  int num_phone_replacements;
-  int num_context_drops_between_labels;
-  int num_context_drops_outside_one_label;
-  double probability_per_drop;
+  double prob_lowercasing_complete_token;
+  double prob_lowercasing_first_letter;
+  double prob_uppercasing_complete_token;
+  double prob_uppercasing_first_letter;
+  double prob_address_replacement;
+  double prob_phone_replacement;
+  double prob_context_drop_between_labels;
+  double prob_context_drop_outside_one_label;
   int num_contextless_addresses;
   int num_contextless_phones;
   bool mask_digits;

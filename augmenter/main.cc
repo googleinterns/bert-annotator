@@ -25,47 +25,32 @@
 #include "augmenter/random_sampler.h"
 #include "augmenter/textproto_io.h"
 
-ABSL_FLAG(int, num_total, 0, "Number of created augmented samples");
 ABSL_FLAG(std::vector<std::string>, corpora, std::vector<std::string>({}),
           "comma-separated list of corpora to augment");
-ABSL_FLAG(int, num_lowercasings_complete_token, 0,
-          "Number of augmentations by lowercasing complete tokens");
-ABSL_FLAG(double, probability_per_lowercasing_complete_token, 0.5,
-          "Given that some tokens are completely lowercased, how likely is "
-          "each token to be affected? Defaults to 0.5");
-ABSL_FLAG(int, num_lowercasings_first_letter, 0,
-          "Number of augmentations by lowercasing the first letter of tokens");
-ABSL_FLAG(double, probability_per_lowercasing_first_letter, 0.5,
-          "Given that the first letter of some tokens will be lowercased, how "
-          "likely is each token to be affected? Defaults to 0.5");
-ABSL_FLAG(int, num_uppercasings_complete_token, 0,
-          "Number of augmentations by uppercasing complete tokens");
-ABSL_FLAG(double, probability_per_uppercasing_complete_token, 0.5,
-          "Given that some tokens are completely uppercased, how likely is "
-          "each token to be affected? Defaults to 0.5");
-ABSL_FLAG(int, num_uppercasings_first_letter, 0,
-          "Number of augmentations by uppercasing the first letter of tokens");
-ABSL_FLAG(double, probability_per_uppercasing_first_letter, 0.5,
-          "Given that the first letter of some tokens will be uppercased, how "
-          "likely is each token to be affected? Defaults to 0.5");
 ABSL_FLAG(std::string, addresses_path, "",
           "Path to list of alternative addresses");
-ABSL_FLAG(int, num_address_replacements, 0,
-          "Number of augmentations by address replacement");
 ABSL_FLAG(std::string, phones_path, "",
           "Path to list of alternative phone number");
-ABSL_FLAG(int, num_phone_replacements, 0,
-          "Number of augmentations by phone number replacement");
-ABSL_FLAG(
-    int, num_context_drops_between_labels, 0,
-    "Number of augmentations by dropping context in between labels. Keeps at "
-    "least the token directly to the left and right of each label.");
-ABSL_FLAG(int, num_context_drops_outside_one_label, 0,
-          "Number of augmentations by selecting a label and dropping context "
-          "to its left and right. May drop other labels.");
-ABSL_FLAG(double, probability_per_drop, 0.5,
-          "Given that context from a sentence will be dropped, how likely is "
-          "each sequence to be dropped?");
+ABSL_FLAG(int, num_total, 0, "Number of total augmentations");
+
+ABSL_FLAG(double, prob_lowercasing_complete_token, 0,
+          "Probability of lowercasing a complete token");
+ABSL_FLAG(double, prob_lowercasing_first_letter, 0,
+          "Probability of lowercasing the first letter of a token");
+ABSL_FLAG(double, prob_uppercasing_complete_token, 0,
+          "Probability of uppercasing a complete token");
+ABSL_FLAG(double, prob_uppercasing_first_letter, 0,
+          "Probability of uppercasing the first letter of a token");
+ABSL_FLAG(double, prob_address_replacement, 0,
+          "Probability of replacing an address");
+ABSL_FLAG(double, prob_phone_replacement, 0,
+          "Probability of replacing a phone number");
+ABSL_FLAG(double, prob_context_drop_between_labels, 0,
+          "Probability of dropping context in between labels. Keeps at least "
+          "the token directly to the left and right of each label");
+ABSL_FLAG(double, prob_context_drop_outside_one_label, 0,
+          "Probability of selecting a label and dropping context to its left "
+          "and right. May drop other labels");
 ABSL_FLAG(
     int, num_contextless_addresses, 0,
     "Number of sentences solely consisting of an address, without any context");
@@ -89,29 +74,20 @@ int main(int argc, char* argv[]) {
 
   augmenter::Augmentations augmentations{
       .num_total = absl::GetFlag(FLAGS_num_total),
-      .num_lowercasings_complete_token =
-          absl::GetFlag(FLAGS_num_lowercasings_complete_token),
-      .probability_per_lowercasing_complete_token =
-          absl::GetFlag(FLAGS_probability_per_lowercasing_complete_token),
-      .num_lowercasings_first_letter =
-          absl::GetFlag(FLAGS_num_lowercasings_first_letter),
-      .probability_per_lowercasing_first_letter =
-          absl::GetFlag(FLAGS_probability_per_lowercasing_first_letter),
-      .num_uppercasings_complete_token =
-          absl::GetFlag(FLAGS_num_uppercasings_complete_token),
-      .probability_per_uppercasing_complete_token =
-          absl::GetFlag(FLAGS_probability_per_uppercasing_complete_token),
-      .num_uppercasings_first_letter =
-          absl::GetFlag(FLAGS_num_uppercasings_first_letter),
-      .probability_per_uppercasing_first_letter =
-          absl::GetFlag(FLAGS_probability_per_uppercasing_first_letter),
-      .num_address_replacements = absl::GetFlag(FLAGS_num_address_replacements),
-      .num_phone_replacements = absl::GetFlag(FLAGS_num_phone_replacements),
-      .num_context_drops_between_labels =
-          absl::GetFlag(FLAGS_num_context_drops_between_labels),
-      .num_context_drops_outside_one_label =
-          absl::GetFlag(FLAGS_num_context_drops_outside_one_label),
-      .probability_per_drop = absl::GetFlag(FLAGS_probability_per_drop),
+      .prob_lowercasing_complete_token =
+          absl::GetFlag(FLAGS_prob_lowercasing_complete_token),
+      .prob_lowercasing_first_letter =
+          absl::GetFlag(FLAGS_prob_lowercasing_first_letter),
+      .prob_uppercasing_complete_token =
+          absl::GetFlag(FLAGS_prob_uppercasing_complete_token),
+      .prob_uppercasing_first_letter =
+          absl::GetFlag(FLAGS_prob_uppercasing_first_letter),
+      .prob_address_replacement = absl::GetFlag(FLAGS_prob_address_replacement),
+      .prob_phone_replacement = absl::GetFlag(FLAGS_prob_phone_replacement),
+      .prob_context_drop_between_labels =
+          absl::GetFlag(FLAGS_prob_context_drop_between_labels),
+      .prob_context_drop_outside_one_label =
+          absl::GetFlag(FLAGS_prob_context_drop_outside_one_label),
       .num_contextless_addresses =
           absl::GetFlag(FLAGS_num_contextless_addresses),
       .num_contextless_phones = absl::GetFlag(FLAGS_num_contextless_phones),
