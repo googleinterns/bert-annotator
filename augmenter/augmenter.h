@@ -28,6 +28,7 @@
 #include "augmenter/augmentations.h"
 #include "augmenter/case_augmentation.h"
 #include "augmenter/random_sampler.h"
+#include "augmenter/shuffler.h"
 #include "augmenter/token_range.h"
 #include "protocol_buffer/documents.pb.h"
 
@@ -37,10 +38,8 @@ class Augmenter {
  public:
   Augmenter(const bert_annotator::Documents& documents,
             Augmentations augmentations, RandomSampler* const address_sampler,
-            RandomSampler* const phone_sampler);
-  Augmenter(const bert_annotator::Documents& documents,
-            Augmentations augmentations, RandomSampler* const address_sampler,
-            RandomSampler* const phone_sampler, absl::BitGenRef bitgen);
+            RandomSampler* const phone_sampler, Shuffler* const shuffler,
+            absl::BitGenRef bitgenref);
   void Augment();
   const bert_annotator::Documents documents() const;
   static const absl::flat_hash_set<absl::string_view>& kAddressLabels;
@@ -67,7 +66,11 @@ class Augmenter {
                          bert_annotator::Document* const document);
   void AugmentPunctuation(bert_annotator::Document* const augmented_document);
   void AugmentContext(bert_annotator::Document* const augmented_document);
-  // Returns the ranges of all tokens not labeled as an address or phone number.
+  // Appends the second document on the first, separated by a space.
+  void AddConcatenatedDocument(const bert_annotator::Document& first_document,
+                               const bert_annotator::Document& second_document);
+  // Returns the ranges of all tokens not labeled as an address or phone
+  // number.
   std::vector<TokenRange> GetUnlabeledRanges(
       const bert_annotator::Document& document);
   std::vector<TokenRange> GetLabeledRanges(
@@ -134,9 +137,9 @@ class Augmenter {
   bert_annotator::Documents documents_;
   RandomSampler* const address_sampler_;
   RandomSampler* const phone_sampler_;
+  Shuffler* const shuffler_;
   Augmentations augmentations_;
   absl::BitGenRef bitgenref_;
-  absl::BitGen bitgen_;
 };
 
 }  // namespace augmenter

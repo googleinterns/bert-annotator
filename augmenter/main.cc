@@ -23,6 +23,7 @@
 #include "augmenter/augmentations.h"
 #include "augmenter/augmenter.h"
 #include "augmenter/random_sampler.h"
+#include "augmenter/shuffler.h"
 #include "augmenter/textproto_io.h"
 
 ABSL_FLAG(std::vector<std::string>, corpora, std::vector<std::string>({}),
@@ -57,6 +58,8 @@ ABSL_FLAG(double, prob_punctuation_change_between_tokens, 0,
 ABSL_FLAG(double, prob_punctuation_change_at_sentence_end, 0,
           "Probability of changing the punctuation at the sentence end to be "
           "one of {\"?\", \"!\", \".\", \":\", \";\", \" - \"}");
+ABSL_FLAG(double, prob_sentence_concatenation, 0,
+          "Probability of concatenating sentences");
 ABSL_FLAG(
     int, num_contextless_addresses, 0,
     "Number of sentences solely consisting of an address, without any context");
@@ -98,6 +101,8 @@ int main(int argc, char* argv[]) {
           absl::GetFlag(FLAGS_prob_punctuation_change_between_tokens),
       .prob_punctuation_change_at_sentence_end =
           absl::GetFlag(FLAGS_prob_punctuation_change_at_sentence_end),
+      .prob_sentence_concatenation =
+          absl::GetFlag(FLAGS_prob_sentence_concatenation),
       .num_contextless_addresses =
           absl::GetFlag(FLAGS_num_contextless_addresses),
       .num_contextless_phones = absl::GetFlag(FLAGS_num_contextless_phones),
@@ -138,9 +143,13 @@ int main(int argc, char* argv[]) {
     }
     augmenter::RandomSampler phones_sampler(phones_stream);
 
-    augmenter::Augmenter augmenter =
-        augmenter::Augmenter(textproto_io.documents(), augmentations,
-                             &address_sampler, &phones_sampler);
+    augmenter::Shuffler shuffler;
+
+    absl::BitGen bitgen;
+
+    augmenter::Augmenter augmenter = augmenter::Augmenter(
+        textproto_io.documents(), augmentations, &address_sampler,
+        &phones_sampler, &shuffler, bitgen);
     augmenter.Augment();
     textproto_io.set_documents(augmenter.documents());
     textproto_io.Save(corpus);

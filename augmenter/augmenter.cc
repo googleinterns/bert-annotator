@@ -28,6 +28,7 @@
 #include "augmenter/augmentations.h"
 #include "augmenter/case_augmentation.h"
 #include "augmenter/random_sampler.h"
+#include "augmenter/shuffler.h"
 #include "augmenter/token_range.h"
 #include "protocol_buffer/document.pb.h"
 #include "protocol_buffer/documents.pb.h"
@@ -38,10 +39,11 @@ Augmenter::Augmenter(const bert_annotator::Documents& documents,
                      Augmentations augmentations,
                      RandomSampler* const address_sampler,
                      RandomSampler* const phone_sampler,
-                     absl::BitGenRef bitgenref)
+                     Shuffler* const shuffler, absl::BitGenRef bitgenref)
     : documents_(documents),
       address_sampler_(address_sampler),
       phone_sampler_(phone_sampler),
+      shuffler_(shuffler),
       augmentations_(augmentations),
       bitgenref_(bitgenref) {
   // Assert valid probabilities.
@@ -115,13 +117,6 @@ Augmenter::Augmenter(const bert_annotator::Documents& documents,
     }
   }
 }
-
-Augmenter::Augmenter(const bert_annotator::Documents& documents,
-                     Augmentations augmentations,
-                     RandomSampler* const address_sampler,
-                     RandomSampler* const phone_sampler)
-    : Augmenter(documents, augmentations, address_sampler, phone_sampler,
-                bitgen_) {}
 
 void Augmenter::AugmentAddress(
     bert_annotator::Document* const augmented_document) {
@@ -229,10 +224,50 @@ void Augmenter::Augment() {
     AugmentPunctuation(augmented_document);
   }
 
+  // If the documents are not shuffled, the unmodified sentences are all next to
+  // each other. This is problematic when merging sentences in the next step.
+  shuffler_->Shuffle(&documents_, bitgenref_);
+
+  for (int i = documents_.documents_size() - 1; i > 0; --i) {
+    if (absl::Bernoulli(bitgenref_,
+                        augmentations_.prob_sentence_concatenation)) {
+      AddConcatenatedDocument(documents_.documents(i - 1),
+                              documents_.documents(i));
+    }
+  }
+
   if (augmentations_.mask_digits) {
     for (bert_annotator::Document& document : *documents_.mutable_documents()) {
       MaskDigits(&document);
     }
+  }
+}
+
+void Augmenter::AddConcatenatedDocument(
+    const bert_annotator::Document& first_document,
+    const bert_annotator::Document& second_document) {
+  bert_annotator::Document* concatenated_document = documents_.add_documents();
+  concatenated_document->CopyFrom(first_document);
+  bert_annotator::Document tmp_copy_of_second_document;
+  tmp_copy_of_second_document.CopyFrom(second_document);
+
+  ShiftTokenBoundaries(0, first_document.text().size() + 1,
+                       &tmp_copy_of_second_document);
+  ShiftLabeledSpansForDroppedTokens(0, first_document.token_size(),
+                                    &tmp_copy_of_second_document);
+  concatenated_document->mutable_text()->append(
+      " " + tmp_copy_of_second_document.text());
+  InsertTokens(concatenated_document->token_size(),
+               std::vector<bert_annotator::Token>(
+                   tmp_copy_of_second_document.token().begin(),
+                   tmp_copy_of_second_document.token().end()),
+               concatenated_document);
+  const google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>&
+      labeled_spans = GetLabelListWithDefault(tmp_copy_of_second_document, {});
+  for (const bert_annotator::LabeledSpan& labeled_span : labeled_spans) {
+    InsertLabeledSpan(TokenRange{.start = labeled_span.token_start(),
+                                 .end = labeled_span.token_end()},
+                      labeled_span.label(), concatenated_document);
   }
 }
 
