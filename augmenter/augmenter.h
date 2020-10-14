@@ -52,6 +52,8 @@ class Augmenter {
   static const std::string& kLabelContainerName;
   static const std::vector<absl::string_view>&
       kPunctuationReplacementsWithinText;
+  static const std::vector<absl::string_view>&
+      kPunctuationReplacementsAtSentenceEnd;
 
  private:
   void AugmentAddress(bert_annotator::Document* const augmented_document);
@@ -63,6 +65,7 @@ class Augmenter {
                          const absl::string_view replacement_label,
                          const bool split_into_tokens,
                          bert_annotator::Document* const document);
+  void AugmentPunctuation(bert_annotator::Document* const augmented_document);
   void AugmentContext(bert_annotator::Document* const augmented_document);
   // Returns the ranges of all tokens not labeled as an address or phone number.
   std::vector<TokenRange> GetUnlabeledRanges(

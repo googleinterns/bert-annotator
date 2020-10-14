@@ -226,6 +226,7 @@ void Augmenter::Augment() {
     AugmentPhone(augmented_document);
     AugmentCase(augmented_document);
     AugmentContext(augmented_document);
+    AugmentPunctuation(augmented_document);
   }
 
   if (augmentations_.mask_digits) {
@@ -240,6 +241,47 @@ void Augmenter::AugmentContext(
   MaybeDropContextKeepLabels(augmentations_.prob_context_drop_between_labels,
                              augmented_document);
   MaybeDropContextDropLabels(augmented_document);
+}
+
+void Augmenter::AugmentPunctuation(bert_annotator::Document* const document) {
+  for (int i = 0; i < document->token_size() - 1; ++i) {
+    bert_annotator::Token* const token = document->mutable_token(i);
+    const bool do_change_punctuation = absl::Bernoulli(
+        bitgenref_, augmentations_.prob_punctuation_change_between_tokens);
+    if (!do_change_punctuation) {
+      continue;
+    }
+    const int punctuation_replacement_id = absl::Uniform(
+        bitgenref_, 0,
+        static_cast<int>(kPunctuationReplacementsWithinText.size()));
+    const absl::string_view punctuation_replacement =
+        kPunctuationReplacementsWithinText[punctuation_replacement_id];
+    const int current_punctuation_length =
+        document->token(i + 1).start() - token->end() - 1;
+    document->mutable_text()->replace(token->end() + 1,
+                                      current_punctuation_length,
+                                      std::string(punctuation_replacement));
+    ShiftTokenBoundaries(
+        i + 1, punctuation_replacement.size() - current_punctuation_length,
+        document);
+  }
+
+  const bool do_change_punctuation = absl::Bernoulli(
+      bitgenref_, augmentations_.prob_punctuation_change_at_sentence_end);
+  if (do_change_punctuation && document->token_size() > 0) {
+    const int punctuation_replacement_id = absl::Uniform(
+        bitgenref_, 0,
+        static_cast<int>(kPunctuationReplacementsAtSentenceEnd.size()));
+    const absl::string_view punctuation_replacement =
+        kPunctuationReplacementsAtSentenceEnd[punctuation_replacement_id];
+    bert_annotator::Token last_token =
+        document->token(document->token_size() - 1);
+    const int current_punctuation_length =
+        document->text().size() - last_token.end() - 1;
+    document->mutable_text()->replace(last_token.end() + 1,
+                                      current_punctuation_length,
+                                      std::string(punctuation_replacement));
+  }
 }
 
 std::vector<TokenRange> Augmenter::GetUnlabeledRanges(
@@ -715,5 +757,9 @@ const std::string& Augmenter::kLabelContainerName = *new std::string("lucid");
 const std::vector<absl::string_view>&
     Augmenter::kPunctuationReplacementsWithinText =
         *new std::vector<absl::string_view>({", ", "; ", ": ", " - "});
+
+const std::vector<absl::string_view>&
+    Augmenter::kPunctuationReplacementsAtSentenceEnd =
+        *new std::vector<absl::string_view>({"?", "!", ".", ":", ";", " - "});
 
 }  // namespace augmenter

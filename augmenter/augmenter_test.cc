@@ -107,18 +107,21 @@ bert_annotator::Documents ConstructBertDocument(
 }
 
 augmenter::Augmentations GetDefaultAugmentations() {
-  return augmenter::Augmentations{.num_total = 0,
-                                  .prob_lowercasing_complete_token = 0.0,
-                                  .prob_lowercasing_first_letter = 0.0,
-                                  .prob_uppercasing_complete_token = 0.0,
-                                  .prob_uppercasing_first_letter = 0.0,
-                                  .prob_address_replacement = 0.0,
-                                  .prob_phone_replacement = 0.0,
-                                  .prob_context_drop_between_labels = 0.0,
-                                  .prob_context_drop_outside_one_label = 0.0,
-                                  .num_contextless_addresses = 0,
-                                  .num_contextless_phones = 0,
-                                  .mask_digits = false};
+  return augmenter::Augmentations{
+      .num_total = 0,
+      .prob_lowercasing_complete_token = 0.0,
+      .prob_lowercasing_first_letter = 0.0,
+      .prob_uppercasing_complete_token = 0.0,
+      .prob_uppercasing_first_letter = 0.0,
+      .prob_address_replacement = 0.0,
+      .prob_phone_replacement = 0.0,
+      .prob_context_drop_between_labels = 0.0,
+      .prob_context_drop_outside_one_label = 0.0,
+      .prob_punctuation_change_between_tokens = 0.0,
+      .prob_punctuation_change_at_sentence_end = 0.0,
+      .num_contextless_addresses = 0,
+      .num_contextless_phones = 0,
+      .mask_digits = false};
 }
 
 void ExpectEq(const bert_annotator::Document a,
@@ -1422,6 +1425,152 @@ TEST(AugmenterTest, DropContextDropLabelsSuffix) {
               {{Augmenter::kLabelContainerName,
                 {LabelSpec(Augmenter::kPhoneReplacementLabel, 0, 0)}}})})
           .documents(0);
+  ExpectEq(augmented, expected);
+}
+
+TEST(AugmenterTest, ChangePunctuationBetweenWords) {
+  bert_annotator::Documents documents = ConstructBertDocument(
+      {DocumentSpec("Text - with, some! more punctuation.",
+                    {TokenSpec("Text", 0, 3), TokenSpec("with", 7, 10),
+                     TokenSpec("some", 13, 16), TokenSpec("more", 19, 22),
+                     TokenSpec("punctuation", 24, 34)})});
+  augmenter::Augmentations augmentations = GetDefaultAugmentations();
+  augmentations.num_total = 1;
+  augmentations.prob_punctuation_change_between_tokens = 1;
+  MockRandomSampler address_sampler;
+  MockRandomSampler phone_sampler;
+  absl::MockingBitGen bitgen;
+  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
+      .WillRepeatedly(Return(false));
+  EXPECT_CALL(
+      absl::MockBernoulli(),
+      Call(bitgen, augmentations.prob_punctuation_change_between_tokens))
+      .WillRepeatedly(Return(true));
+  EXPECT_CALL(
+      absl::MockUniform<int>(),
+      Call(bitgen, 0, Augmenter::kPunctuationReplacementsWithinText.size()))
+      .WillOnce(Return(0))
+      .WillOnce(Return(1))
+      .WillOnce(Return(2))
+      .WillOnce(Return(3));
+
+  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+                                  &phone_sampler, bitgen);
+
+  augmenter.Augment();
+
+  const bert_annotator::Document augmented = augmenter.documents().documents(1);
+  const bert_annotator::Document expected =
+      ConstructBertDocument(
+          {DocumentSpec("Text, with; some: more - punctuation.",
+                        {TokenSpec("Text", 0, 3), TokenSpec("with", 6, 9),
+                         TokenSpec("some", 12, 15), TokenSpec("more", 18, 21),
+                         TokenSpec("punctuation", 25, 35)})})
+          .documents(0);
+  ExpectEq(augmented, expected);
+}
+
+TEST(AugmenterTest, ChangePunctuationAtSentenceEnd) {
+  bert_annotator::Documents documents =
+      ConstructBertDocument({DocumentSpec("Text", {TokenSpec("Text", 0, 3)}),
+                             DocumentSpec("Text!", {TokenSpec("Text", 0, 3)})});
+  augmenter::Augmentations augmentations = GetDefaultAugmentations();
+  augmentations.num_total = 6;
+  augmentations.prob_punctuation_change_at_sentence_end = 1;
+  MockRandomSampler address_sampler;
+  MockRandomSampler phone_sampler;
+  absl::MockingBitGen bitgen;
+  EXPECT_CALL(absl::MockUniform<int>(),
+              Call(absl::IntervalClosed, bitgen, 0, 1))
+      .WillOnce(Return(0))
+      .WillOnce(Return(0))
+      .WillRepeatedly(Return(1));
+  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
+      .WillRepeatedly(Return(false));
+  EXPECT_CALL(
+      absl::MockBernoulli(),
+      Call(bitgen, augmentations.prob_punctuation_change_at_sentence_end))
+      .WillRepeatedly(Return(true));
+  EXPECT_CALL(
+      absl::MockUniform<int>(),
+      Call(bitgen, 0, Augmenter::kPunctuationReplacementsAtSentenceEnd.size()))
+      .WillOnce(Return(0))
+      .WillOnce(Return(1))
+      .WillOnce(Return(2))
+      .WillOnce(Return(3))
+      .WillOnce(Return(4))
+      .WillOnce(Return(5));
+
+  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+                                  &phone_sampler, bitgen);
+
+  augmenter.Augment();
+
+  bert_annotator::Document augmented = augmenter.documents().documents(2);
+  bert_annotator::Document expected =
+      ConstructBertDocument({DocumentSpec("Text?", {TokenSpec("Text", 0, 3)})})
+          .documents(0);
+  ExpectEq(augmented, expected);
+
+  augmented = augmenter.documents().documents(3);
+  expected =
+      ConstructBertDocument({DocumentSpec("Text!", {TokenSpec("Text", 0, 3)})})
+          .documents(0);
+  ExpectEq(augmented, expected);
+
+  augmented = augmenter.documents().documents(4);
+  expected =
+      ConstructBertDocument({DocumentSpec("Text.", {TokenSpec("Text", 0, 3)})})
+          .documents(0);
+  ExpectEq(augmented, expected);
+
+  augmented = augmenter.documents().documents(5);
+  expected =
+      ConstructBertDocument({DocumentSpec("Text:", {TokenSpec("Text", 0, 3)})})
+          .documents(0);
+  ExpectEq(augmented, expected);
+
+  augmented = augmenter.documents().documents(6);
+  expected =
+      ConstructBertDocument({DocumentSpec("Text;", {TokenSpec("Text", 0, 3)})})
+          .documents(0);
+  ExpectEq(augmented, expected);
+
+  augmented = augmenter.documents().documents(7);
+  expected = ConstructBertDocument(
+                 {DocumentSpec("Text - ", {TokenSpec("Text", 0, 3)})})
+                 .documents(0);
+  ExpectEq(augmented, expected);
+}
+
+TEST(AugmenterTest, ChangePunctuationAtSentenceEndNoTokens) {
+  bert_annotator::Documents documents =
+      ConstructBertDocument({DocumentSpec("...", {})});
+  augmenter::Augmentations augmentations = GetDefaultAugmentations();
+  augmentations.num_total = 1;
+  augmentations.prob_punctuation_change_at_sentence_end = 1;
+  MockRandomSampler address_sampler;
+  MockRandomSampler phone_sampler;
+  absl::MockingBitGen bitgen;
+  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
+      .WillRepeatedly(Return(false));
+  EXPECT_CALL(
+      absl::MockBernoulli(),
+      Call(bitgen, augmentations.prob_punctuation_change_at_sentence_end))
+      .WillRepeatedly(Return(true));
+  EXPECT_CALL(
+      absl::MockUniform<int>(),
+      Call(bitgen, 0, Augmenter::kPunctuationReplacementsAtSentenceEnd.size()))
+      .Times(0);
+
+  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+                                  &phone_sampler, bitgen);
+
+  augmenter.Augment();
+
+  const bert_annotator::Document augmented = augmenter.documents().documents(1);
+  const bert_annotator::Document expected =
+      ConstructBertDocument({DocumentSpec("...", {})}).documents(0);
   ExpectEq(augmented, expected);
 }
 
