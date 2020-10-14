@@ -1680,8 +1680,8 @@ TEST(AugmenterTest, MergeDocuments) {
                                   &phone_sampler, &shuffler, bitgen);
   augmenter.Augment();
 
-  ASSERT_EQ(augmenter.documents().documents_size(), 1);
-  bert_annotator::Document augmented = augmenter.documents().documents(0);
+  ASSERT_EQ(augmenter.documents().documents_size(), 3);
+  bert_annotator::Document augmented = augmenter.documents().documents(2);
   bert_annotator::Document expected =
       ConstructBertDocument(
           {DocumentSpec(
