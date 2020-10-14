@@ -44,7 +44,14 @@ The augmenter can be run using
 Valid flags are:
  - `--corpora="[corpora]"`
  - `--num_total=[total augmentations]`
- - `--num_lowercasings=[augmentations by lowercasing]`
+ - `--num_lowercasings_complete_token=[augmentations by lowercasing complete tokens]`
+ - `--probability_per_lowercasing_complete_token=[given that some tokens are completely lowercased, how likely is each token to be affected? Defaults to 0.5]`
+ - `--num_lowercasings_first_letter=[augmentations by lowercasing the first letter of tokens]`
+ - `--probability_per_lowercasing_first_letter=[given that the first letter of some tokens will be lowercased, how likely is each token to be affected? Defaults to 0.5]`
+ - `--num_uppercasings_complete_token=[augmentations by uppercasing complete tokens]`
+ - `--probability_per_uppercasing_complete_token=[given that some tokens are completely uppercased, how likely is each token to be affected? Defaults to 0.5]`
+ - `--num_uppercasings_first_letter=[augmentations by uppercasing the first letter of tokens]`
+ - `--probability_per_uppercasing_first_letter=[given that the first letter of some tokens will be uppercased, how likely is each token to be affected? Defaults to 0.5]`
  - `--addresses_path=[path to address file]`
  - `--num_address_replacements=[augmentations by address replacement]`
  - `--phones_path=[path to phone number file]`

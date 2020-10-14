@@ -26,6 +26,7 @@
 #include "absl/random/random.h"
 #include "absl/strings/string_view.h"
 #include "augmenter/augmentations.h"
+#include "augmenter/case_augmentation.h"
 #include "augmenter/random_sampler.h"
 #include "augmenter/token_range.h"
 #include "protocol_buffer/documents.pb.h"
@@ -49,15 +50,18 @@ class Augmenter {
   // Cannot be an absl::string_view because it's used for lookups in maps that
   // expect the key to be a string.
   static const std::string& kLabelContainerName;
+  static const std::vector<absl::string_view>&
+      kPunctuationReplacementsWithinText;
 
  private:
   bool AugmentAddress(bert_annotator::Document* const augmented_document);
   bool AugmentPhone(bert_annotator::Document* const augmented_document);
-  bool AugmentLowercase(bert_annotator::Document* const augmented_document);
+  bool AugmentCase(bert_annotator::Document* const augmented_document);
   void AugmentContextless(const absl::string_view label,
                           RandomSampler* const sampler);
   bool MaybeReplaceLabel(const double probability, RandomSampler* const sampler,
                          const absl::string_view replacement_label,
+                         const bool split_into_tokens,
                          bert_annotator::Document* const document);
   bool AugmentContext(bert_annotator::Document* const augmented_document);
   // Returns the ranges of all tokens not labeled as an address or phone number.
@@ -82,36 +86,47 @@ class Augmenter {
                         const std::string& replacement,
                         bert_annotator::Document* const document) const;
   // Removes the specified range of tokens from the text. Tries to keep the
-  // sentence structure logical by also removing now obsolete non-tokens
-  // (spaces, punctuation). Returns the number of deleted characters.
+  // sentence structure logical by also removing now obsolete punctuation.
+  // Returns the number of deleted characters.
   const int DropText(const TokenRange& boundaries,
                      bert_annotator::Document* const document) const;
   // May introduce tokens longer than one word.
-  void ReplaceToken(const int token_id, const std::string& replacement,
+  void InsertTokens(int index, const std::vector<bert_annotator::Token> tokens,
                     bert_annotator::Document* const document) const;
   void ShiftTokenBoundaries(const int first_token, const int shift,
                             bert_annotator::Document* const document) const;
-  void ReplaceLabeledSpan(const int token_id,
-                          const absl::string_view replacement_label,
-                          bert_annotator::Document* const document) const;
   // Drops labeled spans if associated tokens were dropped. Otherwise updates
   // the start and end indices to reflect the new token ids.
-  void UpdateLabeledSpansForDroppedTokens(
-      const TokenRange& removed_tokens,
+  void ShiftLabeledSpansForDroppedTokens(
+      const int start, const int shift,
       bert_annotator::Document* const document) const;
+  void DropLabeledSpans(const TokenRange& removed_tokens,
+                        bert_annotator::Document* const document) const;
+  void InsertLabeledSpan(const TokenRange& range, const absl::string_view label,
+                         bert_annotator::Document* const document) const;
+  int RemovePrefixPunctuation(absl::string_view* const text) const;
+  int RemoveSuffixPunctuation(absl::string_view* const text) const;
+  std::vector<bert_annotator::Token> SplitTextIntoTokens(
+      int text_start, const absl::string_view text) const;
   void ReplaceLabeledTokens(const TokenRange& boundaries,
-                            const std::string& replacement,
+                            const absl::string_view replacement,
                             const absl::string_view replacement_label,
+                            const bool split_into_tokens,
                             bert_annotator::Document* const document) const;
-  // Transforms the text to lowercase. Only explicitly listed tokens are
-  // transformed.
-  void Lowercase(bert_annotator::Document* const document) const;
+  // Changes the complete token or the first letter of a token to
+  // lower/upper case. Processes only the specified tokens and returns the ids
+  // of all unmodified tokens.
+  std::vector<int> MaybeChangeCase(const CaseAugmentation case_augmentation,
+                                   const double probability_per_sentence,
+                                   const double probability_per_token,
+                                   const std::vector<int>& token_ids,
+                                   bert_annotator::Document* const document);
   google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>
   GetLabelListWithDefault(
       const bert_annotator::Document& document,
       google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>
           defaults_to) const;
-  google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>*
+  google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>* const
   GetLabelListWithDefault(
       bert_annotator::Document* document,
       google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>*

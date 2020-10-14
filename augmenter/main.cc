@@ -28,7 +28,26 @@
 ABSL_FLAG(int, num_total, 0, "Number of created augmented samples");
 ABSL_FLAG(std::vector<std::string>, corpora, std::vector<std::string>({}),
           "comma-separated list of corpora to augment");
-ABSL_FLAG(int, num_lowercasings, 0, "Number of augmentations by lowercasing");
+ABSL_FLAG(int, num_lowercasings_complete_token, 0,
+          "Number of augmentations by lowercasing complete tokens");
+ABSL_FLAG(double, probability_per_lowercasing_complete_token, 0.5,
+          "Given that some tokens are completely lowercased, how likely is "
+          "each token to be affected? Defaults to 0.5");
+ABSL_FLAG(int, num_lowercasings_first_letter, 0,
+          "Number of augmentations by lowercasing the first letter of tokens");
+ABSL_FLAG(double, probability_per_lowercasing_first_letter, 0.5,
+          "Given that the first letter of some tokens will be lowercased, how "
+          "likely is each token to be affected? Defaults to 0.5");
+ABSL_FLAG(int, num_uppercasings_complete_token, 0,
+          "Number of augmentations by uppercasing complete tokens");
+ABSL_FLAG(double, probability_per_uppercasing_complete_token, 0.5,
+          "Given that some tokens are completely uppercased, how likely is "
+          "each token to be affected? Defaults to 0.5");
+ABSL_FLAG(int, num_uppercasings_first_letter, 0,
+          "Number of augmentations by uppercasing the first letter of tokens");
+ABSL_FLAG(double, probability_per_uppercasing_first_letter, 0.5,
+          "Given that the first letter of some tokens will be uppercased, how "
+          "likely is each token to be affected? Defaults to 0.5");
 ABSL_FLAG(std::string, addresses_path, "",
           "Path to list of alternative addresses");
 ABSL_FLAG(int, num_address_replacements, 0,
@@ -70,7 +89,22 @@ int main(int argc, char* argv[]) {
 
   augmenter::Augmentations augmentations{
       .num_total = absl::GetFlag(FLAGS_num_total),
-      .num_lowercasings = absl::GetFlag(FLAGS_num_lowercasings),
+      .num_lowercasings_complete_token =
+          absl::GetFlag(FLAGS_num_lowercasings_complete_token),
+      .probability_per_lowercasing_complete_token =
+          absl::GetFlag(FLAGS_probability_per_lowercasing_complete_token),
+      .num_lowercasings_first_letter =
+          absl::GetFlag(FLAGS_num_lowercasings_first_letter),
+      .probability_per_lowercasing_first_letter =
+          absl::GetFlag(FLAGS_probability_per_lowercasing_first_letter),
+      .num_uppercasings_complete_token =
+          absl::GetFlag(FLAGS_num_uppercasings_complete_token),
+      .probability_per_uppercasing_complete_token =
+          absl::GetFlag(FLAGS_probability_per_uppercasing_complete_token),
+      .num_uppercasings_first_letter =
+          absl::GetFlag(FLAGS_num_uppercasings_first_letter),
+      .probability_per_uppercasing_first_letter =
+          absl::GetFlag(FLAGS_probability_per_uppercasing_first_letter),
       .num_address_replacements = absl::GetFlag(FLAGS_num_address_replacements),
       .num_phone_replacements = absl::GetFlag(FLAGS_num_phone_replacements),
       .num_context_drops_between_labels =
