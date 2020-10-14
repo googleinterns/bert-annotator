@@ -607,14 +607,14 @@ void Augmenter::ShiftLabeledSpansForDroppedTokens(
   }
 }
 
-int Augmenter::RemovePrefixPunctuation(absl::string_view* const string) const {
+int Augmenter::RemovePrefixPunctuation(absl::string_view* const text) const {
   int removed_punctuation = 0;
   bool punctuation_removed = true;
-  while (punctuation_removed && string->size() > 0) {
+  while (punctuation_removed && text->size() > 0) {
     punctuation_removed = false;
-    const char first_char = string->at(0);
+    const char first_char = text->at(0);
     if (!std::isalpha(first_char) && !std::isdigit(first_char)) {
-      string->remove_prefix(1);
+      text->remove_prefix(1);
       ++removed_punctuation;
       punctuation_removed = true;
     }
@@ -622,14 +622,14 @@ int Augmenter::RemovePrefixPunctuation(absl::string_view* const string) const {
   return removed_punctuation;
 }
 
-int Augmenter::RemoveSuffixPunctuation(absl::string_view* const string) const {
+int Augmenter::RemoveSuffixPunctuation(absl::string_view* const text) const {
   int removed_punctuation = 0;
   bool punctuation_removed = true;
-  while (punctuation_removed && string->size() > 0) {
+  while (punctuation_removed && text->size() > 0) {
     punctuation_removed = false;
-    const char last_char = string->at(string->size() - 1);
+    const char last_char = text->at(text->size() - 1);
     if (!std::isalpha(last_char) && !std::isdigit(last_char)) {
-      string->remove_suffix(1);
+      text->remove_suffix(1);
       ++removed_punctuation;
       punctuation_removed = true;
     }

@@ -104,8 +104,8 @@ class Augmenter {
                         bert_annotator::Document* const document) const;
   void InsertLabeledSpan(const TokenRange& range, const absl::string_view label,
                          bert_annotator::Document* const document) const;
-  int RemovePrefixPunctuation(absl::string_view* const string) const;
-  int RemoveSuffixPunctuation(absl::string_view* const string) const;
+  int RemovePrefixPunctuation(absl::string_view* const text) const;
+  int RemoveSuffixPunctuation(absl::string_view* const text) const;
   std::vector<bert_annotator::Token> SplitTextIntoTokens(
       int text_start, const absl::string_view text) const;
   void ReplaceLabeledTokens(const TokenRange& boundaries,
