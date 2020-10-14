@@ -219,7 +219,6 @@ void Augmenter::Augment() {
                                           original_document_number - 1);
     const bert_annotator::Document& original_document =
         documents_.documents(document_id);
-    std::cout << original_document.text() << std::endl;
     bert_annotator::Document* augmented_document = documents_.add_documents();
     augmented_document->CopyFrom(original_document);
 
