@@ -67,8 +67,9 @@ class Augmenter {
   void AugmentPunctuation(bert_annotator::Document* const augmented_document);
   void AugmentContext(bert_annotator::Document* const augmented_document);
   // Appends the second document on the first, separated by a space.
-  void AppendDocument(bert_annotator::Document* const first_document,
-                      bert_annotator::Document* const second_document) const;
+  void ConcatenateDocument(
+      bert_annotator::Document* const first_document,
+      bert_annotator::Document* const second_document) const;
   // Returns the ranges of all tokens not labeled as an address or phone
   // number.
   std::vector<TokenRange> GetUnlabeledRanges(

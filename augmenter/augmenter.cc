@@ -231,8 +231,8 @@ void Augmenter::Augment() {
   for (int i = documents_.documents_size() - 1; i > 0; --i) {
     if (absl::Bernoulli(bitgenref_,
                         augmentations_.prob_sentence_concatenation)) {
-      AppendDocument(documents_.mutable_documents(i - 1),
-                     documents_.mutable_documents(i));
+      ConcatenateDocument(documents_.mutable_documents(i - 1),
+                          documents_.mutable_documents(i));
       documents_.mutable_documents()->erase(
           documents_.mutable_documents()->begin() + i);
     }
@@ -245,7 +245,7 @@ void Augmenter::Augment() {
   }
 }
 
-void Augmenter::AppendDocument(
+void Augmenter::ConcatenateDocument(
     bert_annotator::Document* const first_document,
     bert_annotator::Document* const second_document) const {
   ShiftTokenBoundaries(0, first_document->text().size() + 1, second_document);
