@@ -76,46 +76,9 @@ Augmenter::Augmenter(const bert_annotator::Documents& documents,
 
   for (bert_annotator::Document& document : *documents_.mutable_documents()) {
     InitializeLabelList(&document);
-
-    // Some tokens only contain separator characters like "," or ".". Keeping
-    // track of those complicates the identification of longer labels, because
-    // those separators may split longer labels into multiple short ones. By
-    // ignoring the separators, this can be avoided. It also avoids that context
-    // dropping *only* drops punctuation.
-    for (int i = document.token_size() - 1; i >= 0; --i) {
-      const bert_annotator::Token& token = document.token(i);
-      // TODO(brix): depends on the installed C locale, may need to be changed
-      // for non-english languages.
-      if (absl::c_none_of(token.word(), [](unsigned char c) {
-            return std::isdigit(c) || std::isalpha(c);
-          })) {
-        const TokenRange removed_tokens = TokenRange{.start = i, .end = i};
-        DropTokens(removed_tokens, &document);
-        ShiftLabeledSpansForDroppedTokens(removed_tokens.start, -1, &document);
-      }
-    }
-
-    // The input uses more detailed address labels. To have a consistent output,
-    // all those labels have to be switched to the generall "ADDRESS" label.
-    google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>* const
-        labeled_spans = GetLabelList(&document);
-    for (int i = labeled_spans->size() - 1; i >= 0; --i) {
-      bert_annotator::LabeledSpan& labeled_span = labeled_spans->at(i);
-      if (kAddressLabels.contains(labeled_span.label())) {
-        labeled_span.set_label(
-            std::string(Augmenter::kAddressReplacementLabel));
-
-        // Consecutive address labels should be merged.
-        if (i <= labeled_spans->size() - 2) {
-          bert_annotator::LabeledSpan& successor_span =
-              labeled_spans->at(i + 1);
-          if (successor_span.label() == Augmenter::kAddressReplacementLabel) {
-            labeled_span.set_token_end(successor_span.token_end());
-            labeled_spans->erase(labeled_spans->begin() + i + 1);
-          }
-        }
-      }
-    }
+    MergePhoneNumberTokens(&document);
+    DropSeparatorTokens(&document);
+    UnifyAndMergeAddressLabels(&document);
   }
 }
 
@@ -230,10 +193,10 @@ void Augmenter::Augment() {
 
       AugmentAddress(augmented_document);
       AugmentPhone(augmented_document);
+      AugmentContext(augmented_document);
     }
 
     AugmentCase(augmented_document);
-    AugmentContext(augmented_document);
     AugmentPunctuation(augmented_document);
   }
 
@@ -514,13 +477,93 @@ void Augmenter::MaybeReplaceLabel(const double probability,
   const std::vector<TokenRange>& labeled_ranges =
       GetLabeledRanges(*document, {label});
 
-  for (TokenRange labeled_range : labeled_ranges) {
+  // The replacement invalidates the boundaries of labeled ranges that occur to
+  // the right, so it has to be done right to left.
+  for (int i = labeled_ranges.size() - 1; i >= 0; --i) {
+    TokenRange labeled_range = labeled_ranges[i];
     if (!absl::Bernoulli(bitgenref_, probability)) {
       continue;
     }
     const std::string replacement = sampler->Sample();
     ReplaceLabeledTokens(labeled_range, replacement, label, split_into_tokens,
                          document);
+  }
+}
+
+void Augmenter::MergePhoneNumberTokens(
+    bert_annotator::Document* const document) const {
+  const google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>&
+      labeled_spans = GetLabelList(*document);
+  for (int label_index = labeled_spans.size() - 1; label_index >= 0;
+       --label_index) {
+    const bert_annotator::LabeledSpan& labeled_span =
+        labeled_spans.at(label_index);
+    const int token_start = labeled_span.token_start();
+    const int token_end = labeled_span.token_end();
+    if (labeled_span.label() == kPhoneReplacementLabel) {
+      std::string merged_token_text;
+      for (int token_index = token_start; token_index <= token_end;
+           ++token_index) {
+        if (token_index > token_start) {
+          for (int intermediate_char_index =
+                   document->token(token_index - 1).end() + 1;
+               intermediate_char_index < document->token(token_index).start();
+               ++intermediate_char_index) {
+            absl::StrAppend(
+                &merged_token_text,
+                document->text().substr(intermediate_char_index, 1));
+          }
+        }
+        absl::StrAppend(&merged_token_text,
+                        document->token(token_index).word());
+      }
+      bert_annotator::Token merged_token;
+      merged_token.set_start(document->token(token_start).start());
+      merged_token.set_end(document->token(token_end).end());
+      merged_token.set_word(merged_token_text);
+
+      DropTokens(TokenRange{.start = token_start, .end = token_end}, document);
+      InsertTokens(token_start, {merged_token}, document);
+      ShiftLabeledSpansForDroppedTokens(token_start + 1,
+                                        -(token_end - token_start), document);
+    }
+  }
+}
+
+void Augmenter::DropSeparatorTokens(
+    bert_annotator::Document* const document) const {
+  for (int i = document->token_size() - 1; i >= 0; --i) {
+    const bert_annotator::Token& token = document->token(i);
+    // TODO(brix): depends on the installed C locale, may need to be changed
+    // for non-english languages.
+    if (absl::c_none_of(token.word(), [](unsigned char c) {
+          return std::isdigit(c) || std::isalpha(c);
+        })) {
+      const TokenRange removed_tokens = TokenRange{.start = i, .end = i};
+      DropTokens(removed_tokens, document);
+      ShiftLabeledSpansForDroppedTokens(removed_tokens.start, -1, document);
+    }
+  }
+}
+
+void Augmenter::UnifyAndMergeAddressLabels(
+    bert_annotator::Document* const document) const {
+  google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>* const
+      labeled_spans = GetLabelList(document);
+  for (int i = labeled_spans->size() - 1; i >= 0; --i) {
+    bert_annotator::LabeledSpan& labeled_span = labeled_spans->at(i);
+    if (kAddressLabels.contains(labeled_span.label())) {
+      labeled_span.set_label(std::string(Augmenter::kAddressReplacementLabel));
+
+      // Consecutive address labels should be merged.
+      if (i <= labeled_spans->size() - 2) {
+        bert_annotator::LabeledSpan& successor_span = labeled_spans->at(i + 1);
+        if (successor_span.label() == Augmenter::kAddressReplacementLabel) {
+          labeled_span.set_token_end(successor_span.token_end());
+          labeled_spans->erase(labeled_spans->begin() + i + 1);
+        }
+      }
+    }
   }
 }
 
@@ -641,8 +684,10 @@ void Augmenter::ShiftLabeledSpansForDroppedTokens(
       labeled_spans = GetLabelList(document);
   for (int i = labeled_spans->size() - 1; i >= 0; --i) {
     bert_annotator::LabeledSpan* const labeled_span = labeled_spans->Mutable(i);
-    if (labeled_span->token_end() >= start) {
+    if (labeled_span->token_start() >= start) {
       labeled_span->set_token_start(labeled_span->token_start() + shift);
+    }
+    if (labeled_span->token_end() >= start) {
       labeled_span->set_token_end(labeled_span->token_end() + shift);
     }
   }

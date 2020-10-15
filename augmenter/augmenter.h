@@ -87,6 +87,21 @@ class Augmenter {
   // labels.
   void MaybeDropContextDropLabels(
       bert_annotator::Document* const augmented_document);
+  // Phone numbers may be split into multiple tokens where some tokens only
+  // contain punctuation. This is different from all other punctuation in that
+  // it must not be changed. Merging all tokens of a phone number into a single
+  // token simplifies all further processing.
+  void MergePhoneNumberTokens(bert_annotator::Document* const document) const;
+  // Some tokens only contain separator characters like "," or ".". Keeping
+  // track of those complicates the identification of longer labels, because
+  // those separators may split longer labels into multiple short ones. By
+  // ignoring the separators, this can be avoided. It also avoids that context
+  // dropping *only* drops punctuation.
+  void DropSeparatorTokens(bert_annotator::Document* const document) const;
+  // The input uses more detailed address labels. To have a consistent output,
+  // all those labels have to be switched to the general "ADDRESS" label.
+  void UnifyAndMergeAddressLabels(
+      bert_annotator::Document* const document) const;
   // Returns the length difference (positive = length increase).
   const int ReplaceText(const TokenRange& boundaries,
                         const std::string& replacement,
