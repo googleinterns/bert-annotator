@@ -1620,7 +1620,7 @@ TEST(AugmenterTest, RemoveSeparatorTokensUpdateLabelBoundaries) {
                      TokenSpec("more", 6, 9), TokenSpec("...", 11, 13),
                      TokenSpec("t.e.x.t.", 15, 22), TokenSpec("!", 23, 23)},
                     {{Augmenter::kLabelContainerName,
-                      {LabelSpec("OTHER", 0, 0), LabelSpec("OTHER", 3, 4)}}})});
+                      {LabelSpec("OTHER", 0, 0), LabelSpec("OTHER", 3, 5)}}})});
   augmenter::Augmentations augmentations = GetDefaultAugmentations();
   MockRandomSampler address_sampler;
   MockRandomSampler phone_sampler;
