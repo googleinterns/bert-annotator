@@ -541,7 +541,18 @@ void Augmenter::DropSeparatorTokens(
         })) {
       const TokenRange removed_tokens = TokenRange{.start = i, .end = i};
       DropTokens(removed_tokens, document);
-      ShiftLabeledSpansForDroppedTokens(removed_tokens.start, -1, document);
+
+      // If this was the last token of a label (i.e., the whole label consisted
+      // of non-alphanumeric values, such as emoticons), the label should be
+      // dropped.
+      google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>* const
+          labeled_spans = GetLabelList(document);
+      for (const bert_annotator::LabeledSpan& labeled_span : *labeled_spans) {
+        if (labeled_span.token_start() == i && labeled_span.token_end() == i) {
+          DropLabeledSpans(removed_tokens, document);
+        }
+      }
+      ShiftLabeledSpansForDroppedTokens(removed_tokens.start + 1, -1, document);
     }
   }
 }
