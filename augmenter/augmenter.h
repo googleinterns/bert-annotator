@@ -99,8 +99,9 @@ class Augmenter {
   // dropping *only* drops punctuation.
   void DropSeparatorTokens(bert_annotator::Document* const document) const;
   // The input uses more detailed address labels. To have a consistent output,
-  // all those labels have to be switched to the generall "ADDRESS" label.
-  void SimplifyAddressLabels(bert_annotator::Document* const document) const;
+  // all those labels have to be switched to the general "ADDRESS" label.
+  void UnifyAndMergeAddressLabels(
+      bert_annotator::Document* const document) const;
   // Returns the length difference (positive = length increase).
   const int ReplaceText(const TokenRange& boundaries,
                         const std::string& replacement,

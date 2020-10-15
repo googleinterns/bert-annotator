@@ -78,7 +78,7 @@ Augmenter::Augmenter(const bert_annotator::Documents& documents,
     InitializeLabelList(&document);
     MergePhoneNumberTokens(&document);
     DropSeparatorTokens(&document);
-    SimplifyAddressLabels(&document);
+    UnifyAndMergeAddressLabels(&document);
   }
 }
 
@@ -509,10 +509,13 @@ void Augmenter::MergePhoneNumberTokens(
                    document->token(token_index - 1).end() + 1;
                intermediate_char_index < document->token(token_index).start();
                ++intermediate_char_index) {
-            merged_token_text += document->text().at(intermediate_char_index);
+            absl::StrAppend(
+                &merged_token_text,
+                document->text().substr(intermediate_char_index, 1));
           }
         }
-        merged_token_text += document->token(token_index).word();
+        absl::StrAppend(&merged_token_text,
+                        document->token(token_index).word());
       }
       bert_annotator::Token merged_token;
       merged_token.set_start(document->token(token_start).start());
@@ -543,7 +546,7 @@ void Augmenter::DropSeparatorTokens(
   }
 }
 
-void Augmenter::SimplifyAddressLabels(
+void Augmenter::UnifyAndMergeAddressLabels(
     bert_annotator::Document* const document) const {
   google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>* const
       labeled_spans = GetLabelList(document);
