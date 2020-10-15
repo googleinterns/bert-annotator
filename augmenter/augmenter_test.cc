@@ -1613,6 +1613,69 @@ TEST(AugmenterTest, RemoveSeparatorTokens) {
   ExpectEq(augmented, expected);
 }
 
+TEST(AugmenterTest, UnifyAndMergeAddresses) {
+  bert_annotator::Documents documents = ConstructBertDocument({DocumentSpec(
+      "Location: Street, Country!",
+      {TokenSpec("Location", 0, 7), TokenSpec("Street", 10, 15),
+       TokenSpec(",", 16, 16), TokenSpec("Country", 18, 24)},
+      {{Augmenter::kLabelContainerName,
+        {LabelSpec("LOCALITY", 1, 1), LabelSpec("COUNTRY", 3, 3)}}})});
+  augmenter::Augmentations augmentations = GetDefaultAugmentations();
+  MockRandomSampler address_sampler;
+  MockRandomSampler phone_sampler;
+  absl::MockingBitGen bitgen;
+  ShufflerStub shuffler;
+
+  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+                                  &phone_sampler, &shuffler, bitgen);
+
+  augmenter.Augment();
+
+  const bert_annotator::Document augmented = augmenter.documents().documents(0);
+  const bert_annotator::Document expected =
+      ConstructBertDocument(
+          {DocumentSpec(
+              "Location: Street, Country!",
+              {TokenSpec("Location", 0, 7), TokenSpec("Street", 10, 15),
+               TokenSpec("Country", 18, 24)},
+              {{Augmenter::kLabelContainerName,
+                {LabelSpec(Augmenter::kAddressReplacementLabel, 1, 2)}}})})
+          .documents(0);
+  ExpectEq(augmented, expected);
+}
+
+TEST(AugmenterTest, DontUnifyAndMergeAddressesOverOtherTokens) {
+  bert_annotator::Documents documents = ConstructBertDocument({DocumentSpec(
+      "Location: Street or Country!",
+      {TokenSpec("Location", 0, 7), TokenSpec("Street", 10, 15),
+       TokenSpec("or", 17, 18), TokenSpec("Country", 20, 26)},
+      {{Augmenter::kLabelContainerName,
+        {LabelSpec("LOCALITY", 1, 1), LabelSpec("COUNTRY", 3, 3)}}})});
+  augmenter::Augmentations augmentations = GetDefaultAugmentations();
+  MockRandomSampler address_sampler;
+  MockRandomSampler phone_sampler;
+  absl::MockingBitGen bitgen;
+  ShufflerStub shuffler;
+
+  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+                                  &phone_sampler, &shuffler, bitgen);
+
+  augmenter.Augment();
+
+  const bert_annotator::Document augmented = augmenter.documents().documents(0);
+  const bert_annotator::Document expected =
+      ConstructBertDocument(
+          {DocumentSpec(
+              "Location: Street or Country!",
+              {TokenSpec("Location", 0, 7), TokenSpec("Street", 10, 15),
+               TokenSpec("or", 17, 18), TokenSpec("Country", 20, 26)},
+              {{Augmenter::kLabelContainerName,
+                {LabelSpec(Augmenter::kAddressReplacementLabel, 1, 1),
+                 LabelSpec(Augmenter::kAddressReplacementLabel, 3, 3)}}})})
+          .documents(0);
+  ExpectEq(augmented, expected);
+}
+
 TEST(AugmenterTest, MergeDocuments) {
   bert_annotator::Documents documents = ConstructBertDocument(
       {DocumentSpec(
