@@ -22,9 +22,9 @@
 #include "absl/flags/parse.h"
 #include "augmenter/augmentations.h"
 #include "augmenter/augmenter.h"
+#include "augmenter/proto_io.h"
 #include "augmenter/random_sampler.h"
 #include "augmenter/shuffler.h"
-#include "augmenter/textproto_io.h"
 
 ABSL_FLAG(std::vector<std::string>, corpora, std::vector<std::string>({}),
           "comma-separated list of corpora to augment");
@@ -68,6 +68,9 @@ ABSL_FLAG(int, num_contextless_phones, 0,
           "any context");
 ABSL_FLAG(bool, mask_digits, false,
           "If set, all digits are replaced with zeros");
+ABSL_FLAG(bool, save_as_text, false,
+          "If set, the augmented data is saved in text format. Useful for "
+          "debugging");
 
 // Augments the dataset by applying configurable actions, see defined flags.
 int main(int argc, char* argv[]) {
@@ -109,8 +112,8 @@ int main(int argc, char* argv[]) {
       .mask_digits = absl::GetFlag(FLAGS_mask_digits)};
 
   for (const std::string& corpus : corpora) {
-    augmenter::TextprotoIO textproto_io = augmenter::TextprotoIO();
-    if (!textproto_io.Load(corpus)) {
+    augmenter::ProtoIO textproto_io = augmenter::ProtoIO();
+    if (!textproto_io.LoadText(corpus)) {
       std::cerr << "Skipping corpus " << corpus << "." << std::endl;
       continue;
     }
@@ -152,7 +155,11 @@ int main(int argc, char* argv[]) {
         &phones_sampler, &shuffler, bitgen);
     augmenter.Augment();
     textproto_io.set_documents(augmenter.documents());
-    textproto_io.Save(corpus);
+    if (absl::GetFlag(FLAGS_save_as_text)) {
+      textproto_io.SaveText(corpus);
+    } else {
+      textproto_io.SaveBinary(corpus);
+    }
   }
 
   return 0;

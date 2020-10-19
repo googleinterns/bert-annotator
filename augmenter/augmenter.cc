@@ -191,6 +191,18 @@ void Augmenter::Augment() {
       augmented_document = documents_.add_documents();
       augmented_document->CopyFrom(original_document);
 
+      bool invalid = false;
+      for (bert_annotator::Token token : original_document.token()) {
+        if (static_cast<int>(token.word().size()) !=
+          token.end() - token.start() + 1) {
+          invalid = true;
+        }
+      }
+      if (invalid) {
+        --i;
+        continue;
+      }
+
       AugmentAddress(augmented_document);
       AugmentPhone(augmented_document);
       AugmentContext(augmented_document);

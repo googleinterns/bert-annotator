@@ -14,10 +14,11 @@
 // limitations under the License.
 //
 
-#include "augmenter/textproto_io.h"
+#include "augmenter/proto_io.h"
 
 #include <fstream>
 #include <string>
+#include <iostream>
 
 #include "google/protobuf/io/zero_copy_stream_impl.h"
 #include "google/protobuf/text_format.h"
@@ -25,7 +26,7 @@
 
 namespace augmenter {
 
-bool TextprotoIO::Load(const std::string corpus) {
+bool ProtoIO::LoadText(const std::string corpus) {
   std::ifstream input("data/input/preprocessed/" + corpus + ".textproto");
   if (input.fail()) {
     std::cerr << "Failed to load corpus " << corpus << std::endl;
@@ -40,10 +41,20 @@ bool TextprotoIO::Load(const std::string corpus) {
   return true;
 }
 
-bool TextprotoIO::Save(const std::string corpus) const {
+bool ProtoIO::SaveBinary(const std::string corpus) const {
+  std::ofstream output("data/output/" + corpus + ".binproto",
+                        std::ios::out | std::ios::trunc | std::ios::binary);
+  if (!documents_.SerializeToOstream(&output)) {
+    std::cerr << "Failed to save document." << std::endl;
+    return false;
+  }
+  return true;
+}
+
+bool ProtoIO::SaveText(const std::string corpus) const {
   std::ofstream output("data/output/" + corpus + ".textproto");
   google::protobuf::io::OstreamOutputStream fileOutput(&output,
-                                                       std::ios::binary);
+                                                      std::ios::binary);
   if (!google::protobuf::TextFormat::Print(documents_, &fileOutput)) {
     std::cerr << "Failed to save document." << std::endl;
     return false;
@@ -52,11 +63,11 @@ bool TextprotoIO::Save(const std::string corpus) const {
   return true;
 }
 
-const bert_annotator::Documents TextprotoIO::documents() const {
+const bert_annotator::Documents ProtoIO::documents() const {
   return documents_;
 }
 
-void TextprotoIO::set_documents(const bert_annotator::Documents documents) {
+void ProtoIO::set_documents(const bert_annotator::Documents documents) {
   documents_ = documents;
 }
 

@@ -1,19 +1,24 @@
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
-load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
+load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository", "new_git_repository")
 
-# Protocol buffer
+# Python rules
 http_archive(
-    name = "rules_proto",
-    sha256 = "602e7161d9195e50246177e7c55b2f39950a9cf7366f74ed5f22fd45750cd208",
-    strip_prefix = "rules_proto-97d8af4dc474595af3900dd85cb3a29ad28cc313",
-    urls = [
-        "https://mirror.bazel.build/github.com/bazelbuild/rules_proto/archive/97d8af4dc474595af3900dd85cb3a29ad28cc313.tar.gz",
-        "https://github.com/bazelbuild/rules_proto/archive/97d8af4dc474595af3900dd85cb3a29ad28cc313.tar.gz",
-    ],
+    name = "rules_python",
+    url = "https://github.com/bazelbuild/rules_python/releases/download/0.0.2/rules_python-0.0.2.tar.gz",
+    strip_prefix = "rules_python-0.0.2",
+    sha256 = "b5668cde8bb6e3515057ef465a35ad712214962f0b3a314e551204266c7be90c",
 )
-load("@rules_proto//proto:repositories.bzl", "rules_proto_dependencies", "rules_proto_toolchains")
-rules_proto_dependencies()
-rules_proto_toolchains()
+
+
+# Protobuffer
+git_repository(
+    name = "com_google_protobuf",
+    remote = "https://github.com/protocolbuffers/protobuf",
+    commit = "6d4e7fd7966c989e38024a8ea693db83758944f1",
+    shallow_since = "1570061847 -0700",
+)
+load("@com_google_protobuf//:protobuf_deps.bzl", "protobuf_deps")
+protobuf_deps()
 
 # Abseil
 git_repository(
@@ -29,4 +34,13 @@ git_repository(
     remote = "https://github.com/google/googletest",
     commit = "703bd9caab50b139428cea1aaff9974ebee5742e",
     shallow_since = "1570114335 -0400",
+)
+
+# Bert (for tokenization)
+new_git_repository(
+    name = "com_google_research_bert",
+    remote = "https://github.com/google-research/bert",
+    commit = "eedf5716ce1268e56f0a50264a88cafad334ac61",
+    shallow_since = "1583939994 -0400",
+    build_file = "BUILD.bert",
 )

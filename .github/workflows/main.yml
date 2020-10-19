@@ -35,7 +35,7 @@ jobs:
         run: |
           "${GITHUB_WORKSPACE}/bin/bazel" build //...
 
-  cpplint:
+  lint:
     runs-on: ubuntu-latest
     
     steps:
@@ -50,3 +50,9 @@ jobs:
 
     - name: Run cpplint
       run: cpplint --recursive .
+
+    - name: Install pylint
+      run: pip install pylint
+
+    - name: Run pylint
+      run: pylint training/
