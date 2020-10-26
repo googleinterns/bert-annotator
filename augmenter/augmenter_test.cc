@@ -1613,6 +1613,71 @@ TEST(AugmenterTest, RemoveSeparatorTokens) {
   ExpectEq(augmented, expected);
 }
 
+TEST(AugmenterTest, RemoveSeparatorTokensUpdateLabelBoundaries) {
+  bert_annotator::Documents documents = ConstructBertDocument(
+      {DocumentSpec("Text, more ... t.e.x.t.!",
+                    {TokenSpec("Text", 0, 3), TokenSpec(",", 4, 4),
+                     TokenSpec("more", 6, 9), TokenSpec("...", 11, 13),
+                     TokenSpec("t.e.x.t.", 15, 22), TokenSpec("!", 23, 23)},
+                    {{Augmenter::kLabelContainerName,
+                      {LabelSpec("OTHER", 0, 0), LabelSpec("OTHER", 3, 5)}}})});
+  augmenter::Augmentations augmentations = GetDefaultAugmentations();
+  MockRandomSampler address_sampler;
+  MockRandomSampler phone_sampler;
+  absl::MockingBitGen bitgen;
+  ShufflerStub shuffler;
+
+  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+                                  &phone_sampler, &shuffler, bitgen);
+
+  augmenter.Augment();
+
+  const bert_annotator::Document augmented = augmenter.documents().documents(0);
+  const bert_annotator::Document expected =
+      ConstructBertDocument(
+          {DocumentSpec(
+              "Text, more ... t.e.x.t.!",
+              {TokenSpec("Text", 0, 3), TokenSpec("more", 6, 9),
+               TokenSpec("t.e.x.t.", 15, 22)},
+              {{Augmenter::kLabelContainerName,
+                {LabelSpec("OTHER", 0, 0), LabelSpec("OTHER", 2, 2)}}})})
+          .documents(0);
+  ExpectEq(augmented, expected);
+}
+
+TEST(AugmenterTest, RemoveSeparatorTokensDropLabels) {
+  bert_annotator::Documents documents = ConstructBertDocument(
+      {DocumentSpec("Text, more ... t.e.x.t.!",
+                    {TokenSpec("Text", 0, 3), TokenSpec(",", 4, 4),
+                     TokenSpec("more", 6, 9), TokenSpec("...", 11, 13),
+                     TokenSpec("t.e.x.t.", 15, 22), TokenSpec("!", 23, 23)},
+                    {{Augmenter::kLabelContainerName,
+                      {LabelSpec("OTHER", 0, 0), LabelSpec("OTHER", 3, 3),
+                       LabelSpec("OTHER", 4, 4)}}})});
+  augmenter::Augmentations augmentations = GetDefaultAugmentations();
+  MockRandomSampler address_sampler;
+  MockRandomSampler phone_sampler;
+  absl::MockingBitGen bitgen;
+  ShufflerStub shuffler;
+
+  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+                                  &phone_sampler, &shuffler, bitgen);
+
+  augmenter.Augment();
+
+  const bert_annotator::Document augmented = augmenter.documents().documents(0);
+  const bert_annotator::Document expected =
+      ConstructBertDocument(
+          {DocumentSpec(
+              "Text, more ... t.e.x.t.!",
+              {TokenSpec("Text", 0, 3), TokenSpec("more", 6, 9),
+               TokenSpec("t.e.x.t.", 15, 22)},
+              {{Augmenter::kLabelContainerName,
+                {LabelSpec("OTHER", 0, 0), LabelSpec("OTHER", 2, 2)}}})})
+          .documents(0);
+  ExpectEq(augmented, expected);
+}
+
 TEST(AugmenterTest, UnifyAndMergeAddresses) {
   bert_annotator::Documents documents = ConstructBertDocument({DocumentSpec(
       "Location: Street, Country!",
