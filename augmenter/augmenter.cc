@@ -558,7 +558,8 @@ void Augmenter::UnifyAndMergeAddressLabels(
       // Consecutive address labels should be merged.
       if (i <= labeled_spans->size() - 2) {
         bert_annotator::LabeledSpan& successor_span = labeled_spans->at(i + 1);
-        if (successor_span.label() == Augmenter::kAddressReplacementLabel) {
+        if (successor_span.label() == Augmenter::kAddressReplacementLabel &&
+            labeled_span.token_end() + 1 == successor_span.token_start()) {
           labeled_span.set_token_end(successor_span.token_end());
           labeled_spans->erase(labeled_spans->begin() + i + 1);
         }
