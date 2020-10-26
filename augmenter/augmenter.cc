@@ -539,19 +539,19 @@ void Augmenter::DropSeparatorTokens(
     if (absl::c_none_of(token.word(), [](unsigned char c) {
           return std::isdigit(c) || std::isalpha(c);
         })) {
-      const TokenRange removed_tokens = TokenRange{.start = i, .end = i};
-      DropTokens(removed_tokens, document);
+      const TokenRange removed_token = TokenRange{.start = i, .end = i};
+      DropTokens(removed_token, document);
 
-      // If this was the last token of a label (i.e., the whole label consisted
+      // If this was the only token of a label (i.e., the whole label consisted
       // of non-alphanumeric values, such as emoticons), the label should be
       // dropped. If the label remains, its bounds have to be updated manually,
       // as ShiftLabeledSpansForDroppedTokens would update both start and end.
-      int label_shift_start = removed_tokens.start;
+      int label_shift_start = removed_token.start;
       google::protobuf::RepeatedPtrField<bert_annotator::LabeledSpan>* const
           labeled_spans = GetLabelList(document);
       for (bert_annotator::LabeledSpan& labeled_span : *labeled_spans) {
         if (labeled_span.token_start() == i && labeled_span.token_end() == i) {
-          DropLabeledSpans(removed_tokens, document);
+          DropLabeledSpans(removed_token, document);
         } else if (labeled_span.token_start() <= i &&
                    labeled_span.token_end() >= i) {
           labeled_span.set_token_end(labeled_span.token_end() - 1);
