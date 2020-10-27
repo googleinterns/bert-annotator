@@ -30,8 +30,8 @@ from training.utils import LABELS
 flags.DEFINE_string("module_url", None,
                     "The URL to the pretrained Bert model.")
 flags.DEFINE_string("model_path", None, "The path to the trained model.")
-flags.DEFINE_string("test_data_path", None, "The path to the test data in"
-                    " .tfrecord format.")
+flags.DEFINE_multi_string("test_data_path", [],
+                          "The path to the test data in .tfrecord format.")
 
 FLAGS = flags.FLAGS
 
@@ -102,15 +102,16 @@ def _score(trg_path, prediction_ids):
 
 
 def main(_):
-    prediction_ids = _infer(FLAGS.module_url, FLAGS.model_path,
-                            FLAGS.test_data_path)
-    report = _score(FLAGS.test_data_path, prediction_ids)
-    print(report)
+    for test_data_path in FLAGS.test_data_path:
+        prediction_ids = _infer(FLAGS.module_url, FLAGS.model_path,
+                                test_data_path)
+        report = _score(test_data_path, prediction_ids)
+        print(test_data_path)
+        print(report)
 
 
 if __name__ == "__main__":
     flags.mark_flag_as_required("module_url")
-    flags.mark_flag_as_required("module_url")
-    flags.mark_flag_as_required("test_data_path")
+    flags.mark_flag_as_required("model_path")
 
     app.run(main)
