@@ -70,6 +70,9 @@ flags.DEFINE_string("meta_data_file_path", None,
 
 FLAGS = flags.FLAGS
 
+_UNK_TOKEN = tagging_data_lib._UNK_TOKEN  # pylint: disable=protected-access
+_PADDING_LABEL_ID = tagging_data_lib._PADDING_LABEL_ID  # pylint: disable=protected-access
+
 
 def _convert_token_boundaries_to_codeunits(document):
     """Converts the indices of the token boundaries from codepoints to"
@@ -99,6 +102,68 @@ def _add_label(text, label, tokenizer, example):
     else:
         for word in words:
             example.add_word_and_label_id(word, label_id_map[LABEL_OUTSIDE])
+
+
+def _tokenize_example(example, max_length, tokenizer, text_preprocessing=None):
+    """Tokenizes words and breaks long example into short ones.
+
+    Very similiar to _tokenize_example in tagging_data_lib, but implements a
+    moving window. The 20 tokens closes to the border are repeated in the next
+    sub-sentence. In each sub-sentence, the 10 tokens closest to the border are
+    not labeled and only used as additional context.
+    """
+    # Needs additional [CLS] and [SEP] tokens.
+    max_length = max_length - 2
+    new_examples = []
+    new_example = tagging_data_lib.InputExample(
+        sentence_id=example.sentence_id, sub_sentence_id=0)
+    for i, word in enumerate(example.words):
+        if any([x < 0 for x in example.label_ids]):
+            raise ValueError("Unexpected negative label_id: %s" %
+                             example.label_ids)
+
+        if text_preprocessing:
+            word = text_preprocessing(word)
+        subwords = tokenizer.tokenize(word)
+        if (not subwords or len(subwords) > max_length) and word:
+            subwords = [_UNK_TOKEN]
+
+        if len(subwords) + len(new_example.words) > max_length:
+            # A copy is needed as the original list is modified below.
+            previous_label_ids = new_example.label_ids.copy()
+            previous_label_words = new_example.words
+
+            # The last 10 tokens have very little context, they are labeled in
+            # the next sub-sentence.
+            new_example.label_ids[-10:] = [_PADDING_LABEL_ID] * 10
+
+            # Start a new example.
+            new_examples.append(new_example)
+            last_sub_sentence_id = new_example.sub_sentence_id
+            new_example = tagging_data_lib.InputExample(
+                sentence_id=example.sentence_id,
+                sub_sentence_id=last_sub_sentence_id + 1)
+
+            # The previously masked 10 tokens need to be labeled, 10 additional
+            # tokens are copied and masked to be used as context.
+            new_example.words.extend(previous_label_words[-20:])
+            new_example.label_ids.extend([_PADDING_LABEL_ID] * 10)
+            new_example.label_ids.extend(previous_label_ids[-10:])
+
+        for j, subword in enumerate(subwords):
+            # Use the real label for the first subword, and pad label for
+            # the remainings.
+            subword_label = example.label_ids[
+                i] if j == 0 else _PADDING_LABEL_ID
+            new_example.add_word_and_label_id(subword, subword_label)
+
+    if new_example.words:
+        new_examples.append(new_example)
+
+    return new_examples
+
+
+tagging_data_lib._tokenize_example = _tokenize_example  # pylint: disable=protected-access
 
 
 def _read_binproto(file_name, tokenizer):
