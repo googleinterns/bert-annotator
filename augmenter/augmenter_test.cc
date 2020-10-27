@@ -258,6 +258,35 @@ TEST(AugmenterTest, CreateMissingLabelList) {
   ExpectEq(augmented, expected);
 }
 
+TEST(AugmenterTest, RemoveInvalidSentences) {
+  bert_annotator::Documents documents = ConstructBertDocument(
+      {DocumentSpec("Some e. g. text",
+                    {TokenSpec("Some", 0, 3), TokenSpec("e.g.", 5, 9),
+                     TokenSpec("text", 11, 14)}),
+       DocumentSpec("More e. g. text",
+                    {TokenSpec("More", 0, 3), TokenSpec("e. g.", 5, 9),
+                     TokenSpec("text", 11, 14)})});
+  augmenter::Augmentations augmentations = GetDefaultAugmentations();
+  MockRandomSampler address_sampler;
+  MockRandomSampler phone_sampler;
+  absl::MockingBitGen bitgen;
+  ShufflerStub shuffler;
+
+  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+                                  &phone_sampler, &shuffler, bitgen);
+  augmenter.Augment();
+
+  ASSERT_EQ(augmenter.documents().documents_size(), 1);
+  bert_annotator::Document augmented = augmenter.documents().documents(0);
+  bert_annotator::Document expected =
+      ConstructBertDocument(
+          {DocumentSpec("More e. g. text",
+                        {TokenSpec("More", 0, 3), TokenSpec("e. g.", 5, 9),
+                         TokenSpec("text", 11, 14)})})
+          .documents(0);
+  ExpectEq(augmented, expected);
+}
+
 TEST(AugmenterTest, LowercasingCompleteTokens) {
   bert_annotator::Documents documents = ConstructBertDocument(
       {DocumentSpec("Text with [Non-Token] some InterWordCapitalization",
