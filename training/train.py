@@ -74,16 +74,22 @@ def train(module_url, train_data_path, validation_data_path, epochs,
     model.train_step = functools.partial(task.train_step,
                                          model=model,
                                          optimizer=model.optimizer)
+    model.test_step = functools.partial(task.validation_step, model=model)
     dataset_train = task.build_inputs(config.train_data)
     dataset_validation = task.build_inputs(config.validation_data)
 
-    model.fit(
-        dataset_train,
-        validation_data=dataset_validation,
-        epochs=epochs,
-        steps_per_epoch=train_size // batch_size,
-    )
-    model.save_weights(save_path)
+    from tensorflow.keras.callbacks import ModelCheckpoint
+    checkpoint = ModelCheckpoint(save_path + "/model_{epoch:02d}",
+                                 verbose=1,
+                                 save_best_only=False,
+                                 save_weights_only=True,
+                                 period=1)
+    early_stopping = tf.keras.callbacks.EarlyStopping('val_loss', patience=3)
+    model.fit(dataset_train,
+              validation_data=dataset_validation,
+              epochs=epochs,
+              steps_per_epoch=train_size // batch_size,
+              callbacks=[checkpoint, early_stopping])
 
 
 def main(_):
