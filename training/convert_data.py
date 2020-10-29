@@ -33,6 +33,39 @@ from training.utils import labels
 tf.gfile = tf.io.gfile  # Needed for bert.tokenization
 from com_google_research_bert import tokenization  # pylint: disable=wrong-import-position
 
+FLAGS = flags.FLAGS
+
+flags.DEFINE_string("module_url", None,
+                    "The URL to the pretrained Bert model.")
+flags.DEFINE_integer(
+    "max_seq_length", 128,
+    "The maximal sequence length. Longer sequences are split.")
+flags.DEFINE_string(
+    "train_data_input_path", None,
+    "The path to the (augmented) training data in .binproto/.tftxt format.")
+flags.DEFINE_string(
+    "eval_data_input_path", None,
+    "The path to the (augmented) evaluation data in .binproto/.tftxt format.")
+flags.DEFINE_multi_string(
+    "test_data_input_path", [],
+    "The path to the test data in .binproto/.tftxt format. May be defined more"
+    " than once.")
+flags.DEFINE_string(
+    "train_data_output_path", None,
+    "The path in which generated training input data will be written as tf"
+    " records.")
+flags.DEFINE_string(
+    "eval_data_output_path", None,
+    "The path in which generated evaluation input data will be written as tf"
+    " records.")
+flags.DEFINE_multi_string(
+    "test_data_output_path", [],
+    "The path in which generated test input data will be written as tf records."
+    " May be defined more than once, in the same order as"
+    " test_data_input_path.")
+flags.DEFINE_string("meta_data_file_path", None,
+                    "The path in which input meta data will be written.")
+
 
 def _read_binproto(file_name, tokenizer):
     """Reads one file and returns a list of `InputExample` instances."""
@@ -197,8 +230,6 @@ def split_into_words(text, tokenizer):
 
 
 def main(_):
-    FLAGS = flags.FLAGS  # pylint: disable=invalid-name
-
     assert (len(FLAGS.test_data_input_path) == len(
         FLAGS.test_data_output_path)), ("Specify an output path for each test"
                                         " input")
@@ -238,51 +269,11 @@ def main(_):
 
 
 if __name__ == "__main__":
-    flags.DEFINE_string("module_url", None,
-                        "The URL to the pretrained Bert model.")
     flags.mark_flag_as_required("module_url")
-
-    flags.DEFINE_integer(
-        "max_seq_length", 128,
-        "The maximal sequence length. Longer sequences are split.")
-
-    flags.DEFINE_string(
-        "train_data_input_path", None,
-        "The path to the (augmented) training data in .binproto/.tftxt format."
-    )
     flags.mark_flag_as_required("train_data_input_path")
-
-    flags.DEFINE_string(
-        "eval_data_input_path", None,
-        "The path to the (augmented) evaluation data in .binproto/.tftxt"
-        " format.")
     flags.mark_flag_as_required("eval_data_input_path")
-
-    flags.DEFINE_multi_string(
-        "test_data_input_path", [],
-        "The path to the test data in .binproto/.tftxt format. May be defined"
-        " more than once.")
-
-    flags.DEFINE_string(
-        "train_data_output_path", None,
-        "The path in which generated training input data will be written as tf"
-        " records.")
     flags.mark_flag_as_required("train_data_output_path")
-
-    flags.DEFINE_string(
-        "eval_data_output_path", None,
-        "The path in which generated evaluation input data will be written as"
-        " tf records.")
     flags.mark_flag_as_required("eval_data_output_path")
-
-    flags.DEFINE_multi_string(
-        "test_data_output_path", [],
-        "The path in which generated test input data will be written as tf"
-        " records. May be defined more than once, in the same order as"
-        " test_data_input_path.")
-
-    flags.DEFINE_string("meta_data_file_path", None,
-                        "The path in which input meta data will be written.")
     flags.mark_flag_as_required("meta_data_file_path")
 
     app.run(main)

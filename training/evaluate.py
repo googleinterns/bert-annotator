@@ -27,6 +27,14 @@ from official.nlp.tasks.tagging import TaggingConfig, TaggingTask, predict
 from official.nlp.data import tagging_dataloader
 from training.utils import labels
 
+FLAGS = flags.FLAGS
+
+flags.DEFINE_string("module_url", None,
+                    "The URL to the pretrained Bert model.")
+flags.DEFINE_string("model_path", None, "The path to the trained model.")
+flags.DEFINE_string("test_data_path", None, "The path to the test data in"
+                    " .tfrecord format.")
+
 
 def infer(module_url, model_path, test_data_path):
     test_data_config = tagging_dataloader.TaggingDataConfig(
@@ -92,8 +100,6 @@ def score(trg_path, prediction_ids):
 
 
 def main(_):
-    FLAGS = flags.FLAGS  # pylint: disable=invalid-name
-
     prediction_ids = infer(FLAGS.module_url, FLAGS.model_path,
                            FLAGS.test_data_path)
     report = score(FLAGS.test_data_path, prediction_ids)
@@ -101,15 +107,8 @@ def main(_):
 
 
 if __name__ == "__main__":
-    flags.DEFINE_string("module_url", None,
-                        "The URL to the pretrained Bert model.")
     flags.mark_flag_as_required("module_url")
-
-    flags.DEFINE_string("model_path", None, "The path to the trained model.")
     flags.mark_flag_as_required("module_url")
-
-    flags.DEFINE_string("test_data_path", None, "The path to the test data in"
-                        " .tfrecord format.")
     flags.mark_flag_as_required("test_data_path")
 
     app.run(main)

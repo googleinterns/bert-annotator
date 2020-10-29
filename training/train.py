@@ -27,6 +27,25 @@ from official.nlp.tasks.tagging import TaggingConfig, TaggingTask
 from official.nlp.data import tagging_dataloader
 from training.utils import labels
 
+FLAGS = flags.FLAGS
+
+flags.DEFINE_string("module_url", None,
+                    "The URL to the pretrained Bert model.")
+flags.DEFINE_string("train_data_path", None,
+                    "The path to the training data in .tfrecord format.")
+flags.DEFINE_string("validation_data_path", None,
+                    "The path to the validation data in .tfrecord format.")
+flags.DEFINE_integer(
+    "epochs", None, "The maximal number of training epochs. Early stopping may"
+    " supercede this setting.")
+flags.DEFINE_integer("train_size", None,
+                     "The number of samples in the training set.")
+flags.DEFINE_string("save_path", None,
+                    "The output path for the final trained model.")
+flags.DEFINE_integer("batch_size", 64, "The number of samples per batch.")
+flags.DEFINE_enum("optimizer", "sgd", ["sgd", "adam"], "The optimizer.")
+flags.DEFINE_float("learning_rate", 0.01, "The learning rate.")
+
 
 def train(module_url, train_data_path, validation_data_path, epochs,
           train_size, save_path, batch_size, optimizer_name, learning_rate):
@@ -48,7 +67,6 @@ def train(module_url, train_data_path, validation_data_path, epochs,
     if optimizer_name == "sgd":
         optimizer = tf.keras.optimizers.SGD(lr=learning_rate)
     else:
-        assert optimizer_name == "adam"
         optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
     model.compile(
         optimizer=optimizer,
@@ -69,45 +87,17 @@ def train(module_url, train_data_path, validation_data_path, epochs,
 
 
 def main(_):
-    FLAGS = flags.FLAGS  # pylint: disable=invalid-name
-
     train(FLAGS.module_url, FLAGS.train_data_path, FLAGS.validation_data_path,
           FLAGS.epochs, FLAGS.train_size, FLAGS.save_path, FLAGS.batch_size,
           FLAGS.optimizer, FLAGS.learning_rate)
 
 
 if __name__ == "__main__":
-    flags.DEFINE_string("module_url", None,
-                        "The URL to the pretrained Bert model.")
     flags.mark_flag_as_required("module_url")
-
-    flags.DEFINE_string("train_data_path", None,
-                        "The path to the training data in .tfrecord format.")
     flags.mark_flag_as_required("train_data_path")
-
-    flags.DEFINE_string(
-        "validation_data_path", None,
-        "The path to the validation data in .tfrecord format.")
     flags.mark_flag_as_required("validation_data_path")
-
-    flags.DEFINE_integer(
-        "epochs", None, "The maximal number of training epochs. Early stopping"
-        " may supercede this setting.")
     flags.mark_flag_as_required("epochs")
-
-    flags.DEFINE_integer("train_size", None,
-                         "The number of samples in the training set.")
     flags.mark_flag_as_required("train_size")
-
-    flags.DEFINE_string("save_path", None,
-                        "The output path for the final trained model.")
     flags.mark_flag_as_required("save_path")
-
-    flags.DEFINE_integer("batch_size", 64, "The number of samples per batch.")
-
-    flags.DEFINE_string("optimizer", "sgd",
-                        "The optimizer. Either 'adam' or 'sgd'")
-
-    flags.DEFINE_float("learning_rate", 0.01, "The learning rate")
 
     app.run(main)
