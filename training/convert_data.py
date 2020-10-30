@@ -166,14 +166,14 @@ def _read_lftxt(file_name, tokenizer):
                 if len(words) > 0:
                     example.add_word_and_label_id(
                         words[0], label_id_map[LABEL_BEGIN_ADDRESS])
-                for word in words:
+                for word in words[1:]:
                     example.add_word_and_label_id(
                         word, label_id_map[LABEL_INSIDE_ADDRESS])
             elif label_description == LF_TELEPHONE_LABEL:
                 if len(words) > 0:
                     example.add_word_and_label_id(
                         words[0], label_id_map[LABEL_BEGIN_TELEPHONE])
-                for word in words:
+                for word in words[1:]:
                     example.add_word_and_label_id(
                         word, label_id_map[LABEL_INSIDE_TELEPHONE])
             else:
