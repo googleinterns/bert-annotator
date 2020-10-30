@@ -237,12 +237,13 @@ def _create_tokenizer_from_hub_module(module_url):
 def _split_into_words(text, tokenizer):
     """Splits the text given the tokenizer, but merges subwords."""
     words = tokenizer.tokenize(text)
-    for i in reversed(range(len(words))):
-        if words[i].startswith("##"):
-            assert i > 0
-            words[i - 1] += words[i][2:]
-            del words[i]
-    return words
+    joined_words = []
+    for word in words:
+        if word.startswith("##"):
+            joined_words[-1] += word[2:]
+        else:
+            joined_words.append(word)
+    return joined_words
 
 
 def main(_):
