@@ -25,7 +25,7 @@ import tensorflow as tf
 
 from official.nlp.tasks.tagging import TaggingConfig, TaggingTask
 from official.nlp.data import tagging_dataloader
-from training.utils import labels
+from training.utils import LABELS
 
 FLAGS = flags.FLAGS
 
@@ -61,7 +61,7 @@ def train(module_url, train_data_path, validation_data_path, epochs,
     config = TaggingConfig(hub_module_url=module_url,
                            train_data=train_data_config,
                            validation_data=validation_data_config,
-                           class_names=labels)
+                           class_names=LABELS)
     task = TaggingTask(config)
     model = task.build_model()
     if optimizer_name == "sgd":

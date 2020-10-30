@@ -21,6 +21,7 @@ from __future__ import print_function
 
 import os
 import json
+from sys import prefix
 
 from absl import app, flags
 import tensorflow_hub as hub
@@ -28,7 +29,7 @@ import tensorflow as tf
 from official.nlp.data import tagging_data_lib
 
 import protocol_buffer.documents_pb2 as proto_documents
-from training.utils import labels
+from training.utils import LABEL_CONTAINER_NAME, LABELS, MAIN_LABELS
 
 tf.gfile = tf.io.gfile  # Needed for bert.tokenization
 from com_google_research_bert import tokenization  # pylint: disable=wrong-import-position
@@ -74,44 +75,50 @@ def _read_binproto(file_name, tokenizer):
         documents.ParseFromString(src_file.read())
 
     examples = []
-    label_id_map = {label: i for i, label in enumerate(labels)}
+    label_id_map = {label: i for i, label in enumerate(LABELS)}
     sentence_id = 0
     example = tagging_data_lib.InputExample(sentence_id=0)
-    for i, document in enumerate(documents.documents):
-        text = document.text
-        last_label_end = -1
-        try:
-            for label in document.labeled_spans["lucid"].labeled_span:
-                label_start = document.token[label.token_start].start
-                label_end = document.token[label.token_end].end
+    for document in documents.documents:
+        # The input counts using bytes, we need indices based on character
+        # counts.
+        text_as_string = document.text
+        text_as_bytes = bytes(text_as_string, "utf-8")
+        for token in document.token:
+            prefix_as_bytes = text_as_bytes[:token.start]
+            token_as_bytes = text_as_bytes[token.start:token.end + 1]
+            prefix_as_string = prefix_as_bytes.decode("utf-8")
+            token_as_string = token_as_bytes.decode("utf-8")
+            token.start = len(prefix_as_string)
+            token.end = len(prefix_as_string) + len(token_as_string)
 
-                words = split_into_words(text[last_label_end + 1:label_start],
-                                         tokenizer)
+        last_label_end = -1
+        for label in document.labeled_spans[LABEL_CONTAINER_NAME].labeled_span:
+            label_start = document.token[label.token_start].start
+            label_end = document.token[label.token_end].end
+
+            words = split_into_words(
+                text_as_string[last_label_end + 1:label_start], tokenizer)
+            for word in words:
+                example.add_word_and_label_id(word, label_id_map["O"])
+
+            words = split_into_words(text_as_string[label_start:label_end + 1],
+                                     tokenizer)
+            if label.label in MAIN_LABELS:
+                example.add_word_and_label_id(
+                    words[0], label_id_map["B-%s" % label.label])
+                for word in words[1:]:
+                    example.add_word_and_label_id(
+                        word, label_id_map["I-%s" % label.label])
+            else:
                 for word in words:
                     example.add_word_and_label_id(word, label_id_map["O"])
 
-                words = split_into_words(text[label_start:label_end + 1],
-                                         tokenizer)
-                if label.label in ["ADDRESS", "TELEPHONE"]:
-                    example.add_word_and_label_id(
-                        words[0], label_id_map["B-%s" % label.label])
-                    for word in words[1:]:
-                        example.add_word_and_label_id(
-                            word, label_id_map["I-%s" % label.label])
-                else:
-                    for word in words:
-                        example.add_word_and_label_id(word, label_id_map["O"])
+            last_label_end = label_end
 
-                last_label_end = label_end
-
-            words = split_into_words(text[last_label_end + 1:], tokenizer)
-            for word in words:
-                example.add_word_and_label_id(word, label_id_map["O"])
-        except IndexError:
-            print(
-                "Error converting case %d in %s. This case will be skipped." %
-                (i, file_name))
-            example = tagging_data_lib.InputExample(sentence_id=sentence_id)
+        words = split_into_words(text_as_string[last_label_end + 1:],
+                                 tokenizer)
+        for word in words:
+            example.add_word_and_label_id(word, label_id_map["O"])
 
         if example.words:
             examples.append(example)
@@ -123,7 +130,7 @@ def _read_binproto(file_name, tokenizer):
 def _read_lftxt(file_name, tokenizer):
     """Reads one file and returns a list of `InputExample` instances."""
     examples = []
-    label_id_map = {label: i for i, label in enumerate(labels)}
+    label_id_map = {label: i for i, label in enumerate(LABELS)}
     sentence_id = 0
     example = tagging_data_lib.InputExample(sentence_id=0)
     with open(file_name, "r") as src_file:
@@ -200,10 +207,10 @@ def generate_tf_records(tokenizer, max_seq_length, train_examples,
     meta_data = tagging_data_lib.token_classification_meta_data(
         train_data_size,
         max_seq_length,
-        len(labels),
+        len(LABELS),
         eval_data_size,
         test_data_size,
-        label_list=labels,
+        label_list=LABELS,
         processor_type="text_classifier")
     return meta_data
 

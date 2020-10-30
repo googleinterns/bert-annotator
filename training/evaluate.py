@@ -25,7 +25,7 @@ from seqeval.metrics import classification_report
 
 from official.nlp.tasks.tagging import TaggingConfig, TaggingTask, predict
 from official.nlp.data import tagging_dataloader
-from training.utils import labels
+from training.utils import LABELS
 
 FLAGS = flags.FLAGS
 
@@ -44,7 +44,7 @@ def infer(module_url, model_path, test_data_path):
         is_training=False,
         include_sentence_id=True,
         drop_remainder=False)
-    config = TaggingConfig(hub_module_url=module_url, class_names=labels)
+    config = TaggingConfig(hub_module_url=module_url, class_names=LABELS)
     task = TaggingTask(config)
     model = task.build_model()
     model.load_weights(model_path)
@@ -61,7 +61,7 @@ def infer(module_url, model_path, test_data_path):
 
 
 def score(trg_path, prediction_ids):
-    prediction_labels = [[labels[id] for id in ids] for ids in prediction_ids]
+    prediction_labels = [[LABELS[id] for id in ids] for ids in prediction_ids]
 
     feature_description = {
         "input_ids":
@@ -89,7 +89,7 @@ def score(trg_path, prediction_ids):
         target = []
         for label in features["label_ids"].numpy():
             if label != -1:
-                target.append(labels[label])
+                target.append(LABELS[label])
 
         if features["sub_sentence_id"][0] == 0:
             targets.append(target)

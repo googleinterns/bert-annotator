@@ -15,4 +15,9 @@
 #
 """Shared constants and functions."""
 
-labels = ["B-TELEPHONE", "I-TELEPHONE", "O", "B-ADDRESS", "I-ADDRESS"]
+LABEL_CONTAINER_NAME = "lucid"
+
+# "O" is short for "outside" and a magic value used by seqeval
+LABELS = ["B-TELEPHONE", "I-TELEPHONE", "O", "B-ADDRESS", "I-ADDRESS"]
+
+MAIN_LABELS = ["ADDRESS", "TELEPHONE"]
