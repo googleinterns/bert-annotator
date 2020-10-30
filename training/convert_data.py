@@ -21,7 +21,6 @@ from __future__ import print_function
 
 import os
 import json
-from sys import prefix
 
 from absl import app, flags
 import tensorflow_hub as hub
@@ -247,23 +246,26 @@ def _split_into_words(text, tokenizer):
 
 
 def main(_):
-    assert (len(FLAGS.test_data_input_path) == len(
-        FLAGS.test_data_output_path)), ("Specify an output path for each test"
-                                        " input")
+    if len(FLAGS.test_data_input_path) != len(FLAGS.test_data_output_path):
+        raise ValueError("Specify an output path for each test input")
 
     tokenizer = _create_tokenizer_from_hub_module(FLAGS.module_url)
 
     if FLAGS.train_data_input_path.endswith(".binproto"):
         train_examples = _read_binproto(FLAGS.train_data_input_path, tokenizer)
-    else:
-        assert FLAGS.train_data_input_path.endswith(".lftxt")
+    elif FLAGS.train_data_input_path.endswith(".lftxt"):
         train_examples = _read_lftxt(FLAGS.train_data_input_path, tokenizer)
+    else:
+        raise ValueError(
+            "Invalid file format, only .binproto and .lftxt are supported.")
 
     if FLAGS.eval_data_input_path.endswith(".binproto"):
         eval_examples = _read_binproto(FLAGS.eval_data_input_path, tokenizer)
-    else:
-        assert FLAGS.eval_data_input_path.endswith(".lftxt")
+    elif FLAGS.eval_data_input_path.endswith(".lftxt"):
         eval_examples = _read_lftxt(FLAGS.eval_data_input_path, tokenizer)
+    else:
+        raise ValueError(
+            "Invalid file format, only .binproto and .lftxt are supported.")
 
     test_examples = {}
     for input_path, output_path in zip(FLAGS.test_data_input_path,
@@ -271,9 +273,12 @@ def main(_):
         print("Paths: ", input_path, output_path)
         if input_path.endswith(".binproto"):
             test_examples[output_path] = _read_binproto(input_path, tokenizer)
-        else:
-            assert input_path.endswith(".lftxt")
+        elif input_path.endswith(".lftxt"):
             test_examples[output_path] = _read_lftxt(input_path, tokenizer)
+        else:
+            raise ValueError(
+                "Invalid file format, only .binproto and .lftxt are supported."
+            )
 
     meta_data = _generate_tf_records(tokenizer, FLAGS.max_seq_length,
                                      train_examples, eval_examples,
