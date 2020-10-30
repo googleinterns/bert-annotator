@@ -29,7 +29,10 @@ import tensorflow as tf
 from official.nlp.data import tagging_data_lib
 
 import protocol_buffer.documents_pb2 as proto_documents
-from training.utils import *
+from training.utils import (LABELS, LABEL_CONTAINER_NAME, MAIN_LABELS,
+                            LABEL_OUTSIDE, LABEL_BEGIN_ADDRESS,
+                            LABEL_INSIDE_ADDRESS, LABEL_BEGIN_TELEPHONE,
+                            LABEL_INSIDE_TELEPHONE)
 
 tf.gfile = tf.io.gfile  # Needed for bert.tokenization
 from com_google_research_bert import tokenization  # pylint: disable=wrong-import-position
