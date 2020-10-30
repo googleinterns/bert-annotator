@@ -36,7 +36,8 @@ flags.DEFINE_string("test_data_path", None, "The path to the test data in"
                     " .tfrecord format.")
 
 
-def infer(module_url, model_path, test_data_path):
+def _infer(module_url, model_path, test_data_path):
+    """Computes the predicted label sequence using the trained model."""
     test_data_config = tagging_dataloader.TaggingDataConfig(
         input_path=test_data_path,
         seq_length=128,
@@ -60,7 +61,8 @@ def infer(module_url, model_path, test_data_path):
     return merged_predictions
 
 
-def score(trg_path, prediction_ids):
+def _score(trg_path, prediction_ids):
+    """Computes the precision and recall of the predicted label sequence."""
     prediction_labels = [[LABELS[id] for id in ids] for ids in prediction_ids]
 
     feature_description = {
@@ -100,9 +102,9 @@ def score(trg_path, prediction_ids):
 
 
 def main(_):
-    prediction_ids = infer(FLAGS.module_url, FLAGS.model_path,
-                           FLAGS.test_data_path)
-    report = score(FLAGS.test_data_path, prediction_ids)
+    prediction_ids = _infer(FLAGS.module_url, FLAGS.model_path,
+                            FLAGS.test_data_path)
+    report = _score(FLAGS.test_data_path, prediction_ids)
     print(report)
 
 

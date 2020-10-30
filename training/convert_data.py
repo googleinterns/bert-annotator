@@ -29,12 +29,14 @@ import tensorflow as tf
 from official.nlp.data import tagging_data_lib
 
 import protocol_buffer.documents_pb2 as proto_documents
-from training.utils import LABEL_CONTAINER_NAME, LABELS, MAIN_LABELS
+from training.utils import *
 
 tf.gfile = tf.io.gfile  # Needed for bert.tokenization
 from com_google_research_bert import tokenization  # pylint: disable=wrong-import-position
 
 FLAGS = flags.FLAGS
+LF_ADDRESS_LABEL = "address"
+LF_TELEPHONE_LABEL = "phone"
 
 flags.DEFINE_string("module_url", None,
                     "The URL to the pretrained Bert model.")
@@ -96,13 +98,14 @@ def _read_binproto(file_name, tokenizer):
             label_start = document.token[label.token_start].start
             label_end = document.token[label.token_end].end
 
-            words = split_into_words(
+            words = _split_into_words(
                 text_as_string[last_label_end + 1:label_start], tokenizer)
             for word in words:
-                example.add_word_and_label_id(word, label_id_map["O"])
+                example.add_word_and_label_id(word,
+                                              label_id_map[LABEL_OUTSIDE])
 
-            words = split_into_words(text_as_string[label_start:label_end + 1],
-                                     tokenizer)
+            words = _split_into_words(
+                text_as_string[label_start:label_end + 1], tokenizer)
             if label.label in MAIN_LABELS:
                 example.add_word_and_label_id(
                     words[0], label_id_map["B-%s" % label.label])
@@ -111,14 +114,15 @@ def _read_binproto(file_name, tokenizer):
                         word, label_id_map["I-%s" % label.label])
             else:
                 for word in words:
-                    example.add_word_and_label_id(word, label_id_map["O"])
+                    example.add_word_and_label_id(word,
+                                                  label_id_map[LABEL_OUTSIDE])
 
             last_label_end = label_end
 
-        words = split_into_words(text_as_string[last_label_end + 1:],
-                                 tokenizer)
+        words = _split_into_words(text_as_string[last_label_end + 1:],
+                                  tokenizer)
         for word in words:
-            example.add_word_and_label_id(word, label_id_map["O"])
+            example.add_word_and_label_id(word, label_id_map[LABEL_OUTSIDE])
 
         if example.words:
             examples.append(example)
@@ -150,32 +154,35 @@ def _read_lftxt(file_name, tokenizer):
             label_description = label_description.strip()
             suffix = suffix.strip()
 
-            words = split_into_words(prefix, tokenizer)
+            words = _split_into_words(prefix, tokenizer)
             for word in words:
-                example.add_word_and_label_id(word, label_id_map["O"])
+                example.add_word_and_label_id(word,
+                                              label_id_map[LABEL_OUTSIDE])
 
-            words = split_into_words(labeled_text, tokenizer)
-            if label_description == "address":
+            words = _split_into_words(labeled_text, tokenizer)
+            if label_description == LF_ADDRESS_LABEL:
                 if len(words) > 0:
-                    example.add_word_and_label_id(words[0],
-                                                  label_id_map["B-ADDRESS"])
+                    example.add_word_and_label_id(
+                        words[0], label_id_map[LABEL_BEGIN_ADDRESS])
                 for word in words:
-                    example.add_word_and_label_id(word,
-                                                  label_id_map["I-ADDRESS"])
-            elif label_description == "phone":
+                    example.add_word_and_label_id(
+                        word, label_id_map[LABEL_INSIDE_ADDRESS])
+            elif label_description == LF_TELEPHONE_LABEL:
                 if len(words) > 0:
-                    example.add_word_and_label_id(words[0],
-                                                  label_id_map["B-TELEPHONE"])
+                    example.add_word_and_label_id(
+                        words[0], label_id_map[LABEL_BEGIN_TELEPHONE])
                 for word in words:
-                    example.add_word_and_label_id(word,
-                                                  label_id_map["I-TELEPHONE"])
+                    example.add_word_and_label_id(
+                        word, label_id_map[LABEL_INSIDE_TELEPHONE])
             else:
                 for word in words:
-                    example.add_word_and_label_id(word, label_id_map["O"])
+                    example.add_word_and_label_id(word,
+                                                  label_id_map[LABEL_OUTSIDE])
 
-            words = split_into_words(suffix, tokenizer)
+            words = _split_into_words(suffix, tokenizer)
             for word in words:
-                example.add_word_and_label_id(word, label_id_map["O"])
+                example.add_word_and_label_id(word,
+                                              label_id_map[LABEL_OUTSIDE])
 
             if example.words:
                 examples.append(example)
@@ -185,9 +192,9 @@ def _read_lftxt(file_name, tokenizer):
     return examples
 
 
-def generate_tf_records(tokenizer, max_seq_length, train_examples,
-                        eval_examples, test_input_data_examples,
-                        train_data_output_path, eval_data_output_path):
+def _generate_tf_records(tokenizer, max_seq_length, train_examples,
+                         eval_examples, test_input_data_examples,
+                         train_data_output_path, eval_data_output_path):
     """Generates tfrecord files from the `InputExample` lists."""
     common_kwargs = dict(tokenizer=tokenizer,
                          max_seq_length=max_seq_length,
@@ -215,7 +222,7 @@ def generate_tf_records(tokenizer, max_seq_length, train_examples,
     return meta_data
 
 
-def create_tokenizer_from_hub_module(module_url):
+def _create_tokenizer_from_hub_module(module_url):
     """Get the vocab file and casing info from the Hub module."""
     model = hub.KerasLayer(module_url, trainable=False)
     vocab_file = model.resolved_object.vocab_file.asset_path.numpy()
@@ -225,11 +232,11 @@ def create_tokenizer_from_hub_module(module_url):
                                       do_lower_case=do_lower_case)
 
 
-def split_into_words(text, tokenizer):
+def _split_into_words(text, tokenizer):
     """Splits the text given the tokenizer, but merges subwords."""
     words = tokenizer.tokenize(text)
     for i in reversed(range(len(words))):
-        if words[i][:2] == "##":
+        if words[i].startswith("##"):
             assert i > 0
             words[i - 1] += words[i][2:]
             del words[i]
@@ -241,7 +248,7 @@ def main(_):
         FLAGS.test_data_output_path)), ("Specify an output path for each test"
                                         " input")
 
-    tokenizer = create_tokenizer_from_hub_module(FLAGS.module_url)
+    tokenizer = _create_tokenizer_from_hub_module(FLAGS.module_url)
 
     if FLAGS.train_data_input_path.endswith(".binproto"):
         train_examples = _read_binproto(FLAGS.train_data_input_path, tokenizer)
@@ -265,11 +272,11 @@ def main(_):
             assert input_path.endswith(".lftxt")
             test_examples[output_path] = _read_lftxt(input_path, tokenizer)
 
-    meta_data = generate_tf_records(tokenizer, FLAGS.max_seq_length,
-                                    train_examples, eval_examples,
-                                    test_examples,
-                                    FLAGS.train_data_output_path,
-                                    FLAGS.eval_data_output_path)
+    meta_data = _generate_tf_records(tokenizer, FLAGS.max_seq_length,
+                                     train_examples, eval_examples,
+                                     test_examples,
+                                     FLAGS.train_data_output_path,
+                                     FLAGS.eval_data_output_path)
     tf.io.gfile.makedirs(os.path.dirname(FLAGS.meta_data_file_path))
     with tf.io.gfile.GFile(FLAGS.meta_data_file_path, "w") as writer:
         writer.write(json.dumps(meta_data, indent=4) + "\n")

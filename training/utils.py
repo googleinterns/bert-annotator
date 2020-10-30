@@ -17,7 +17,17 @@
 
 LABEL_CONTAINER_NAME = "lucid"
 
-# "O" is short for "outside" and a magic value used by seqeval
-LABELS = ["B-TELEPHONE", "I-TELEPHONE", "O", "B-ADDRESS", "I-ADDRESS"]
-
 MAIN_LABELS = ["ADDRESS", "TELEPHONE"]
+
+# "O" is short for "outside" and a magic value used by seqeval
+# Not assigning "O" the index 0 help to find bugs where the label is always set
+# to zero.
+LABEL_OUTSIDE = "O"
+LABEL_BEGIN_TELEPHONE = "B-TELEPHONE"
+LABEL_INSIDE_TELEPHONE = "I-TELEPHONE"
+LABEL_BEGIN_ADDRESS = "B-ADDRESS"
+LABEL_INSIDE_ADDRESS = "I-ADDRESS"
+LABELS = [
+    LABEL_BEGIN_TELEPHONE, LABEL_INSIDE_TELEPHONE, LABEL_OUTSIDE,
+    LABEL_BEGIN_ADDRESS, LABEL_INSIDE_ADDRESS
+]

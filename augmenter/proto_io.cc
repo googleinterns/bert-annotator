@@ -26,7 +26,7 @@
 
 namespace augmenter {
 
-bool ProtoIO::LoadText(const std::string corpus) {
+bool ProtoIO::LoadText(const std::string& corpus) {
   std::ifstream input("data/input/preprocessed/" + corpus + ".textproto");
   if (input.fail()) {
     std::cerr << "Failed to load corpus " << corpus << std::endl;
@@ -41,7 +41,7 @@ bool ProtoIO::LoadText(const std::string corpus) {
   return true;
 }
 
-bool ProtoIO::SaveBinary(const std::string corpus) const {
+bool ProtoIO::SaveBinary(const std::string& corpus) const {
   std::ofstream output("data/output/" + corpus + ".binproto",
                         std::ios::out | std::ios::trunc | std::ios::binary);
   if (!documents_.SerializeToOstream(&output)) {
@@ -51,7 +51,7 @@ bool ProtoIO::SaveBinary(const std::string corpus) const {
   return true;
 }
 
-bool ProtoIO::SaveText(const std::string corpus) const {
+bool ProtoIO::SaveText(const std::string& corpus) const {
   std::ofstream output("data/output/" + corpus + ".textproto");
   google::protobuf::io::OstreamOutputStream fileOutput(&output,
                                                       std::ios::binary);

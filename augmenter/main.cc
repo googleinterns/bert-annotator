@@ -111,8 +111,8 @@ int main(int argc, char* argv[]) {
       .num_contextless_phones = absl::GetFlag(FLAGS_num_contextless_phones),
       .mask_digits = absl::GetFlag(FLAGS_mask_digits)};
 
+  augmenter::ProtoIO textproto_io = augmenter::ProtoIO();
   for (const std::string& corpus : corpora) {
-    augmenter::ProtoIO textproto_io = augmenter::ProtoIO();
     if (!textproto_io.LoadText(corpus)) {
       std::cerr << "Skipping corpus " << corpus << "." << std::endl;
       continue;
