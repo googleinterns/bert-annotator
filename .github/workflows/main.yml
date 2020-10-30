@@ -55,4 +55,4 @@ jobs:
       run: pip install pylint
 
     - name: Run pylint
-      run: pylint *
+      run: find . -type f -name "*.py" | xargs pylint
