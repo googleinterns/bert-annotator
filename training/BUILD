@@ -28,6 +28,7 @@ py_binary(
   srcs = ["evaluate.py"],
   deps = [
     ":utils",
+    "@com_google_research_bert//:tokenization",
   ]
 )
 

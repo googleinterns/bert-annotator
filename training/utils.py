@@ -15,6 +15,13 @@
 #
 """Shared constants and functions."""
 
+import tensorflow_hub as hub
+import tensorflow as tf
+
+# HACK: Required to make bert.tokenization work with TF2.
+tf.gfile = tf.io.gfile
+from com_google_research_bert import tokenization  # pylint: disable=wrong-import-position
+
 LABEL_CONTAINER_NAME = "lucid"
 
 LF_ADDRESS_LABEL = "address"
@@ -34,3 +41,19 @@ LABEL_BEGIN_ADDRESS = "B-ADDRESS"
 LABEL_INSIDE_ADDRESS = "I-ADDRESS"
 LABELS = (LABEL_BEGIN_TELEPHONE, LABEL_INSIDE_TELEPHONE, LABEL_OUTSIDE,
           LABEL_BEGIN_ADDRESS, LABEL_INSIDE_ADDRESS)
+
+# Copied from tagging_data_lib.
+UNK_TOKEN = "[UNK]"
+PADDING_LABEL_ID = -1
+
+MOVING_WINDOW_MASK_LABEL_ID = -2
+
+
+def create_tokenizer_from_hub_module(module_url):
+    """Get the vocab file and casing info from the Hub module."""
+    model = hub.KerasLayer(module_url, trainable=False)
+    vocab_file = model.resolved_object.vocab_file.asset_path.numpy()
+    do_lower_case = model.resolved_object.do_lower_case.numpy()
+
+    return tokenization.FullTokenizer(vocab_file=vocab_file,
+                                      do_lower_case=do_lower_case)

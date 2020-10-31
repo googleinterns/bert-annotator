@@ -23,19 +23,16 @@ import os
 import json
 
 from absl import app, flags, logging
-import tensorflow_hub as hub
 import tensorflow as tf
 from official.nlp.data import tagging_data_lib
+from com_google_research_bert import tokenization
 
 import protocol_buffer.documents_pb2 as proto_documents
 from training.utils import (LABELS, LABEL_CONTAINER_NAME, MAIN_LABELS,
                             MAIN_LABEL_ADDRESS, MAIN_LABEL_TELEPHONE,
-                            LABEL_OUTSIDE, LF_ADDRESS_LABEL,
-                            LF_TELEPHONE_LABEL)
-
-# HACK: Required to make bert.tokenization work with TF2.
-tf.gfile = tf.io.gfile
-from com_google_research_bert import tokenization  # pylint: disable=wrong-import-position
+                            LABEL_OUTSIDE, UNK_TOKEN, PADDING_LABEL_ID,
+                            MOVING_WINDOW_MASK_LABEL_ID, LF_TELEPHONE_LABEL,
+                            LF_ADDRESS_LABEL, create_tokenizer_from_hub_module)
 
 flags.DEFINE_string("module_url", None,
                     "The URL to the pretrained Bert model.")
@@ -72,10 +69,6 @@ flags.DEFINE_integer(
     " Setting it to zero restores the default behaviour of hard splitting.")
 
 FLAGS = flags.FLAGS
-
-# Copied from tagging_data_lib.
-_UNK_TOKEN = "[UNK]"
-_PADDING_LABEL_ID = -1
 
 
 def _convert_token_boundaries_to_codeunits(document):
@@ -123,7 +116,8 @@ def _tokenize_example(example,
     """
     assert moving_window_overlap % 2 == 0, "moving_window_overlap must be even."
     half_moving_window_overlap = moving_window_overlap // 2
-    moving_window_padding = [_PADDING_LABEL_ID] * half_moving_window_overlap
+    moving_window_padding = [MOVING_WINDOW_MASK_LABEL_ID
+                             ] * half_moving_window_overlap
     # Needs additional [CLS] and [SEP] tokens.
     max_length = max_length - 2
     new_examples = []
@@ -138,7 +132,7 @@ def _tokenize_example(example,
             word = text_preprocessing(word)
         subwords = tokenizer.tokenize(word)
         if (not subwords or len(subwords) > max_length) and word:
-            subwords = [_UNK_TOKEN]
+            subwords = [UNK_TOKEN]
 
         if len(subwords) + len(new_example.words) > max_length:
             # A copy is needed as the original list is modified below.
@@ -174,8 +168,7 @@ def _tokenize_example(example,
         for j, subword in enumerate(subwords):
             # Use the real label for the first subword, and pad label for
             # the remainings.
-            subword_label = example.label_ids[
-                i] if j == 0 else _PADDING_LABEL_ID
+            subword_label = example.label_ids[i] if j == 0 else PADDING_LABEL_ID
             new_example.add_word_and_label_id(subword, subword_label)
 
     assert new_example.words
@@ -358,16 +351,6 @@ def _generate_tf_records(tokenizer, max_seq_length, train_examples,
         writer.write(json.dumps(meta_data, indent=4) + "\n")
 
 
-def _create_tokenizer_from_hub_module(module_url):
-    """Get the vocab file and casing info from the Hub module."""
-    model = hub.KerasLayer(module_url, trainable=False)
-    vocab_file = model.resolved_object.vocab_file.asset_path.numpy()
-    do_lower_case = model.resolved_object.do_lower_case.numpy()
-
-    return tokenization.FullTokenizer(vocab_file=vocab_file,
-                                      do_lower_case=do_lower_case)
-
-
 def _split_into_words(text, tokenizer):
     """Splits the text given the tokenizer, but merges subwords."""
     words = tokenizer.tokenize(text)
@@ -396,7 +379,7 @@ def main(_):
     if len(FLAGS.test_data_input_paths) != len(FLAGS.test_data_output_paths):
         raise ValueError("Specify an output path for each test input")
 
-    tokenizer = _create_tokenizer_from_hub_module(FLAGS.module_url)
+    tokenizer = create_tokenizer_from_hub_module(FLAGS.module_url)
 
     train_examples = _get_examples(FLAGS.train_data_input_path, tokenizer)
     dev_examples = _get_examples(FLAGS.dev_data_input_path, tokenizer)
