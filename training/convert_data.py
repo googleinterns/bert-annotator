@@ -29,9 +29,8 @@ from official.nlp.data import tagging_data_lib
 
 import protocol_buffer.documents_pb2 as proto_documents
 from training.utils import (LABELS, LABEL_CONTAINER_NAME, MAIN_LABELS,
-                            LABEL_OUTSIDE, LABEL_BEGIN_ADDRESS,
-                            LABEL_INSIDE_ADDRESS, LABEL_BEGIN_TELEPHONE,
-                            LABEL_INSIDE_TELEPHONE)
+                            MAIN_LABEL_ADDRESS, MAIN_LABEL_TELEPHONE,
+                            LABEL_OUTSIDE)
 
 tf.gfile = tf.io.gfile  # Needed for bert.tokenization
 from com_google_research_bert import tokenization  # pylint: disable=wrong-import-position
@@ -72,6 +71,36 @@ flags.DEFINE_string("meta_data_file_path", None,
                     "The path in which input meta data will be written.")
 
 
+def _convert_token_boundaries_to_codeunits(document):
+    """Converts the indicies of the token boundaries from codepoints to"
+    codeunits.
+    """
+
+    text_as_string = document.text
+    text_as_bytes = bytes(text_as_string, "utf-8")
+    for token in document.token:
+        prefix_as_bytes = text_as_bytes[:token.start]
+        token_as_bytes = text_as_bytes[token.start:token.end + 1]
+        prefix_as_string = prefix_as_bytes.decode("utf-8")
+        token_as_string = token_as_bytes.decode("utf-8")
+        token.start = len(prefix_as_string)
+        token.end = len(prefix_as_string) + len(token_as_string)
+    return document
+
+
+def _add_label(text, label, tokenizer, example):
+    label_id_map = {label: i for i, label in enumerate(LABELS)}
+
+    words = _split_into_words(text, tokenizer)
+    if label in MAIN_LABELS:
+        example.add_word_and_label_id(words[0], label_id_map["B-%s" % label])
+        for word in words[1:]:
+            example.add_word_and_label_id(word, label_id_map["I-%s" % label])
+    else:
+        for word in words:
+            example.add_word_and_label_id(word, label_id_map[LABEL_OUTSIDE])
+
+
 def _read_binproto(file_name, tokenizer):
     """Reads one file and returns a list of `InputExample` instances."""
     documents = proto_documents.Documents()
@@ -79,52 +108,25 @@ def _read_binproto(file_name, tokenizer):
         documents.ParseFromString(src_file.read())
 
     examples = []
-    label_id_map = {label: i for i, label in enumerate(LABELS)}
     sentence_id = 0
     example = tagging_data_lib.InputExample(sentence_id=0)
     for document in documents.documents:
-        # The input counts using bytes, we need indices based on character
-        # counts.
-        text_as_string = document.text
-        text_as_bytes = bytes(text_as_string, "utf-8")
-        for token in document.token:
-            prefix_as_bytes = text_as_bytes[:token.start]
-            token_as_bytes = text_as_bytes[token.start:token.end + 1]
-            prefix_as_string = prefix_as_bytes.decode("utf-8")
-            token_as_string = token_as_bytes.decode("utf-8")
-            token.start = len(prefix_as_string)
-            token.end = len(prefix_as_string) + len(token_as_string)
+        document = _convert_token_boundaries_to_codeunits(document)
+        text = document.text
 
         last_label_end = -1
         for label in document.labeled_spans[LABEL_CONTAINER_NAME].labeled_span:
             label_start = document.token[label.token_start].start
             label_end = document.token[label.token_end].end
 
-            words = _split_into_words(
-                text_as_string[last_label_end + 1:label_start], tokenizer)
-            for word in words:
-                example.add_word_and_label_id(word,
-                                              label_id_map[LABEL_OUTSIDE])
-
-            words = _split_into_words(
-                text_as_string[label_start:label_end + 1], tokenizer)
-            if label.label in MAIN_LABELS:
-                example.add_word_and_label_id(
-                    words[0], label_id_map["B-%s" % label.label])
-                for word in words[1:]:
-                    example.add_word_and_label_id(
-                        word, label_id_map["I-%s" % label.label])
-            else:
-                for word in words:
-                    example.add_word_and_label_id(word,
-                                                  label_id_map[LABEL_OUTSIDE])
+            _add_label(text[last_label_end + 1:label_start], LABEL_OUTSIDE,
+                       tokenizer, example)
+            _add_label(text[label_start:label_end + 1], label.label, tokenizer,
+                       example)
 
             last_label_end = label_end
-
-        words = _split_into_words(text_as_string[last_label_end + 1:],
-                                  tokenizer)
-        for word in words:
-            example.add_word_and_label_id(word, label_id_map[LABEL_OUTSIDE])
+        _add_label(text[last_label_end + 1:], LABEL_OUTSIDE, tokenizer,
+                   example)
 
         if example.words:
             examples.append(example)
@@ -136,55 +138,29 @@ def _read_binproto(file_name, tokenizer):
 def _read_lftxt(file_name, tokenizer):
     """Reads one file and returns a list of `InputExample` instances."""
     examples = []
-    label_id_map = {label: i for i, label in enumerate(LABELS)}
     sentence_id = 0
     example = tagging_data_lib.InputExample(sentence_id=0)
     with open(file_name, "r") as src_file:
-        for i, line in enumerate(src_file):
-            try:
-                text, label_description = line.split("\t")
-                prefix, remaining_text = text.split("{{{")
-                labeled_text, suffix = remaining_text.split("}}}")
-            except ValueError:
-                print(
-                    "Error converting case %d in %s. This test will be skipped."
-                    % (i, file_name))
-                continue
+        for line in src_file:
+            text, label_description = line.split("\t")
+            prefix, remaining_text = text.split("{{{")
+            labeled_text, suffix = remaining_text.split("}}}")
 
             prefix = prefix.strip()
             labeled_text = labeled_text.strip()
             label_description = label_description.strip()
             suffix = suffix.strip()
 
-            words = _split_into_words(prefix, tokenizer)
-            for word in words:
-                example.add_word_and_label_id(word,
-                                              label_id_map[LABEL_OUTSIDE])
-
-            words = _split_into_words(labeled_text, tokenizer)
             if label_description == LF_ADDRESS_LABEL:
-                if len(words) > 0:
-                    example.add_word_and_label_id(
-                        words[0], label_id_map[LABEL_BEGIN_ADDRESS])
-                for word in words[1:]:
-                    example.add_word_and_label_id(
-                        word, label_id_map[LABEL_INSIDE_ADDRESS])
+                label = MAIN_LABEL_ADDRESS
             elif label_description == LF_TELEPHONE_LABEL:
-                if len(words) > 0:
-                    example.add_word_and_label_id(
-                        words[0], label_id_map[LABEL_BEGIN_TELEPHONE])
-                for word in words[1:]:
-                    example.add_word_and_label_id(
-                        word, label_id_map[LABEL_INSIDE_TELEPHONE])
+                label = MAIN_LABEL_TELEPHONE
             else:
-                for word in words:
-                    example.add_word_and_label_id(word,
-                                                  label_id_map[LABEL_OUTSIDE])
+                label = LABEL_OUTSIDE
 
-            words = _split_into_words(suffix, tokenizer)
-            for word in words:
-                example.add_word_and_label_id(word,
-                                              label_id_map[LABEL_OUTSIDE])
+            _add_label(prefix, LABEL_OUTSIDE, tokenizer, example)
+            _add_label(labeled_text, label, tokenizer, example)
+            _add_label(suffix, LABEL_OUTSIDE, tokenizer, example)
 
             if example.words:
                 examples.append(example)
@@ -293,7 +269,7 @@ def main(_):
 
 if __name__ == "__main__":
     flags.mark_flag_as_required("module_url")
-    flags.mark_flag_as_required("train_data_input_path")
+    flags.mark_flag_as_required("train_data_input_path")  #
     flags.mark_flag_as_required("eval_data_input_path")
     flags.mark_flag_as_required("train_data_output_path")
     flags.mark_flag_as_required("eval_data_output_path")

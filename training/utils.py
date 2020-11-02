@@ -17,7 +17,9 @@
 
 LABEL_CONTAINER_NAME = "lucid"
 
-MAIN_LABELS = ["ADDRESS", "TELEPHONE"]
+MAIN_LABEL_ADDRESS = "ADDRESS"
+MAIN_LABEL_TELEPHONE = "TELEPHONE"
+MAIN_LABELS = [MAIN_LABEL_ADDRESS, MAIN_LABEL_TELEPHONE]
 
 # "O" is short for "outside" and a magic value used by seqeval
 # Not assigning "O" the index 0 help to find bugs where the label is always set
