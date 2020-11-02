@@ -19,6 +19,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import os
 from absl import app, flags
 from seqeval.scheme import IOB2
 from seqeval.metrics import classification_report
@@ -26,7 +27,7 @@ import tensorflow as tf
 
 from official.nlp.tasks.tagging import TaggingConfig, TaggingTask, predict
 from official.nlp.data import tagging_dataloader
-from training.utils import (LABELS, PADDING_LABEL_ID,
+from training.utils import (LABELS, MAIN_LABELS, PADDING_LABEL_ID,
                             MOVING_WINDOW_MASK_LABEL_ID,
                             create_tokenizer_from_hub_module)
 
@@ -35,13 +36,10 @@ flags.DEFINE_string("module_url", None,
 flags.DEFINE_string("model_path", None, "The path to the trained model.")
 flags.DEFINE_multi_string("test_data_paths", [],
                           "The path to the test data in .tfrecord format.")
-flags.DEFINE_boolean(
-    "visualize", False,
-    "If True, generates the comparison of target/hypothesis labeling. If False,"
-    " scores the hypothesis.")
-flags.DEFINE_enum(
-    "visualization_label", "ADDRESS", ["ADDRESS", "TELEPHONE"],
-    "Only used for the visual comparison. Defines which label is visualized.")
+flags.DEFINE_string(
+    "visualisation_folder", None,
+    "If set, a comparison of the target/hypothesis labeling is saved in .html"
+    " format")
 flags.DEFINE_boolean(
     "strict_eval", False,
     "Only used for scoring. If True, a label must not begin with an 'I-' tag.")
@@ -127,31 +125,44 @@ def _extract_targets(module_url, trg_path):
     return targets, texts
 
 
-def _visualize(module_url, trg_path, prediction_ids, visualized_label):
+def _visualise(module_url, trg_path, prediction_ids, visualised_label,
+               visualisation_folder):
     predictions = [[LABELS[id] for id in ids] for ids in prediction_ids]
 
     targets, texts = _extract_targets(module_url, trg_path)
 
     assert len(targets) == len(predictions) == len(texts)
-    for target_labels, predicted_labels, tokens in zip(targets, predictions,
-                                                       texts):
-        output = ""
-        assert len(target_labels) == len(predicted_labels) == len(tokens)
 
-        for target_label, predicted_label, token in zip(
-                target_labels, predicted_labels, tokens):
-            if target_label.endswith(
-                    visualized_label) and predicted_label.endswith(
-                        visualized_label):
-                output += "<font color='green'>" + token + "</font>"
-            elif target_label.endswith(visualized_label):
-                output += "<font color='red'>" + token + "</font>"
-            elif predicted_label.endswith(visualized_label):
-                output += "<font color='blue'>" + token + "</font>"
-            else:
-                output += token
-            output += " "
-        print(output + "<br>")
+    test_data_name = trg_path.split("/")[-1][:-len(".tfrecord")]
+    directory = os.path.join(visualisation_folder, test_data_name)
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+    file_name = os.path.join(directory, "%s.html" % visualised_label.lower())
+    with open(file_name, "w") as file:
+        file.write("%s labels in %s <br>\n" % (visualised_label, trg_path))
+        file.write("<font color='green'>Correct labels</font> <br>\n")
+        file.write("<font color='blue'>Superfluous labels</font> <br>\n")
+        file.write("<font color='red'>Missed labels</font> <br>\n")
+        file.write("<br>\n")
+
+        for target_labels, predicted_labels, tokens in zip(
+                targets, predictions, texts):
+            assert len(target_labels) == len(predicted_labels) == len(tokens)
+
+            for target_label, predicted_label, token in zip(
+                    target_labels, predicted_labels, tokens):
+                if target_label.endswith(
+                        visualised_label) and predicted_label.endswith(
+                            visualised_label):
+                    file.write("<font color='green'>" + token + "</font>")
+                elif target_label.endswith(visualised_label):
+                    file.write("<font color='red'>" + token + "</font>")
+                elif predicted_label.endswith(visualised_label):
+                    file.write("<font color='blue'>" + token + "</font>")
+                else:
+                    file.write(token)
+                file.write(" ")
+            file.write("<br>\n")
 
 
 def _score(module_url, trg_path, prediction_ids, use_strict_mode):
@@ -170,16 +181,20 @@ def _score(module_url, trg_path, prediction_ids, use_strict_mode):
 
 def main(_):
     for test_data_path in FLAGS.test_data_paths:
+        if not test_data_path.endswith(".tfrecord"):
+            raise ValueError("The test data must be in .tfrecord format.")
+
         prediction_ids = _infer(FLAGS.module_url, FLAGS.model_path,
                                 test_data_path)
-        if FLAGS.visualize:
-            _visualize(FLAGS.module_url, test_data_path, prediction_ids,
-                       FLAGS.visualization_label)
-        else:
-            report = _score(FLAGS.module_url, test_data_path, prediction_ids,
-                            FLAGS.strict_eval)
-            print("Scores for %s:" % test_data_path)
-            print(report)
+        if FLAGS.visualisation_folder:
+            for label in MAIN_LABELS:
+                _visualise(FLAGS.module_url, test_data_path, prediction_ids,
+                           label, FLAGS.visualisation_folder)
+
+        report = _score(FLAGS.module_url, test_data_path, prediction_ids,
+                        FLAGS.strict_eval)
+        print("Scores for %s:" % test_data_path)
+        print(report)
 
 
 if __name__ == "__main__":
