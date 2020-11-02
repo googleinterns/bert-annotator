@@ -22,7 +22,7 @@ from __future__ import print_function
 import os
 import json
 
-from absl import app, flags
+from absl import app, flags, logging
 import tensorflow_hub as hub
 import tensorflow as tf
 from official.nlp.data import tagging_data_lib
@@ -67,6 +67,9 @@ flags.DEFINE_multi_string(
     " test_data_input_path.")
 flags.DEFINE_string("meta_data_file_path", None,
                     "The path in which input meta data will be written.")
+flags.DEFINE_integer(
+    "moving_window_overlap", 20, "The size of the overlap for a moving window."
+    " Setting it to zero restores the default behaviour of hard splitting.")
 
 FLAGS = flags.FLAGS
 
@@ -104,14 +107,20 @@ def _add_label(text, label, tokenizer, example):
             example.add_word_and_label_id(word, label_id_map[LABEL_OUTSIDE])
 
 
-def _tokenize_example(example, max_length, tokenizer, text_preprocessing=None):
+def _tokenize_example(example,
+                      max_length,
+                      tokenizer,
+                      text_preprocessing=None,
+                      moving_window_overlap=20,
+                      mask_overlap=False):
     """Tokenizes words and breaks long example into short ones.
 
     Very similiar to _tokenize_example in tagging_data_lib, but implements a
-    moving window. The 20 tokens closes to the border are repeated in the next
-    sub-sentence. In each sub-sentence, the 10 tokens closest to the border are
-    not labeled and only used as additional context.
+    moving window. The tokens closest to the border are repeated in the next
+    sub-sentence. The half of the repeated tokens that are closest to the border
+    are not labeled if mask_overlap is True.
     """
+    assert moving_window_overlap % 2 == 0, "moving_window_overlap must be even."
     # Needs additional [CLS] and [SEP] tokens.
     max_length = max_length - 2
     new_examples = []
@@ -133,9 +142,12 @@ def _tokenize_example(example, max_length, tokenizer, text_preprocessing=None):
             previous_label_ids = new_example.label_ids.copy()
             previous_label_words = new_example.words
 
-            # The last 10 tokens have very little context, they are labeled in
-            # the next sub-sentence.
-            new_example.label_ids[-10:] = [_PADDING_LABEL_ID] * 10
+            if mask_overlap:
+                # The last tokens have very little context, they are labeled in
+                # the next sub-sentence.
+                new_example.label_ids[-moving_window_overlap //
+                                      2:] = [_PADDING_LABEL_ID
+                                             ] * (moving_window_overlap // 2)
 
             # Start a new example.
             new_examples.append(new_example)
@@ -144,11 +156,18 @@ def _tokenize_example(example, max_length, tokenizer, text_preprocessing=None):
                 sentence_id=example.sentence_id,
                 sub_sentence_id=last_sub_sentence_id + 1)
 
-            # The previously masked 10 tokens need to be labeled, 10 additional
+            # The previously masked tokens need to be labeled, additional
             # tokens are copied and masked to be used as context.
-            new_example.words.extend(previous_label_words[-20:])
-            new_example.label_ids.extend([_PADDING_LABEL_ID] * 10)
-            new_example.label_ids.extend(previous_label_ids[-10:])
+            new_example.words.extend(
+                previous_label_words[-moving_window_overlap:])
+            if mask_overlap:
+                new_example.label_ids.extend([_PADDING_LABEL_ID] *
+                                             (moving_window_overlap // 2))
+                new_example.label_ids.extend(
+                    previous_label_ids[-moving_window_overlap // 2:])
+            else:
+                new_example.label_ids.extend(
+                    previous_label_ids[-moving_window_overlap:])
 
         for j, subword in enumerate(subwords):
             # Use the real label for the first subword, and pad label for
@@ -163,7 +182,39 @@ def _tokenize_example(example, max_length, tokenizer, text_preprocessing=None):
     return new_examples
 
 
-tagging_data_lib._tokenize_example = _tokenize_example  # pylint: disable=protected-access
+def write_example_to_file(examples,
+                          tokenizer,
+                          max_seq_length,
+                          output_file,
+                          text_preprocessing=None,
+                          moving_window_overlap=20,
+                          mask_overlap=False):
+    """Writes `InputExample`s into a tfrecord file with `tf.train.Example`
+    protos.
+
+    Identical to tagging_data_lib.write_example_to_file except for the
+    additional parameters that are passed to _tokenize_example.
+    """
+    tf.io.gfile.makedirs(os.path.dirname(output_file))
+    writer = tf.io.TFRecordWriter(output_file)
+    num_tokenized_examples = 0
+    for (ex_index, example) in enumerate(examples):
+        if ex_index % 10000 == 0:
+            logging.info("Writing example %d of %d to %s", ex_index,
+                         len(examples), output_file)
+
+        tokenized_examples = _tokenize_example(example, max_seq_length,
+                                               tokenizer, text_preprocessing,
+                                               moving_window_overlap,
+                                               mask_overlap)
+        num_tokenized_examples += len(tokenized_examples)
+        for per_tokenized_example in tokenized_examples:
+            tf_example = tagging_data_lib._convert_single_example(  # pylint: disable=protected-access
+                per_tokenized_example, max_seq_length, tokenizer)
+            writer.write(tf_example.SerializeToString())
+
+    writer.close()
+    return num_tokenized_examples
 
 
 def _read_binproto(file_name, tokenizer):
@@ -245,22 +296,34 @@ def _read_lftxt(file_name, tokenizer):
 def _generate_tf_records(tokenizer, max_seq_length, train_examples,
                          dev_examples, test_input_data_examples,
                          train_data_output_path, dev_data_output_path,
-                         meta_data_file_path):
+                         meta_data_file_path, moving_window_overlap):
     """Generates tfrecord files from the `InputExample` lists."""
     common_kwargs = dict(tokenizer=tokenizer,
                          max_seq_length=max_seq_length,
                          text_preprocessing=tokenization.convert_to_unicode)
 
-    train_data_size = tagging_data_lib.write_example_to_file(
-        train_examples, output_file=train_data_output_path, **common_kwargs)
+    train_data_size = write_example_to_file(
+        train_examples,
+        output_file=train_data_output_path,
+        **common_kwargs,
+        moving_window_overlap=moving_window_overlap,
+        mask_overlap=False)
 
-    dev_data_size = tagging_data_lib.write_example_to_file(
-        dev_examples, output_file=dev_data_output_path, **common_kwargs)
+    dev_data_size = write_example_to_file(
+        dev_examples,
+        output_file=dev_data_output_path,
+        **common_kwargs,
+        moving_window_overlap=moving_window_overlap,
+        mask_overlap=True)
 
     test_data_size = {}
     for output_path, examples in test_input_data_examples.items():
-        test_data_size[output_path] = tagging_data_lib.write_example_to_file(
-            examples, output_file=output_path, **common_kwargs)
+        test_data_size[output_path] = write_example_to_file(
+            examples,
+            output_file=output_path,
+            **common_kwargs,
+            moving_window_overlap=moving_window_overlap,
+            mask_overlap=True)
 
     meta_data = tagging_data_lib.token_classification_meta_data(
         train_data_size,
@@ -323,10 +386,15 @@ def main(_):
                                        FLAGS.test_data_output_path):
         test_examples[output_path] = _get_examples(input_path, tokenizer)
 
+    moving_window_overlap = FLAGS.moving_window_overlap
+    if moving_window_overlap % 2 != 0:
+        raise ValueError("moving_window_overlap must be even.")
+
     _generate_tf_records(tokenizer, FLAGS.max_seq_length, train_examples,
                          dev_examples, test_examples,
                          FLAGS.train_data_output_path,
-                         FLAGS.dev_data_output_path, FLAGS.meta_data_file_path)
+                         FLAGS.eval_data_output_path,
+                         FLAGS.meta_data_file_path, moving_window_overlap)
 
 
 if __name__ == "__main__":
