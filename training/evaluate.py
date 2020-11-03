@@ -72,7 +72,8 @@ def _infer(module_url, model_path, test_data_path):
     return merged_predictions
 
 
-def _extract_targets(module_url, trg_path):
+def _extract_target_labels(module_url, trg_path):
+    """Extracts the target labels from the given .tfrecord file."""
     feature_description = {
         "input_ids":
         tf.io.FixedLenSequenceFeature([], tf.int64, allow_missing=True),
@@ -127,9 +128,10 @@ def _extract_targets(module_url, trg_path):
 
 def _visualise(module_url, trg_path, prediction_ids, visualised_label,
                visualisation_folder):
+    """Generates a .html file comparing the hypothesis/target labels."""
     predictions = [[LABELS[id] for id in ids] for ids in prediction_ids]
 
-    targets, texts = _extract_targets(module_url, trg_path)
+    targets, texts = _extract_target_labels(module_url, trg_path)
 
     assert len(targets) == len(predictions) == len(texts)
 
@@ -166,9 +168,10 @@ def _visualise(module_url, trg_path, prediction_ids, visualised_label,
 
 
 def _score(module_url, trg_path, prediction_ids, use_strict_mode):
+    """Computes the precision, recall and f1 scores of the hypotheses."""
     prediction_labels = [[LABELS[id] for id in ids] for ids in prediction_ids]
 
-    targets, _ = _extract_targets(module_url, trg_path)
+    targets, _ = _extract_target_labels(module_url, trg_path)
 
     if use_strict_mode:
         return classification_report(targets,
