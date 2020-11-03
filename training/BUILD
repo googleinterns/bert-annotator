@@ -3,6 +3,9 @@ load("@rules_python//python:defs.bzl", "py_library", "py_binary", "py_test")
 py_library(
   name = "utils",
   srcs = ["utils.py"],
+  deps = [
+    "@com_google_research_bert//:tokenization",
+  ],
 )
 
 py_binary(
@@ -28,7 +31,6 @@ py_binary(
   srcs = ["evaluate.py"],
   deps = [
     ":utils",
-    "@com_google_research_bert//:tokenization",
   ]
 )
 
