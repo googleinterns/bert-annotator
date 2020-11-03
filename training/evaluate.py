@@ -21,11 +21,14 @@ from __future__ import print_function
 
 import os
 from absl import app, flags
+import numpy as np
 from seqeval.scheme import IOB2
 from seqeval.metrics import classification_report
 import tensorflow as tf
+import orbit
 
-from official.nlp.tasks.tagging import TaggingConfig, TaggingTask, predict
+from official.nlp.tasks import utils
+from official.nlp.tasks.tagging import TaggingConfig, TaggingTask
 from official.nlp.data import tagging_dataloader
 from training.utils import (BERT_SENTENCE_PADDING, BERT_SENTENCE_SEPARATOR,
                             BERT_SENTENCE_START, LABELS, MAIN_LABELS,
@@ -48,6 +51,101 @@ flags.DEFINE_boolean(
 FLAGS = flags.FLAGS
 
 
+def _predict(task, params, model):
+    """Predicts on the input data.
+
+    Similiar to official.nlp.tasks.tagging.predict, but returns the logits
+    instead of the final label.
+
+    Args:
+        task: A `TaggingTask` object.
+        params: A `cfg.DataConfig` object.
+        model: A keras.Model.
+
+    Returns:
+        A list of tuple. Each tuple contains `sentence_id`, `sub_sentence_id`
+            and a list of predicted ids.
+    """
+    def predict_step(inputs):
+        """Replicated prediction calculation."""
+        x, y = inputs
+        sentence_ids = x.pop("sentence_id")
+        sub_sentence_ids = x.pop("sub_sentence_id")
+        outputs = task.inference_step(x, model)
+        logits = outputs["logits"]
+        label_mask = tf.greater_equal(y, 0)
+        return dict(logits=logits,
+                    label_mask=label_mask,
+                    sentence_ids=sentence_ids,
+                    sub_sentence_ids=sub_sentence_ids)
+
+    def aggregate_fn(state, outputs):
+        """Concatenates model's outputs."""
+        if state is None:
+            state = []
+
+        for (batch_logits, batch_label_mask, batch_sentence_ids,
+             batch_sub_sentence_ids) in zip(outputs["logits"],
+                                            outputs["label_mask"],
+                                            outputs["sentence_ids"],
+                                            outputs["sub_sentence_ids"]):
+            batch_probs = tf.keras.activations.softmax(batch_logits)
+            for (tmp_prob, tmp_label_mask, tmp_sentence_id,
+                 tmp_sub_sentence_id) in zip(batch_probs.numpy(),
+                                             batch_label_mask.numpy(),
+                                             batch_sentence_ids.numpy(),
+                                             batch_sub_sentence_ids.numpy()):
+
+                real_probs = []
+                assert len(tmp_prob) == len(tmp_label_mask)
+                for i in range(len(tmp_prob)):
+                    # Skip the padding label.
+                    if tmp_label_mask[i]:
+                        real_probs.append(tmp_prob[i])
+                state.append(
+                    (tmp_sentence_id, tmp_sub_sentence_id, real_probs))
+
+        return state
+
+    dataset = orbit.utils.make_distributed_dataset(
+        tf.distribute.get_strategy(), task.build_inputs, params)
+    outputs = utils.predict(predict_step, aggregate_fn, dataset)
+    return sorted(outputs, key=lambda x: (x[0], x[1]))
+
+
+def _viterbi(probabilities):
+    """"Applies the viterbi algorithm to find the most likely valid label
+    sequence.
+
+    Depends on the specific order of labels.
+    """
+    path_probabilities = [0.0, 0.0, 1.0, 0.0, 0.0]  # Label 3 is "outside"
+    path_pointers = []
+    for prob_token in probabilities:
+        prev_path_probabilities = path_probabilities.copy()
+        path_probabilities = [0.0] * 5
+        new_pointers = [99] * 5  # An invalid value ensures it will be updated.
+        for current_label in range(5):
+            for prev_label in range(5):
+                prev_prob = prev_path_probabilities[prev_label]
+                if (current_label == 1 and prev_label not in [0, 1]) or (
+                        current_label == 4 and prev_label not in [3, 4]):
+                    prev_prob = 0
+                total_prob = prev_prob * prob_token[current_label]
+                if total_prob > path_probabilities[current_label]:
+                    path_probabilities[current_label] = total_prob
+                    new_pointers[current_label] = prev_label
+        path_pointers.append(new_pointers)
+
+    most_likely_path = []
+    most_likely_end = np.core.fromnumeric.argmax(np.array(path_probabilities))
+    while path_pointers:
+        pointers = path_pointers.pop()
+        most_likely_path.insert(0, most_likely_end)
+        most_likely_end = pointers[most_likely_end]
+    return most_likely_path
+
+
 def _infer(module_url, model_path, test_data_path):
     """Computes the predicted label sequence using the trained model."""
     test_data_config = tagging_dataloader.TaggingDataConfig(
@@ -61,14 +159,19 @@ def _infer(module_url, model_path, test_data_path):
     task = TaggingTask(config)
     model = task.build_model()
     model.load_weights(model_path)
-    predictions = predict(task, test_data_config, model)
+    predictions = _predict(task, test_data_config, model)
+
+    merged_probabilities = []
+    for _, part_id, predicted_probabilies in predictions:
+        if part_id == 0:
+            merged_probabilities.append(predicted_probabilies)
+        else:
+            merged_probabilities[-1].extend(predicted_probabilies)
 
     merged_predictions = []
-    for _, part_id, predicted_labels in predictions:
-        if part_id == 0:
-            merged_predictions.append(predicted_labels)
-        else:
-            merged_predictions[-1].extend(predicted_labels)
+    for probabilities in merged_probabilities:
+        prediction = _viterbi(probabilities)
+        merged_predictions.append(prediction)
 
     return merged_predictions
 
