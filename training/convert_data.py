@@ -136,29 +136,36 @@ def _read_binproto(file_name, tokenizer):
     return examples
 
 
+def _parse_linkfragment(lines):
+    """Parses the given linkfragment lines."""
+    for line in lines:
+        text, label_description = line.split("\t")
+        prefix, remaining_text = text.split("{{{")
+        labeled_text, suffix = remaining_text.split("}}}")
+
+        prefix = prefix.strip()
+        labeled_text = labeled_text.strip()
+        label_description = label_description.strip()
+        suffix = suffix.strip()
+
+        if label_description == LF_ADDRESS_LABEL:
+            label = MAIN_LABEL_ADDRESS
+        elif label_description == LF_TELEPHONE_LABEL:
+            label = MAIN_LABEL_TELEPHONE
+        else:
+            label = LABEL_OUTSIDE
+
+        yield (prefix, labeled_text, suffix), label
+
+
 def _read_lftxt(file_name, tokenizer):
     """Reads one file and returns a list of `InputExample` instances."""
     examples = []
     sentence_id = 0
     example = tagging_data_lib.InputExample(sentence_id=0)
     with open(file_name, "r") as src_file:
-        for line in src_file:
-            text, label_description = line.split("\t")
-            prefix, remaining_text = text.split("{{{")
-            labeled_text, suffix = remaining_text.split("}}}")
-
-            prefix = prefix.strip()
-            labeled_text = labeled_text.strip()
-            label_description = label_description.strip()
-            suffix = suffix.strip()
-
-            if label_description == LF_ADDRESS_LABEL:
-                label = MAIN_LABEL_ADDRESS
-            elif label_description == LF_TELEPHONE_LABEL:
-                label = MAIN_LABEL_TELEPHONE
-            else:
-                label = LABEL_OUTSIDE
-
+        for (prefix, labeled_text,
+             suffix), label in _parse_linkfragment(src_file):
             _add_label(prefix, LABEL_OUTSIDE, tokenizer, example)
             _add_label(labeled_text, label, tokenizer, example)
             _add_label(suffix, LABEL_OUTSIDE, tokenizer, example)
