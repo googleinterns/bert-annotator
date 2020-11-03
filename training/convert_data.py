@@ -142,7 +142,7 @@ def _tokenize_example(example,
             previous_label_ids = new_example.label_ids.copy()
             previous_label_words = new_example.words
 
-            if mask_overlap:
+            if mask_overlap and moving_window_overlap > 0:
                 # The last tokens have very little context, they are labeled in
                 # the next sub-sentence.
                 new_example.label_ids[-moving_window_overlap //
@@ -156,18 +156,19 @@ def _tokenize_example(example,
                 sentence_id=example.sentence_id,
                 sub_sentence_id=last_sub_sentence_id + 1)
 
-            # The previously masked tokens need to be labeled, additional
-            # tokens are copied and masked to be used as context.
-            new_example.words.extend(
-                previous_label_words[-moving_window_overlap:])
-            if mask_overlap:
-                new_example.label_ids.extend([_PADDING_LABEL_ID] *
-                                             (moving_window_overlap // 2))
-                new_example.label_ids.extend(
-                    previous_label_ids[-moving_window_overlap // 2:])
-            else:
-                new_example.label_ids.extend(
-                    previous_label_ids[-moving_window_overlap:])
+            if moving_window_overlap > 0:
+                # The previously masked tokens need to be labeled, additional
+                # tokens are copied and masked to be used as context.
+                new_example.words.extend(
+                    previous_label_words[-moving_window_overlap:])
+                if mask_overlap:
+                    new_example.label_ids.extend([_PADDING_LABEL_ID] *
+                                                 (moving_window_overlap // 2))
+                    new_example.label_ids.extend(
+                        previous_label_ids[-moving_window_overlap // 2:])
+                else:
+                    new_example.label_ids.extend(
+                        previous_label_ids[-moving_window_overlap:])
 
         for j, subword in enumerate(subwords):
             # Use the real label for the first subword, and pad label for
