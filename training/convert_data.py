@@ -30,9 +30,11 @@ from official.nlp.data import tagging_data_lib
 import protocol_buffer.documents_pb2 as proto_documents
 from training.utils import (LABELS, LABEL_CONTAINER_NAME, MAIN_LABELS,
                             MAIN_LABEL_ADDRESS, MAIN_LABEL_TELEPHONE,
-                            LABEL_OUTSIDE)
+                            LABEL_OUTSIDE, LF_ADDRESS_LABEL,
+                            LF_TELEPHONE_LABEL)
 
-tf.gfile = tf.io.gfile  # HACK: Required to make bert.tokenization work with TF2
+# HACK: Required to make bert.tokenization work with TF2.
+tf.gfile = tf.io.gfile
 from com_google_research_bert import tokenization  # pylint: disable=wrong-import-position
 
 flags.DEFINE_string("module_url", None,
@@ -67,9 +69,6 @@ flags.DEFINE_string("meta_data_file_path", None,
                     "The path in which input meta data will be written.")
 
 FLAGS = flags.FLAGS
-
-LF_ADDRESS_LABEL = "address"
-LF_TELEPHONE_LABEL = "phone"
 
 
 def _convert_token_boundaries_to_codeunits(document):
