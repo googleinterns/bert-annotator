@@ -84,7 +84,7 @@ def _convert_token_boundaries_to_codeunits(document):
         prefix_as_string = prefix_as_bytes.decode("utf-8")
         token_as_string = token_as_bytes.decode("utf-8")
         token.start = len(prefix_as_string)
-        token.end = len(prefix_as_string) + len(token_as_string)
+        token.end = len(prefix_as_string) + len(token_as_string) - 1
     return document
 
 
