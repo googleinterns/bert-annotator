@@ -27,13 +27,13 @@ from official.nlp.tasks.tagging import TaggingConfig, TaggingTask, predict
 from official.nlp.data import tagging_dataloader
 from training.utils import LABELS
 
-FLAGS = flags.FLAGS
-
 flags.DEFINE_string("module_url", None,
                     "The URL to the pretrained Bert model.")
 flags.DEFINE_string("model_path", None, "The path to the trained model.")
 flags.DEFINE_string("test_data_path", None, "The path to the test data in"
                     " .tfrecord format.")
+
+FLAGS = flags.FLAGS
 
 
 def _infer(module_url, model_path, test_data_path):

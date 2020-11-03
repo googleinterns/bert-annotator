@@ -27,8 +27,6 @@ from official.nlp.tasks.tagging import TaggingConfig, TaggingTask
 from official.nlp.data import tagging_dataloader
 from training.utils import LABELS
 
-FLAGS = flags.FLAGS
-
 flags.DEFINE_string("module_url", None,
                     "The URL to the pretrained Bert model.")
 flags.DEFINE_string("train_data_path", None,
@@ -45,6 +43,8 @@ flags.DEFINE_string("save_path", None,
 flags.DEFINE_integer("batch_size", 64, "The number of samples per batch.")
 flags.DEFINE_enum("optimizer", "sgd", ["sgd", "adam"], "The optimizer.")
 flags.DEFINE_float("learning_rate", 0.01, "The learning rate.")
+
+FLAGS = flags.FLAGS
 
 
 def train(module_url, train_data_path, validation_data_path, epochs,
