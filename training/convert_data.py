@@ -32,7 +32,7 @@ from training.utils import (LABELS, LABEL_CONTAINER_NAME, MAIN_LABELS,
                             MAIN_LABEL_ADDRESS, MAIN_LABEL_TELEPHONE,
                             LABEL_OUTSIDE)
 
-tf.gfile = tf.io.gfile  # Needed for bert.tokenization
+tf.gfile = tf.io.gfile  # HACK: Required to make bert.tokenization work with TF2
 from com_google_research_bert import tokenization  # pylint: disable=wrong-import-position
 
 FLAGS = flags.FLAGS
