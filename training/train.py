@@ -26,7 +26,7 @@ from tensorflow.keras.callbacks import ModelCheckpoint
 
 from official.nlp.tasks.tagging import TaggingConfig, TaggingTask
 from official.nlp.data import tagging_dataloader
-from training.utils import LABELS
+from training.utils import LABELS, ADDITIONAL_LABELS
 
 flags.DEFINE_string("module_url", None,
                     "The URL to the pretrained Bert model.")
@@ -44,6 +44,9 @@ flags.DEFINE_string("save_path", None,
 flags.DEFINE_integer("batch_size", 64, "The number of samples per batch.")
 flags.DEFINE_enum("optimizer", "sgd", ["sgd", "adam"], "The optimizer.")
 flags.DEFINE_float("learning_rate", 0.01, "The learning rate.")
+flags.DEFINE_boolean(
+    "train_with_additional_labels", False,
+    "If set, the flags other than address/phone are used, too.")
 
 FLAGS = flags.FLAGS
 
@@ -59,10 +62,13 @@ def train(module_url, train_data_path, validation_data_path, epochs,
         seq_length=128,
         global_batch_size=batch_size,
         is_training=False)
+    label_list = LABELS
+    if FLAGS.train_with_additional_labels:
+        label_list = LABELS + ADDITIONAL_LABELS
     config = TaggingConfig(hub_module_url=module_url,
                            train_data=train_data_config,
                            validation_data=validation_data_config,
-                           class_names=LABELS)
+                           class_names=label_list)
     task = TaggingTask(config)
     model = task.build_model()
     if optimizer_name == "sgd":
