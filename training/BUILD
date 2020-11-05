@@ -4,6 +4,7 @@ py_library(
   name = "utils",
   srcs = ["utils.py"],
   deps = [
+    "//protocol_buffer:documents_py_proto",
     "@com_google_research_bert//:tokenization",
   ],
 )
@@ -13,7 +14,6 @@ py_binary(
   srcs = ["convert_data.py"],
   deps = [
     ":utils",
-    "//protocol_buffer:documents_py_proto",
     "@com_google_research_bert//:tokenization",
   ],
 )
@@ -31,7 +31,7 @@ py_binary(
   srcs = ["evaluate.py"],
   deps = [
     ":utils",
-  ],
+  ]
 )
 
 load("@pip_dependencies//:requirements.bzl", "requirement")

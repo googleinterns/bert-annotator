@@ -18,6 +18,8 @@
 import tensorflow_hub as hub
 import tensorflow as tf
 
+import protocol_buffer.documents_pb2 as proto_documents
+
 # HACK: Required to make bert.tokenization work with TF2.
 tf.gfile = tf.io.gfile
 from com_google_research_bert import tokenization  # pylint: disable=wrong-import-position
@@ -80,3 +82,90 @@ def create_tokenizer_from_hub_module(module_url):
 
     return tokenization.FullTokenizer(vocab_file=vocab_file,
                                       do_lower_case=do_lower_case)
+
+
+def split_into_words(text, tokenizer):
+    """Splits the text given the tokenizer, but merges subwords."""
+    words = tokenizer.tokenize(text)
+    joined_words = []
+    for word in words:
+        if word.startswith("##"):
+            joined_words[-1] += word[2:]
+        else:
+            joined_words.append(word)
+    return joined_words
+
+
+def _convert_token_boundaries_to_codeunits(document):
+    """Converts the indicies of the token boundaries from codepoints to"
+    codeunits.
+    """
+
+    text_as_string = document.text
+    text_as_bytes = bytes(text_as_string, "utf-8")
+    for token in document.token:
+        prefix_as_bytes = text_as_bytes[:token.start]
+        token_as_bytes = text_as_bytes[token.start:token.end + 1]
+        prefix_as_string = prefix_as_bytes.decode("utf-8")
+        token_as_string = token_as_bytes.decode("utf-8")
+        token.start = len(prefix_as_string)
+        token.end = len(prefix_as_string) + len(token_as_string) - 1
+    return document
+
+
+def get_labeled_text_from_linkfragment(linkfragments):
+    """Provides an iterator over all labeled texts in the linkfragments."""
+    for linkfragment in linkfragments:
+        text, label_description = linkfragment.split("\t")
+        prefix, remaining_text = text.split("{{{")
+        labeled_text, suffix = remaining_text.split("}}}")
+
+        prefix = prefix.strip()
+        labeled_text = labeled_text.strip()
+        label_description = label_description.strip()
+        suffix = suffix.strip()
+
+        if label_description == LF_ADDRESS_LABEL:
+            label = MAIN_LABEL_ADDRESS
+        elif label_description == LF_TELEPHONE_LABEL:
+            label = MAIN_LABEL_TELEPHONE
+        else:
+            label = LABEL_OUTSIDE
+
+        text_without_braces = text.replace("{{{", "").replace("}}}", "")
+
+        yield (prefix, labeled_text, suffix), text_without_braces, label
+
+
+def get_labeled_text_from_document(document, only_main_labels=False):
+    """Provides an iterator over all labeled texts in the proto document."""
+    text = document.text
+
+    last_label_end = -1
+    for label in document.labeled_spans[LABEL_CONTAINER_NAME].labeled_span:
+        if only_main_labels and label.label not in MAIN_LABELS:
+            continue
+
+        label_start = document.token[label.token_start].start
+        label_end = document.token[label.token_end].end
+
+        prefix = text[last_label_end + 1:label_start]
+        labeled_text = text[label_start:label_end + 1]
+
+        last_label_end = label_end
+
+        yield prefix, labeled_text, label.label
+
+    suffix = text[last_label_end + 1:]
+    yield suffix, "", LABEL_OUTSIDE
+
+
+def get_documents(path):
+    """Provides an iterator over all documents, where the boundaries have been
+    updated to use codeunits."""
+    documents = proto_documents.Documents()
+    with open(path, "rb") as src_file:
+        documents.ParseFromString(src_file.read())
+
+    for document in documents.documents:
+        yield _convert_token_boundaries_to_codeunits(document)
