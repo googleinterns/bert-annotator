@@ -244,34 +244,32 @@ def _read_binproto(file_name, tokenizer, use_additional_labels,
     return examples
 
 
-def _read_lftxt(file_name, tokenizer, use_additional_labels,
+def _read_lftxt(path, tokenizer, use_additional_labels,
                 use_gold_tokenization_and_include_target_labels):
     """Reads one file and returns a list of `InputExample` instances."""
     examples = []
     sentence_id = 0
     example = tagging_data_lib.InputExample(sentence_id=0)
-    with open(file_name, "r") as src_file:
-        for labeled_example in get_labeled_text_from_linkfragment(src_file):
+    for labeled_example in get_labeled_text_from_linkfragment(path):
 
-            if use_gold_tokenization_and_include_target_labels:
-                _add_label(labeled_example.prefix, LABEL_OUTSIDE, tokenizer,
-                           example, use_additional_labels)
-                _add_label(labeled_example.selection, labeled_example.label,
-                           tokenizer, example, use_additional_labels)
-                _add_label(labeled_example.suffix, LABEL_OUTSIDE, tokenizer,
-                           example, use_additional_labels)
-            else:
-                _add_label(labeled_example.complete_text,
-                           LABEL_OUTSIDE,
-                           tokenizer,
-                           example,
-                           use_additional_labels=False)
+        if use_gold_tokenization_and_include_target_labels:
+            _add_label(labeled_example.prefix, LABEL_OUTSIDE, tokenizer,
+                       example, use_additional_labels)
+            _add_label(labeled_example.selection, labeled_example.label,
+                       tokenizer, example, use_additional_labels)
+            _add_label(labeled_example.suffix, LABEL_OUTSIDE, tokenizer,
+                       example, use_additional_labels)
+        else:
+            _add_label(labeled_example.complete_text,
+                       LABEL_OUTSIDE,
+                       tokenizer,
+                       example,
+                       use_additional_labels=False)
 
-            if example.words:
-                examples.append(example)
-                sentence_id += 1
-                example = tagging_data_lib.InputExample(
-                    sentence_id=sentence_id)
+        if example.words:
+            examples.append(example)
+            sentence_id += 1
+            example = tagging_data_lib.InputExample(sentence_id=sentence_id)
     return examples
 
 
