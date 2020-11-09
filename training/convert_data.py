@@ -46,8 +46,8 @@ flags.DEFINE_string(
     "train_data_input_path", None,
     "The path to the (augmented) training data in .binproto/.tftxt format.")
 flags.DEFINE_string(
-    "eval_data_input_path", None,
-    "The path to the (augmented) evaluation data in .binproto/.tftxt format.")
+    "dev_data_input_path", None,
+    "The path to the (augmented) development data in .binproto/.tftxt format.")
 flags.DEFINE_multi_string(
     "test_data_input_path", [],
     "The path to the test data in .binproto/.tftxt format. May be defined more"
@@ -57,8 +57,8 @@ flags.DEFINE_string(
     "The path in which generated training input data will be written as tf"
     " records.")
 flags.DEFINE_string(
-    "eval_data_output_path", None,
-    "The path in which generated evaluation input data will be written as tf"
+    "dev_data_output_path", None,
+    "The path in which generated development input data will be written as tf"
     " records.")
 flags.DEFINE_multi_string(
     "test_data_output_path", [],
@@ -72,7 +72,7 @@ FLAGS = flags.FLAGS
 
 
 def _convert_token_boundaries_to_codeunits(document):
-    """Converts the indicies of the token boundaries from codepoints to"
+    """Converts the indices of the token boundaries from codepoints to"
     codeunits.
     """
 
@@ -178,8 +178,9 @@ def _read_lftxt(file_name, tokenizer):
 
 
 def _generate_tf_records(tokenizer, max_seq_length, train_examples,
-                         eval_examples, test_input_data_examples,
-                         train_data_output_path, eval_data_output_path):
+                         dev_examples, test_input_data_examples,
+                         train_data_output_path, dev_data_output_path,
+                         meta_data_file_path):
     """Generates tfrecord files from the `InputExample` lists."""
     common_kwargs = dict(tokenizer=tokenizer,
                          max_seq_length=max_seq_length,
@@ -188,8 +189,8 @@ def _generate_tf_records(tokenizer, max_seq_length, train_examples,
     train_data_size = tagging_data_lib.write_example_to_file(
         train_examples, output_file=train_data_output_path, **common_kwargs)
 
-    eval_data_size = tagging_data_lib.write_example_to_file(
-        eval_examples, output_file=eval_data_output_path, **common_kwargs)
+    dev_data_size = tagging_data_lib.write_example_to_file(
+        dev_examples, output_file=dev_data_output_path, **common_kwargs)
 
     test_data_size = {}
     for output_path, examples in test_input_data_examples.items():
@@ -200,11 +201,14 @@ def _generate_tf_records(tokenizer, max_seq_length, train_examples,
         train_data_size,
         max_seq_length,
         len(LABELS),
-        eval_data_size,
+        dev_data_size,
         test_data_size,
         label_list=LABELS,
         processor_type="text_classifier")
-    return meta_data
+
+    tf.io.gfile.makedirs(os.path.dirname(meta_data_file_path))
+    with tf.io.gfile.GFile(meta_data_file_path, "w") as writer:
+        writer.write(json.dumps(meta_data, indent=4) + "\n")
 
 
 def _create_tokenizer_from_hub_module(module_url):
@@ -229,57 +233,43 @@ def _split_into_words(text, tokenizer):
     return joined_words
 
 
+def _get_examples(path, tokenizer):
+    """Loads the data from a .binproto or .lftxt file."""
+    if path.endswith(".binproto"):
+        examples = _read_binproto(path, tokenizer)
+    elif FLAGS.train_data_input_path.endswith(".lftxt"):
+        examples = _read_lftxt(path, tokenizer)
+    else:
+        raise ValueError(
+            "Invalid file format, only .binproto and .lftxt are supported.")
+    return examples
+
+
 def main(_):
     if len(FLAGS.test_data_input_path) != len(FLAGS.test_data_output_path):
         raise ValueError("Specify an output path for each test input")
 
     tokenizer = _create_tokenizer_from_hub_module(FLAGS.module_url)
 
-    if FLAGS.train_data_input_path.endswith(".binproto"):
-        train_examples = _read_binproto(FLAGS.train_data_input_path, tokenizer)
-    elif FLAGS.train_data_input_path.endswith(".lftxt"):
-        train_examples = _read_lftxt(FLAGS.train_data_input_path, tokenizer)
-    else:
-        raise ValueError(
-            "Invalid file format, only .binproto and .lftxt are supported.")
-
-    if FLAGS.eval_data_input_path.endswith(".binproto"):
-        eval_examples = _read_binproto(FLAGS.eval_data_input_path, tokenizer)
-    elif FLAGS.eval_data_input_path.endswith(".lftxt"):
-        eval_examples = _read_lftxt(FLAGS.eval_data_input_path, tokenizer)
-    else:
-        raise ValueError(
-            "Invalid file format, only .binproto and .lftxt are supported.")
-
+    train_examples = _get_examples(FLAGS.train_data_input_path, tokenizer)
+    dev_examples = _get_examples(FLAGS.dev_data_input_path, tokenizer)
     test_examples = {}
     for input_path, output_path in zip(FLAGS.test_data_input_path,
                                        FLAGS.test_data_output_path):
-        print("Paths: ", input_path, output_path)
-        if input_path.endswith(".binproto"):
-            test_examples[output_path] = _read_binproto(input_path, tokenizer)
-        elif input_path.endswith(".lftxt"):
-            test_examples[output_path] = _read_lftxt(input_path, tokenizer)
-        else:
-            raise ValueError(
-                "Invalid file format, only .binproto and .lftxt are supported."
-            )
+        test_examples[output_path] = _get_examples(input_path, tokenizer)
 
-    meta_data = _generate_tf_records(tokenizer, FLAGS.max_seq_length,
-                                     train_examples, eval_examples,
-                                     test_examples,
-                                     FLAGS.train_data_output_path,
-                                     FLAGS.eval_data_output_path)
-    tf.io.gfile.makedirs(os.path.dirname(FLAGS.meta_data_file_path))
-    with tf.io.gfile.GFile(FLAGS.meta_data_file_path, "w") as writer:
-        writer.write(json.dumps(meta_data, indent=4) + "\n")
+    _generate_tf_records(tokenizer, FLAGS.max_seq_length, train_examples,
+                         dev_examples, test_examples,
+                         FLAGS.train_data_output_path,
+                         FLAGS.dev_data_output_path, FLAGS.meta_data_file_path)
 
 
 if __name__ == "__main__":
     flags.mark_flag_as_required("module_url")
-    flags.mark_flag_as_required("train_data_input_path")  #
-    flags.mark_flag_as_required("eval_data_input_path")
+    flags.mark_flag_as_required("train_data_input_path")
+    flags.mark_flag_as_required("dev_data_input_path")
     flags.mark_flag_as_required("train_data_output_path")
-    flags.mark_flag_as_required("eval_data_output_path")
+    flags.mark_flag_as_required("dev_data_output_path")
     flags.mark_flag_as_required("meta_data_file_path")
 
     app.run(main)

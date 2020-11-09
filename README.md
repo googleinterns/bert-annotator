@@ -89,12 +89,12 @@ Transform the (augmented or original) data into TFRecord files
 ./bazel-bin/training/convert_data \
  --module_url=[MODULE URL] \
  --train_data_input_path=data/output/train.binproto \
- --eval_data_input_path=data/permanent_output/dev.binproto \
+ --dev_data_input_path=data/permanent_output/dev.binproto \
  --test_data_input_path=data/output/test.binproto \
  --test_data_input_path=data/input/raw/test_phone.lftxt \
  --test_data_input_path=data/input/raw/test_address.lftxt \
  --train_data_output_path=data/output/train.tfrecord \
- --eval_data_output_path=data/output/dev.tfrecord \
+ --dev_data_output_path=data/output/dev.tfrecord \
  --test_data_output_path=data/output/test_lucidsky.tfrecord \
  --test_data_output_path=data/output/test_phone.tfrecord \
  --test_data_output_path=data/output/test_address.tfrecord \
