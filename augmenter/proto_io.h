@@ -14,8 +14,8 @@
 // limitations under the License.
 //
 
-#ifndef AUGMENTER_TEXTPROTO_IO_H_
-#define AUGMENTER_TEXTPROTO_IO_H_
+#ifndef AUGMENTER_PROTO_IO_H_
+#define AUGMENTER_PROTO_IO_H_
 
 #include <string>
 
@@ -23,10 +23,11 @@
 
 namespace augmenter {
 
-class TextprotoIO {
+class ProtoIO {
  public:
-  bool Load(const std::string corpus);
-  bool Save(const std::string corpus) const;
+  bool LoadText(const std::string& corpus);
+  bool SaveText(const std::string& corpus) const;
+  bool SaveBinary(const std::string& corpus) const;
   const bert_annotator::Documents documents() const;
   void set_documents(const bert_annotator::Documents documents);
 
@@ -36,4 +37,4 @@ class TextprotoIO {
 
 }  // namespace augmenter
 
-#endif  // AUGMENTER_TEXTPROTO_IO_H_
+#endif  // AUGMENTER_PROTO_IO_H_

@@ -74,6 +74,21 @@ Augmenter::Augmenter(const bert_annotator::Documents& documents,
     abort();
   }
 
+  // Skip invalid sentences where the start/end value of tokens does not
+  // match their length.
+  for (int i = documents_.documents_size() - 1; i >= 0; --i) {
+    bert_annotator::Document* document = documents_.mutable_documents(i);
+
+    for (bert_annotator::Token token : document->token()) {
+      if (static_cast<int>(token.word().size()) !=
+          token.end() - token.start() + 1) {
+        documents_.mutable_documents()->erase(
+            documents_.mutable_documents()->begin() + i);
+        break;
+      }
+    }
+  }
+
   for (bert_annotator::Document& document : *documents_.mutable_documents()) {
     InitializeLabelList(&document);
     MergePhoneNumberTokens(&document);

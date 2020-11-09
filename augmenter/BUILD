@@ -52,9 +52,9 @@ cc_test (
 )
 
 cc_library(
-  name = "textproto_io",
-  srcs = ["textproto_io.cc"],
-  hdrs = ["textproto_io.h"],
+  name = "proto_io",
+  srcs = ["proto_io.cc"],
+  hdrs = ["proto_io.h"],
   deps = [
     "//protocol_buffer:documents_cc_proto",
   ]
@@ -111,7 +111,7 @@ cc_binary(
     ':augmentations',
     ":augmenter",
     ":random_sampler",
-    ":textproto_io",
+    ":proto_io",
     "//protocol_buffer:documents_cc_proto",
     "@com_google_absl//absl/flags:flag",
     "@com_google_absl//absl/flags:marshalling",
