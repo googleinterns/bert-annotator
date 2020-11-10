@@ -32,8 +32,8 @@ from official.nlp.tasks.tagging import TaggingConfig, TaggingTask
 from official.nlp.data import tagging_dataloader
 from training.utils import (ADDITIONAL_LABELS, BERT_SENTENCE_PADDING,
                             BERT_SENTENCE_SEPARATOR, BERT_SENTENCE_START,
-                            LABELS, LABEL_OUTSIDE, MAIN_LABELS,
-                            PADDING_LABEL_ID, MOVING_WINDOW_MASK_LABEL_ID,
+                            LABELS, MAIN_LABELS, PADDING_LABEL_ID,
+                            MOVING_WINDOW_MASK_LABEL_ID,
                             create_tokenizer_from_hub_module)
 
 flags.DEFINE_string("module_url", None,
@@ -129,32 +129,32 @@ def _viterbi(probabilities, train_with_additional_labels):
     if train_with_additional_labels:
         labels += ADDITIONAL_LABELS
         path_probabilities += [0.0] * len(ADDITIONAL_LABELS)
+    path_probabilities = np.array(path_probabilities)
+    label_id_map = {label: i for i, label in enumerate(labels)}
     path_pointers = []
     for prob_token in probabilities:
         prev_path_probabilities = path_probabilities.copy()
-        path_probabilities = [0.0] * len(labels)
+        path_probabilities = np.array([0.0] * len(labels))
         new_pointers = [len(labels) + 1] * len(
             labels)  # An invalid value ensures it will be updated.
         for current_label_id in range(len(labels)):
             current_label_name = labels[current_label_id]
-            if current_label_name == LABEL_OUTSIDE:
-                current_main_label_name = LABEL_OUTSIDE
-            else:
-                # Strips "B-" and "I-"
+            if current_label_name.startswith("I-"):
                 current_main_label_name = current_label_name[2:]
-            for prev_label_id in range(len(labels)):
-                prev_label_name = labels[prev_label_id]
-                prev_prob = prev_path_probabilities[prev_label_id]
-                if current_label_name.startswith(
-                        "I-") and prev_label_name not in [
-                            ("B-%s" % current_main_label_name),
-                            ("I-%s" % current_main_label_name)
-                        ]:
-                    prev_prob = 0
-                total_prob = prev_prob * prob_token[current_label_id]
-                if total_prob > path_probabilities[current_label_id]:
-                    path_probabilities[current_label_id] = total_prob
-                    new_pointers[current_label_id] = prev_label_id
+                valid_prev_label_names = [("B-%s" % current_main_label_name),
+                                          ("I-%s" % current_main_label_name)]
+                mask = np.array([0] * len(labels))
+                for prev_label_name in valid_prev_label_names:
+                    prev_label_id = label_id_map[prev_label_name]
+                    mask[prev_label_id] = 1
+                masked_prev_path_probabilities = prev_path_probabilities * mask
+            else:
+                masked_prev_path_probabilities = prev_path_probabilities
+            total_prob = masked_prev_path_probabilities * prob_token[
+                current_label_id]
+            max_prob_index = np.argmax(total_prob)
+            path_probabilities[current_label_id] = total_prob[max_prob_index]
+            new_pointers[current_label_id] = max_prob_index
         path_pointers.append(new_pointers)
 
     most_likely_path = []
