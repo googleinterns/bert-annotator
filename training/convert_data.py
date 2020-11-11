@@ -393,7 +393,7 @@ def _get_examples(path, tokenizer):
 
 
 def main(_):
-    if len(FLAGS.test_data_input_path) != len(FLAGS.test_data_output_path):
+    if len(FLAGS.test_data_input_paths) != len(FLAGS.test_data_output_paths):
         raise ValueError("Specify an output path for each test input")
 
     tokenizer = _create_tokenizer_from_hub_module(FLAGS.module_url)
@@ -401,8 +401,8 @@ def main(_):
     train_examples = _get_examples(FLAGS.train_data_input_path, tokenizer)
     dev_examples = _get_examples(FLAGS.dev_data_input_path, tokenizer)
     test_examples = {}
-    for input_path, output_path in zip(FLAGS.test_data_input_path,
-                                       FLAGS.test_data_output_path):
+    for input_path, output_path in zip(FLAGS.test_data_input_paths,
+                                       FLAGS.test_data_output_paths):
         test_examples[output_path] = _get_examples(input_path, tokenizer)
 
     moving_window_overlap = FLAGS.moving_window_overlap
@@ -412,8 +412,8 @@ def main(_):
     _generate_tf_records(tokenizer, FLAGS.max_seq_length, train_examples,
                          dev_examples, test_examples,
                          FLAGS.train_data_output_path,
-                         FLAGS.eval_data_output_path,
-                         FLAGS.meta_data_file_path, moving_window_overlap)
+                         FLAGS.dev_data_output_path, FLAGS.meta_data_file_path,
+                         moving_window_overlap)
 
 
 if __name__ == "__main__":

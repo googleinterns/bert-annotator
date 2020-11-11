@@ -43,4 +43,5 @@ py_test (
     ":train",
     requirement("tf_models_nightly"),
   ],
+  size = "small",
 )
