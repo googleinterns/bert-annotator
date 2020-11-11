@@ -157,26 +157,28 @@ class IntegrationTests(absltest.TestCase):
         self.test_tfrecord = os.path.join(self.out_dir, "test.tfrecord")
         self.test2_tfrecord = os.path.join(self.out_dir, "test2.tfrecord")
         self.meta_data = os.path.join(self.out_dir, "meta.data")
+        self.module_url = (
+            "https://tfhub.dev/tensorflow/small_bert/bert_en_uncased_L-2_H-128_A-2/1"  # pylint: disable=line-too-long)
+        )
 
     def test_training(self):
         """Normal training."""
-        module_url = (
-            "https://tfhub.dev/tensorflow/bert_en_uncased_L-12_H-768_A-12/2")
+
         checkpoint_dir = os.path.join(self.out_dir, "checkpoints")
         self.run_helper(
             "convert_data",
-            arguments=("--module_url", module_url, "--train_data_input_path",
-                       self.train_lftxt, "--train_data_output_path",
-                       self.train_tfrecord, "--dev_data_input_path",
-                       self.train_lftxt, "--dev_data_output_path",
-                       self.dev_tfrecord, "--test_data_input_paths",
-                       self.train_lftxt, "--test_data_output_paths",
-                       self.test_tfrecord, "--test_data_input_paths",
-                       self.test_lftxt, "--test_data_output_paths",
-                       self.test2_tfrecord, "--meta_data_file_path",
-                       self.meta_data))
+            arguments=("--module_url", self.module_url,
+                       "--train_data_input_path", self.train_lftxt,
+                       "--train_data_output_path", self.train_tfrecord,
+                       "--dev_data_input_path", self.train_lftxt,
+                       "--dev_data_output_path", self.dev_tfrecord,
+                       "--test_data_input_paths", self.train_lftxt,
+                       "--test_data_output_paths", self.test_tfrecord,
+                       "--test_data_input_paths", self.test_lftxt,
+                       "--test_data_output_paths", self.test2_tfrecord,
+                       "--meta_data_file_path", self.meta_data))
         self.run_helper("train",
-                        arguments=("--module_url", module_url,
+                        arguments=("--module_url", self.module_url,
                                    "--train_data_path", self.train_tfrecord,
                                    "--validation_data_path", self.dev_tfrecord,
                                    "--epochs", "1", "--train_size", "6400",
@@ -202,10 +204,10 @@ weighted avg       1.00      1.00      1.00         2""", """test2.tfrecord
 weighted avg       0.00      0.00      0.00         2"""
         ]
         self.run_helper("evaluate",
-                        arguments=("--module_url", module_url, "--model_path",
-                                   model_path, "--test_data_paths",
-                                   self.test_tfrecord, "--test_data_paths",
-                                   self.test2_tfrecord),
+                        arguments=("--module_url", self.module_url,
+                                   "--model_path", model_path,
+                                   "--test_data_paths", self.test_tfrecord,
+                                   "--test_data_paths", self.test2_tfrecord),
                         expected_stdout_substrings=outputs)
 
 
