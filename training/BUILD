@@ -41,7 +41,8 @@ py_test (
   deps = [
     ":convert_data",
     ":train",
+    ":evaluate",
     requirement("tf_models_nightly"),
   ],
-  size = "small",
+  size = "medium",
 )

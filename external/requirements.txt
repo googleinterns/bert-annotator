@@ -1,5 +1,5 @@
 tf-models-nightly==2.3.0.dev20201111
-tf-nightly==2.4.0.dev20201012
+tf-nightly==2.5.0.dev20201111
 
 # HACK: dataclasses is broken for python 3.7. As soon as
 # https://github.com/ericvsmith/dataclasses/issues/153
