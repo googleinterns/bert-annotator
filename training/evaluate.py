@@ -32,8 +32,8 @@ from official.nlp.tasks.tagging import TaggingConfig, TaggingTask
 from official.nlp.data import tagging_dataloader
 from training.utils import (ADDITIONAL_LABELS, BERT_SENTENCE_PADDING,
                             BERT_SENTENCE_SEPARATOR, BERT_SENTENCE_START,
-                            LABELS, MAIN_LABELS, PADDING_LABEL_ID,
-                            MOVING_WINDOW_MASK_LABEL_ID,
+                            LABELS, LABEL_OUTSIDE, MAIN_LABELS,
+                            PADDING_LABEL_ID, MOVING_WINDOW_MASK_LABEL_ID,
                             create_tokenizer_from_hub_module)
 
 flags.DEFINE_string("module_url", None,
@@ -124,12 +124,12 @@ def _viterbi(probabilities, train_with_additional_labels):
 
     Depends on the specific order of labels.
     """
-    path_probabilities = [0.0, 0.0, 1.0, 0.0, 0.0]  # Label 3 is "outside"
     labels = LABELS
     if train_with_additional_labels:
         labels += ADDITIONAL_LABELS
-        path_probabilities += [0.0] * len(ADDITIONAL_LABELS)
-    path_probabilities = np.array(path_probabilities)
+    path_probabilities = np.array([0.0] * len(labels))
+    label_outside_index = labels.index(LABEL_OUTSIDE)
+    path_probabilities[label_outside_index] = 1.0
     label_id_map = {label: i for i, label in enumerate(labels)}
     path_pointers = []
     for prob_token in probabilities:
