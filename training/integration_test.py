@@ -139,17 +139,22 @@ class IntegrationTests(absltest.TestCase):
     def setUp(self):
         """Creates temporary files for training/evaluation."""
         self.out_dir = self.create_tempdir()
+        training_text = [
+            "Meet at {{{221b Baker Street}}}.\taddress\n",
+            "Call at {{{+01 2345 6789}}}!\tphone"
+        ]
         self.train_lftxt = os.path.join(self.out_dir, "train.lftxt")
         with open(self.train_lftxt, "w") as f:
-            f.writelines([
-                "Meet at {{{221b Baker Street}}}.\taddress\n",
-                "Call at {{{+01 2345 6789}}}!\tphone"
-            ])
+            f.writelines(training_text)
+        # test on train corpus to see overfitting.
         self.test_lftxt = os.path.join(self.out_dir, "test.lftxt")
         with open(self.test_lftxt, "w") as f:
+            f.writelines(training_text)
+        self.test2_lftxt = os.path.join(self.out_dir, "test2.lftxt")
+        with open(self.test2_lftxt, "w") as f:
             f.writelines([
-                "The address {{{742 Evergreen Terrace}}} is correct.\taddress"
-                "\n", "Phone number: {{{00 - 11 222 333}}}!\tphone"
+                "Not a {{{real address}}}.\taddress\n",
+                "Phone number: {{{00 - 11 222 333}}}!\tphone"
             ])
 
         self.train_tfrecord = os.path.join(self.out_dir, "train.tfrecord")
@@ -160,6 +165,26 @@ class IntegrationTests(absltest.TestCase):
         self.module_url = (
             "https://tfhub.dev/tensorflow/small_bert/bert_en_uncased_L-2_H-128_A-2/1"  # pylint: disable=line-too-long
         )
+
+        self.test_eval_output = """test.tfrecord
+              precision    recall  f1-score   support
+
+     ADDRESS       1.00      1.00      1.00         1
+   TELEPHONE       1.00      1.00      1.00         1
+
+   micro avg       1.00      1.00      1.00         2
+   macro avg       1.00      1.00      1.00         2
+weighted avg       1.00      1.00      1.00         2"""
+
+        self.test2_eval_output = """test2.tfrecord
+              precision    recall  f1-score   support
+
+     ADDRESS       0.00      0.00      0.00         1
+   TELEPHONE       0.00      0.00      0.00         1
+
+   micro avg       0.00      0.00      0.00         2
+   macro avg       0.00      0.00      0.00         2
+weighted avg       0.00      0.00      0.00         2"""
 
     def test_training(self):
         """Normal training."""
@@ -172,9 +197,9 @@ class IntegrationTests(absltest.TestCase):
                        "--train_data_output_path", self.train_tfrecord,
                        "--dev_data_input_path", self.train_lftxt,
                        "--dev_data_output_path", self.dev_tfrecord,
-                       "--test_data_input_paths", self.train_lftxt,
-                       "--test_data_output_paths", self.test_tfrecord,
                        "--test_data_input_paths", self.test_lftxt,
+                       "--test_data_output_paths", self.test_tfrecord,
+                       "--test_data_input_paths", self.test2_lftxt,
                        "--test_data_output_paths", self.test2_tfrecord,
                        "--meta_data_file_path", self.meta_data))
         self.run_helper("train",
@@ -184,25 +209,7 @@ class IntegrationTests(absltest.TestCase):
                                    "--epochs", "1", "--train_size", "6400",
                                    "--save_path", checkpoint_dir))
         model_path = os.path.join(checkpoint_dir, "model_01")
-        outputs = [
-            """test.tfrecord
-              precision    recall  f1-score   support
-
-     ADDRESS       1.00      1.00      1.00         1
-   TELEPHONE       1.00      1.00      1.00         1
-
-   micro avg       1.00      1.00      1.00         2
-   macro avg       1.00      1.00      1.00         2
-weighted avg       1.00      1.00      1.00         2""", """test2.tfrecord
-              precision    recall  f1-score   support
-
-     ADDRESS       0.00      0.00      0.00         1
-   TELEPHONE       0.00      0.00      0.00         1
-
-   micro avg       0.00      0.00      0.00         2
-   macro avg       0.00      0.00      0.00         2
-weighted avg       0.00      0.00      0.00         2"""
-        ]
+        outputs = [self.test_eval_output, self.test2_eval_output]
         self.run_helper("evaluate",
                         arguments=("--module_url", self.module_url,
                                    "--model_path", model_path,
