@@ -104,32 +104,39 @@ class IntegrationTests(absltest.TestCase):
             "Meet at {{{221b Baker Street}}}.\taddress\n",
             "Call at {{{+01 2345 6789}}}!\tphone"
         ]
-        self.train_lftxt = os.path.join(self.out_dir, "train.lftxt")
+        self.train_data_dir = os.path.join(self.out_dir, "train")
+        os.makedirs(self.train_data_dir)
+        self.train_lftxt = os.path.join(self.train_data_dir, "train.lftxt")
         with open(self.train_lftxt, "w") as f:
             f.writelines(training_text)
         # test on train corpus to see overfitting.
-        self.test_lftxt = os.path.join(self.out_dir, "test.lftxt")
+        self.test_data_dir = os.path.join(self.out_dir, "test")
+        os.makedirs(self.test_data_dir)
+        self.test_lftxt = os.path.join(self.test_data_dir, "test.lftxt")
         with open(self.test_lftxt, "w") as f:
             f.writelines(training_text)
-        self.test2_lftxt = os.path.join(self.out_dir, "test2.lftxt")
+        self.test2_data_dir = os.path.join(self.out_dir, "test2")
+        os.makedirs(self.test2_data_dir)
+        self.test2_lftxt = os.path.join(self.test2_data_dir, "test2.lftxt")
         with open(self.test2_lftxt, "w") as f:
             f.writelines([
                 "Not a {{{real address}}}.\taddress\n",
                 "Phone number: {{{00 - 11 222 333}}}!\tphone"
             ])
 
-        self.train_tfrecord = os.path.join(self.out_dir, "train.tfrecord")
-        self.dev_tfrecord = os.path.join(self.out_dir, "dev.tfrecord")
-        self.test_tfrecord = os.path.join(self.out_dir, "test.tfrecord")
-        self.test2_tfrecord = os.path.join(self.out_dir, "test2.tfrecord")
-        self.meta_data = os.path.join(self.out_dir, "meta.data")
+        self.train_tfrecord = os.path.join(self.train_data_dir,
+                                           "train.tfrecord")
+        self.dev_tfrecord = os.path.join(self.train_data_dir, "dev.tfrecord")
+        self.test_tfrecord = os.path.join(self.test_data_dir, "test.tfrecord")
+        self.test2_tfrecord = os.path.join(self.test2_data_dir,
+                                           "test2.tfrecord")
+        self.meta_data = os.path.join(self.train_data_dir, "meta.data")
         self.module_url = (
             "https://tfhub.dev/tensorflow/small_bert/bert_en_uncased_L-2_H-128_A-2/1"  # pylint: disable=line-too-long
         )
 
     def test_training(self):
         """Normal training."""
-
         checkpoint_dir = os.path.join(self.out_dir, "checkpoints")
         self.run_helper(
             "convert_data",
@@ -154,14 +161,13 @@ class IntegrationTests(absltest.TestCase):
         self.run_helper(
             "evaluate",
             arguments=("--module_url", self.module_url, "--model_path",
-                       model_path, "--tfrecord_paths", self.test_tfrecord,
-                       "--raw_paths", self.test_lftxt, "--tfrecord_paths",
+                       model_path, "--input_paths", self.test_tfrecord,
+                       "--raw_paths", self.test_lftxt, "--input_paths",
                        self.test2_tfrecord, "--raw_paths", self.test2_lftxt,
                        "--visualisation_folder", visualisation_dir))
 
     def test_training_additional_labels(self):
         """Training with additional labels."""
-
         checkpoint_dir = os.path.join(self.out_dir, "checkpoints")
         self.run_helper(
             "convert_data",
@@ -188,11 +194,20 @@ class IntegrationTests(absltest.TestCase):
         self.run_helper(
             "evaluate",
             arguments=("--module_url", self.module_url, "--model_path",
-                       model_path, "--tfrecord_paths", self.test_tfrecord,
-                       "--raw_paths", self.test_lftxt, "--tfrecord_paths",
+                       model_path, "--input_paths", self.test_tfrecord,
+                       "--raw_paths", self.test_lftxt, "--input_paths",
                        self.test2_tfrecord, "--raw_paths", self.test2_lftxt,
                        "--visualisation_folder", visualisation_dir,
                        "--train_with_additional_labels"))
+
+    def test_evaluate_lftxt(self):
+        """Evaluate precomputed lftxt files."""
+        visualisation_dir = os.path.join(self.out_dir, "visualisation")
+        self.run_helper(
+            "evaluate",
+            arguments=("--module_url", self.module_url, "--input_paths",
+                       self.test_data_dir, "--raw_paths", self.test_lftxt,
+                       "--visualisation_folder", visualisation_dir))
 
 
 if __name__ == "__main__":
