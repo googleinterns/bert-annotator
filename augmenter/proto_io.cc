@@ -26,8 +26,9 @@
 
 namespace augmenter {
 
-bool ProtoIO::LoadText(const std::string& corpus) {
-  std::ifstream input("data/input/preprocessed/" + corpus + ".textproto");
+bool ProtoIO::LoadText(const std::string& directory,
+                       const std::string& corpus) {
+  std::ifstream input(directory + "/" + corpus + ".textproto");
   if (input.fail()) {
     std::cerr << "Failed to load corpus " << corpus << std::endl;
     return false;
@@ -41,8 +42,9 @@ bool ProtoIO::LoadText(const std::string& corpus) {
   return true;
 }
 
-bool ProtoIO::SaveBinary(const std::string& corpus) const {
-  std::ofstream output("data/output/" + corpus + ".binproto",
+bool ProtoIO::SaveBinary(const std::string& directory,
+                         const std::string& corpus) const {
+  std::ofstream output(directory + "/" + corpus + ".binproto",
                         std::ios::out | std::ios::trunc | std::ios::binary);
   if (!documents_.SerializeToOstream(&output)) {
     std::cerr << "Failed to save document." << std::endl;
@@ -51,8 +53,9 @@ bool ProtoIO::SaveBinary(const std::string& corpus) const {
   return true;
 }
 
-bool ProtoIO::SaveText(const std::string& corpus) const {
-  std::ofstream output("data/output/" + corpus + ".textproto");
+bool ProtoIO::SaveText(const std::string& directory,
+                       const std::string& corpus) const {
+  std::ofstream output(directory + "/" + corpus + ".textproto");
   google::protobuf::io::OstreamOutputStream fileOutput(&output,
                                                       std::ios::binary);
   if (!google::protobuf::TextFormat::Print(documents_, &fileOutput)) {

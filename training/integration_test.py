@@ -100,21 +100,67 @@ class IntegrationTests(absltest.TestCase):
     def setUp(self):
         """Creates temporary files for training/evaluation."""
         self.out_dir = self.create_tempdir()
-        training_text = [
-            "Meet at {{{221b Baker Street}}}.\taddress\n",
-            "Call at {{{+01 2345 6789}}}!\tphone"
-        ]
+        self.augmenter_replacement_input = os.path.join(
+            self.out_dir, "replacements.txt")
+        with open(self.augmenter_replacement_input, "w") as file:
+            file.write("Replacement\t1")
+
+        train_textproto_content = """documents {   # (nlp_saft.Document)
+  text     : "At 42 Street."
+  token: {      # (nlp_saft.Token) size=9B
+    word    : "At"
+    start   : 0
+    end     : 1
+  }     # token[0]
+  token: {      # (nlp_saft.Token) size=9B
+    word    : "42"
+    start   : 3
+    end     : 4
+  }     # token[1]
+  token: {      # (nlp_saft.Token) size=15B
+    word    : "Street" # size=7
+    start   : 6
+    end     : 11
+  }     # token[2]
+  token: {      # (nlp_saft.Token) size=15B
+    word    : "." # size=7
+    start   : 12
+    end     : 12
+  }     # token[3]
+  labeled_spans: {      # (nlp_saft.Document.LabeledSpansEntry) size=53B
+    key  : "lucid"      # size=5
+    value: {    # (nlp_saft.LabeledSpans) size=44B
+      labeled_span: {   # (nlp_saft.LabeledSpan) size=12B
+        token_start : 1
+        token_end   : 2
+        label       : "ADDRESS"  # size=6
+      } # labeled_spans[0].value.labeled_span[0]
+    }   # labeled_spans[0].value
+  }     # labeled_spans[0]
+}"""
+
         self.train_data_dir = os.path.join(self.out_dir, "train")
         os.makedirs(self.train_data_dir)
+        self.train_textproto = os.path.join(self.train_data_dir,
+                                            "train.textproto")
+        with open(self.train_textproto, "w") as f:
+            f.write(train_textproto_content)
+        training_text = ["At {{{42 Street}}}.\taddress\n"]
         self.train_lftxt = os.path.join(self.train_data_dir, "train.lftxt")
         with open(self.train_lftxt, "w") as f:
             f.writelines(training_text)
+
         # test on train corpus to see overfitting.
         self.test_data_dir = os.path.join(self.out_dir, "test")
         os.makedirs(self.test_data_dir)
+        self.test_textproto = os.path.join(self.test_data_dir,
+                                           "test.textproto")
+        with open(self.test_textproto, "w") as f:
+            f.write(train_textproto_content)
         self.test_lftxt = os.path.join(self.test_data_dir, "test.lftxt")
         with open(self.test_lftxt, "w") as f:
             f.writelines(training_text)
+
         self.test2_data_dir = os.path.join(self.out_dir, "test2")
         os.makedirs(self.test2_data_dir)
         self.test2_lftxt = os.path.join(self.test2_data_dir, "test2.lftxt")
@@ -136,20 +182,28 @@ class IntegrationTests(absltest.TestCase):
         )
 
     def test_training(self):
-        """Normal training."""
-        checkpoint_dir = os.path.join(self.out_dir, "checkpoints")
+        """Test data conversion."""
+        self.run_helper(
+            "main",
+            arguments=("--corpora", "train", "--input_directory",
+                       self.train_data_dir, "--output_directory",
+                       self.train_data_dir, "--addresses_path",
+                       self.augmenter_replacement_input, "--phones_path",
+                       self.augmenter_replacement_input, "--num_total", "0"))
+        train_binproto = os.path.join(self.train_data_dir, "train.binproto")
         self.run_helper(
             "convert_data",
             arguments=("--module_url", self.module_url,
-                       "--train_data_input_path", self.train_lftxt,
+                       "--train_data_input_path", train_binproto,
                        "--train_data_output_path", self.train_tfrecord,
-                       "--dev_data_input_path", self.train_lftxt,
+                       "--dev_data_input_path", train_binproto,
                        "--dev_data_output_path", self.dev_tfrecord,
-                       "--test_data_input_paths", self.test_lftxt,
+                       "--test_data_input_paths", train_binproto,
                        "--test_data_output_paths", self.test_tfrecord,
                        "--test_data_input_paths", self.test2_lftxt,
                        "--test_data_output_paths", self.test2_tfrecord,
                        "--meta_data_file_path", self.meta_data))
+        checkpoint_dir = os.path.join(self.out_dir, "checkpoints")
         self.run_helper("train",
                         arguments=("--module_url", self.module_url,
                                    "--train_data_path", self.train_tfrecord,

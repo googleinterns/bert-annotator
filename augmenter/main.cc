@@ -28,6 +28,8 @@
 
 ABSL_FLAG(std::vector<std::string>, corpora, std::vector<std::string>({}),
           "comma-separated list of corpora to augment");
+ABSL_FLAG(std::string, input_directory, "", "Path to the input directory.");
+ABSL_FLAG(std::string, output_directory, "", "Path to the output directory.");
 ABSL_FLAG(std::string, addresses_path, "",
           "Path to list of alternative addresses");
 ABSL_FLAG(std::string, phones_path, "",
@@ -112,8 +114,10 @@ int main(int argc, char* argv[]) {
       .mask_digits = absl::GetFlag(FLAGS_mask_digits)};
 
   augmenter::ProtoIO textproto_io = augmenter::ProtoIO();
+  std::string input_directory = absl::GetFlag(FLAGS_input_directory);
+  std::string output_directory = absl::GetFlag(FLAGS_output_directory);
   for (const std::string& corpus : corpora) {
-    if (!textproto_io.LoadText(corpus)) {
+    if (!textproto_io.LoadText(input_directory, corpus)) {
       std::cerr << "Skipping corpus " << corpus << "." << std::endl;
       continue;
     }
@@ -156,9 +160,9 @@ int main(int argc, char* argv[]) {
     augmenter.Augment();
     textproto_io.set_documents(augmenter.documents());
     if (absl::GetFlag(FLAGS_save_as_text)) {
-      textproto_io.SaveText(corpus);
+      textproto_io.SaveText(output_directory, corpus);
     } else {
-      textproto_io.SaveBinary(corpus);
+      textproto_io.SaveBinary(output_directory, corpus);
     }
   }
 

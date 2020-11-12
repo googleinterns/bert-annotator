@@ -117,4 +117,5 @@ cc_binary(
     "@com_google_absl//absl/flags:marshalling",
     "@com_google_absl//absl/flags:parse",
   ],
+  visibility = ["//training:__pkg__"],
 )
