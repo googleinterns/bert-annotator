@@ -47,5 +47,5 @@ py_test (
     ":evaluate",
     requirement("tf_models_nightly"),
   ],
-  size = "medium",
+  size = "large",
 )
