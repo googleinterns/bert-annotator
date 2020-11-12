@@ -367,9 +367,8 @@ def _extract_words_from_lftxt(path, tokenizer):
     file."""
     words_per_sentence = []
     with open(path, "r") as src_file:
-        for (_, _,
-             _), text_without_braces, _ in get_labeled_text_from_linkfragment(
-                 src_file):
+        for _, text_without_braces, _ in get_labeled_text_from_linkfragment(
+                src_file):
             words = split_into_words(text_without_braces, tokenizer)
             words_per_sentence.append(words)
     return words_per_sentence
