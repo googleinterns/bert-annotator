@@ -158,7 +158,7 @@ class IntegrationTests(absltest.TestCase):
         self.test2_tfrecord = os.path.join(self.out_dir, "test2.tfrecord")
         self.meta_data = os.path.join(self.out_dir, "meta.data")
         self.module_url = (
-            "https://tfhub.dev/tensorflow/small_bert/bert_en_uncased_L-2_H-128_A-2/1"  # pylint: disable=line-too-long)
+            "https://tfhub.dev/tensorflow/small_bert/bert_en_uncased_L-2_H-128_A-2/1"  # pylint: disable=line-too-long
         )
 
     def test_training(self):
