@@ -66,7 +66,7 @@ def _predict(task, params, model):
         A list of tuple. Each tuple contains `sentence_id`, `sub_sentence_id`
             and a list of predicted ids.
     """
-    def predict_step(inputs):
+    def _predict_step(inputs):
         """Replicated prediction calculation."""
         x, y = inputs
         sentence_ids = x.pop("sentence_id")
@@ -79,7 +79,7 @@ def _predict(task, params, model):
                     sentence_ids=sentence_ids,
                     sub_sentence_ids=sub_sentence_ids)
 
-    def aggregate_fn(state, outputs):
+    def _aggregate_fn(state, outputs):
         """Concatenates model's outputs."""
         if state is None:
             state = []
@@ -109,7 +109,7 @@ def _predict(task, params, model):
 
     dataset = orbit.utils.make_distributed_dataset(
         tf.distribute.get_strategy(), task.build_inputs, params)
-    outputs = utils.predict(predict_step, aggregate_fn, dataset)
+    outputs = utils.predict(_predict_step, _aggregate_fn, dataset)
     return sorted(outputs, key=lambda x: (x[0], x[1]))
 
 
