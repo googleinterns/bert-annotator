@@ -27,8 +27,9 @@ import tensorflow as tf
 
 from official.nlp.tasks.tagging import TaggingConfig, TaggingTask, predict
 from official.nlp.data import tagging_dataloader
-from training.utils import (LABELS, MAIN_LABELS, PADDING_LABEL_ID,
-                            MOVING_WINDOW_MASK_LABEL_ID,
+from training.utils import (BERT_SENTENCE_PADDING, BERT_SENTENCE_SEPARATOR,
+                            BERT_SENTENCE_START, LABELS, MAIN_LABELS,
+                            PADDING_LABEL_ID, MOVING_WINDOW_MASK_LABEL_ID,
                             create_tokenizer_from_hub_module)
 
 flags.DEFINE_string("module_url", None,
@@ -111,7 +112,10 @@ def _extract_target_labels(module_url, trg_path):
                                       features["label_ids"].numpy()):
             token = tokenizer.convert_ids_to_tokens([token_id
                                                      ])[0].replace("##", "")
-            if token in ["[CLS]", "[SEP]", "[PAD]"]:
+            if token in [
+                    BERT_SENTENCE_START, BERT_SENTENCE_SEPARATOR,
+                    BERT_SENTENCE_PADDING
+            ]:
                 continue
             if label_id == MOVING_WINDOW_MASK_LABEL_ID:
                 continue

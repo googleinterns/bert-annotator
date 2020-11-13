@@ -48,6 +48,10 @@ PADDING_LABEL_ID = -1
 
 MOVING_WINDOW_MASK_LABEL_ID = -2
 
+BERT_SENTENCE_START = "[CLS]"
+BERT_SENTENCE_SEPARATOR = "[SEP]"
+BERT_SENTENCE_PADDING = "[PAD]"
+
 
 def create_tokenizer_from_hub_module(module_url):
     """Get the vocab file and casing info from the Hub module."""
