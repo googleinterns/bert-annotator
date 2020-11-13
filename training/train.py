@@ -21,11 +21,13 @@ from __future__ import print_function
 
 from absl import app, flags
 import functools
-import tensorflow as tf
-from tensorflow.keras.callbacks import ModelCheckpoint
-
+from official.nlp.configs import encoders
+from official.nlp.modeling import models
+from official.nlp.tasks import utils
 from official.nlp.tasks.tagging import TaggingConfig, TaggingTask
 from official.nlp.data import tagging_dataloader
+import tensorflow as tf
+from tensorflow.keras.callbacks import ModelCheckpoint
 from training.utils import LABELS, ADDITIONAL_LABELS
 
 flags.DEFINE_string("module_url", None,
@@ -47,12 +49,41 @@ flags.DEFINE_float("learning_rate", 0.01, "The learning rate.")
 flags.DEFINE_boolean(
     "train_with_additional_labels", False,
     "If set, the flags other than address/phone are used, too.")
+flags.DEFINE_boolean("train_last_layer_only", False,
+                     "If set, only the last layer is trainable.")
 
 FLAGS = flags.FLAGS
 
 
+def build_model(self, train_last_layer_only=False):
+    """Modified version of official.nlp.tasks.tagging.build_model
+
+    Allows to freeze the underlying bert encoder, such that only the dense
+    layer is trained. Overwrites the default by monkey patching.
+    """
+    if self.task_config.hub_module_url and self.task_config.init_checkpoint:
+        raise ValueError("At most one of `hub_module_url` and "
+                         "`init_checkpoint` can be specified.")
+    if self.task_config.hub_module_url:
+        encoder_network = utils.get_encoder_from_hub(
+            self.task_config.hub_module_url)
+    else:
+        encoder_network = encoders.build_encoder(
+            self.task_config.model.encoder)
+    encoder_network.trainable = not train_last_layer_only
+
+    return models.BertTokenClassifier(
+        network=encoder_network,
+        num_classes=len(self.task_config.class_names),
+        initializer=tf.keras.initializers.TruncatedNormal(
+            stddev=self.task_config.model.head_initializer_range),
+        dropout_rate=self.task_config.model.head_dropout,
+        output="logits")
+
+
 def train(module_url, train_data_path, validation_data_path, epochs,
-          train_size, save_path, batch_size, optimizer_name, learning_rate):
+          train_size, save_path, batch_size, optimizer_name, learning_rate,
+          train_last_layer_only):
     train_data_config = tagging_dataloader.TaggingDataConfig(
         input_path=train_data_path,
         seq_length=128,
@@ -69,8 +100,11 @@ def train(module_url, train_data_path, validation_data_path, epochs,
                            train_data=train_data_config,
                            validation_data=validation_data_config,
                            class_names=label_list)
+    TaggingTask.build_model = build_model
     task = TaggingTask(config)
-    model = task.build_model()
+    #pylint: disable=too-many-function-args
+    model = task.build_model(train_last_layer_only)
+    #pylint: enable=too-many-function-args
     if optimizer_name == "sgd":
         optimizer = tf.keras.optimizers.SGD(lr=learning_rate)
     else:
@@ -101,7 +135,7 @@ def train(module_url, train_data_path, validation_data_path, epochs,
 def main(_):
     train(FLAGS.module_url, FLAGS.train_data_path, FLAGS.validation_data_path,
           FLAGS.epochs, FLAGS.train_size, FLAGS.save_path, FLAGS.batch_size,
-          FLAGS.optimizer, FLAGS.learning_rate)
+          FLAGS.optimizer, FLAGS.learning_rate, FLAGS.train_last_layer_only)
 
 
 if __name__ == "__main__":
