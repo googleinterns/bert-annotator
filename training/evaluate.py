@@ -219,29 +219,19 @@ def _remove_whitespace_and_parse(text, tokenizer):
 
 
 def _update_characterwise_target_labels(tokenizer, labeled_example,
-                                        characterwise_target_labels,
-                                        characters):
+                                        characterwise_target_labels):
     """Updates target_labels and characters w.r.t. the given text and label."""
     prefix_without_whitespace = _remove_whitespace_and_parse(
         labeled_example.prefix, tokenizer)
-    characters.extend(prefix_without_whitespace)
-    characterwise_target_labels.extend([LABEL_OUTSIDE] *
-                                       len(prefix_without_whitespace))
-
     labeled_text_without_whitespace = _remove_whitespace_and_parse(
         labeled_example.selection, tokenizer)
-    characters.extend(labeled_text_without_whitespace)
     if len(labeled_text_without_whitespace) > 0:
-        characterwise_target_labels += [
-            "B-%s" % labeled_example.label
-        ] + ["I-%s" % labeled_example.label
-             ] * (len(labeled_text_without_whitespace) - 1)
-
-    suffix_without_whitespace = _remove_whitespace_and_parse(
-        labeled_example.suffix, tokenizer)
-    characters.extend(suffix_without_whitespace)
-    characterwise_target_labels.extend([LABEL_OUTSIDE] *
-                                       len(suffix_without_whitespace))
+        start = len(prefix_without_whitespace)
+        end = start + len(labeled_text_without_whitespace) - 1
+        characterwise_target_labels[start] = "B-%s" % labeled_example.label
+        characterwise_target_labels[start + 1:end +
+                                    1] = ["I-%s" % labeled_example.label
+                                          ] * (end - start)
 
 
 def _extract_characterwise_target_labels_from_proto(path, tokenizer):
@@ -249,13 +239,16 @@ def _extract_characterwise_target_labels_from_proto(path, tokenizer):
     characterwise_target_labels_per_sentence = []
     characters_per_sentence = []
     for document in get_documents(path):
-        characterwise_target_labels = []
-        characters = []
+        characters = _remove_whitespace_and_parse(document.text, tokenizer)
+        characterwise_target_labels = [LABEL_OUTSIDE] * len(characters)
+        total_prefix = ""
         for labeled_example in get_labeled_text_from_document(
                 document, only_main_labels=True):
+            total_prefix += labeled_example.prefix
+            labeled_example.prefix = total_prefix
             _update_characterwise_target_labels(tokenizer, labeled_example,
-                                                characterwise_target_labels,
-                                                characters)
+                                                characterwise_target_labels)
+            total_prefix += labeled_example.selection
 
         characterwise_target_labels_per_sentence.append(
             characterwise_target_labels)
@@ -263,21 +256,32 @@ def _extract_characterwise_target_labels_from_proto(path, tokenizer):
     return characterwise_target_labels_per_sentence, characters_per_sentence
 
 
-def _extract_characterwise_target_labels_from_lftxt(path, tokenizer):
+def _extract_characterwise_target_labels_from_lftxt(path, tokenizer,
+                                                    merge_identical_sentences):
     """Extracts a label for each character from the given .lftxt file."""
     characterwise_target_labels_per_sentence = []
     characters_per_sentence = []
+    characterwise_target_labels = []
+    characters = []
+    prev_text = ""
     for labeled_example in get_labeled_text_from_linkfragment(path):
-        characterwise_target_labels = []
-        characters = []
+        if merge_identical_sentences and (prev_text
+                                          == labeled_example.complete_text):
+            # The last entry is updated, it will be added again.
+            del characterwise_target_labels_per_sentence[-1]
+            del characters_per_sentence[-1]
+        else:
+            characters = _remove_whitespace_and_parse(
+                labeled_example.complete_text, tokenizer)
+            characterwise_target_labels = [LABEL_OUTSIDE] * len(characters)
 
         _update_characterwise_target_labels(tokenizer, labeled_example,
-                                            characterwise_target_labels,
-                                            characters)
+                                            characterwise_target_labels)
 
         characterwise_target_labels_per_sentence.append(
             characterwise_target_labels)
         characters_per_sentence.append(characters)
+        prev_text = labeled_example.complete_text
 
     return characterwise_target_labels_per_sentence, characters_per_sentence
 
@@ -373,11 +377,17 @@ def _extract_words_from_proto(path, tokenizer):
     return words_per_sentence
 
 
-def _extract_words_from_lftxt(path, tokenizer):
-    """Extracts all words from the given .lftxt file."""
+def _extract_words_from_lftxt(path, tokenizer, merge_identical_sentences):
+    """Extracts all words as defined by the tokenizer from the given .lftxt
+    file."""
     words_per_sentence = []
+    prev_text = ""
     for labeled_example in get_labeled_text_from_linkfragment(path):
+        if merge_identical_sentences and (prev_text
+                                          == labeled_example.complete_text):
+            continue
         words = split_into_words(labeled_example.complete_text, tokenizer)
+        prev_text = labeled_example.complete_text
         words_per_sentence.append(words)
     return words_per_sentence
 
@@ -440,24 +450,26 @@ def _get_predictions_from_lf_directory(lf_directory, raw_path, tokenizer):
     """Extracts the characterwise label names from all .lftxt files in the given
     directory.
     """
-    # Will contain tuples (sentence, labels). A map cannot be used, as sentences
-    # may be duplicated.
-    labeled_sentences = []
+    labeled_sentences = dict()  # Map sentences to their labels.
 
     if raw_path.endswith(".lftxt"):
+        prev_text = ""
         for labeled_example in get_labeled_text_from_linkfragment(raw_path):
+            if prev_text == labeled_example.complete_text:
+                continue
+            prev_text = labeled_example.complete_text
             characters = _remove_whitespace_and_parse(
                 labeled_example.complete_text, tokenizer)
 
-            labeled_sentences.append([
-                labeled_example.complete_text,
-                [LABEL_OUTSIDE] * len(characters)
-            ])
+            assert labeled_example.complete_text not in labeled_sentences
+            labeled_sentences[labeled_example.complete_text] = [
+                LABEL_OUTSIDE
+            ] * len(characters)
     else:
         for document in get_documents(raw_path):
             characters = _remove_whitespace_and_parse(document.text, tokenizer)
-            labeled_sentences.append(
-                [document.text, [LABEL_OUTSIDE] * len(characters)])
+            labeled_sentences[document.text] = [LABEL_OUTSIDE
+                                                ] * len(characters)
 
     for file_name in os.listdir(lf_directory):
         if not file_name.endswith(".lftxt"):
@@ -476,23 +488,18 @@ def _get_predictions_from_lf_directory(lf_directory, raw_path, tokenizer):
                                              tokenizer))
             assert label_length > 0
 
-            match = False
-            for key, characterwise_labels in labeled_sentences:
-                if key != labeled_example.complete_text:
-                    continue
-                match = True
-                assert characterwise_labels[prefix_length] == LABEL_OUTSIDE
+            characterwise_labels = labeled_sentences[
+                labeled_example.complete_text]
+            assert characterwise_labels[prefix_length] == LABEL_OUTSIDE
+            characterwise_labels[
+                prefix_length] = "B-%s" % labeled_example.label.upper()
+            for i in range(1, label_length):
+                assert characterwise_labels[prefix_length + i] == LABEL_OUTSIDE
                 characterwise_labels[
-                    prefix_length] = "B-%s" % labeled_example.label.upper()
-                for i in range(1, label_length):
-                    assert characterwise_labels[prefix_length +
-                                                i] == LABEL_OUTSIDE
-                    characterwise_labels[
-                        prefix_length +
-                        i] = "I-%s" % labeled_example.label.upper()
-            assert match
+                    prefix_length +
+                    i] = "I-%s" % labeled_example.label.upper()
 
-    return [labels for _, labels in labeled_sentences]
+    return list(labeled_sentences.values())
 
 
 def main(_):
@@ -506,7 +513,8 @@ def main(_):
         if "proto" in raw_path:
             words_per_sentence = _extract_words_from_proto(raw_path, tokenizer)
         else:
-            words_per_sentence = _extract_words_from_lftxt(raw_path, tokenizer)
+            words_per_sentence = _extract_words_from_lftxt(
+                raw_path, tokenizer, merge_identical_sentences=True)
 
         if input_path.endswith(".tfrecord"):
             predicted_label_ids_per_sentence = _infer(
@@ -534,7 +542,7 @@ def main(_):
             (characterwise_target_labels_per_sentence,
              characters_per_sentence) = (
                  _extract_characterwise_target_labels_from_lftxt(
-                     raw_path, tokenizer))
+                     raw_path, tokenizer, merge_identical_sentences=True))
 
         if FLAGS.visualisation_folder:
             for visualised_label in MAIN_LABELS:

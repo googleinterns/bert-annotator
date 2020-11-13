@@ -167,7 +167,8 @@ class IntegrationTests(absltest.TestCase):
         with open(self.test2_lftxt, "w") as f:
             f.writelines([
                 "Not a {{{real address}}}.\taddress\n",
-                "Phone number: {{{00 - 11 222 333}}}!\tphone"
+                "Phone number: {{{00 - 11 222 333}}} and 911!\tphone\n",
+                "Phone number: 00 - 11 222 333 and {{{911}}}!\tphone"
             ])
 
         self.train_tfrecord = os.path.join(self.train_data_dir,
