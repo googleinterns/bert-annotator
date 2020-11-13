@@ -26,54 +26,29 @@ import subprocess
 from absl import flags
 from absl.testing import absltest
 
+FLAGS = flags.FLAGS
+
 
 def _normalize_newlines(s):
     return re.sub("(\r\n)|\r", "\n", s)
 
 
-FLAGS = flags.FLAGS
-
-
-def get_executable_path(py_binary_name):
-    """Returns the executable path of a py_binary.
-    This returns the executable path of a py_binary that is in another Bazel
-    target"s data dependencies.
-    On Linux/macOS, the path and __file__ has the same root directory.
-    On Windows, bazel builds an .exe file and we need to use the MANIFEST file
-    the location the actual binary.
+def _get_executable_path(binary_name):
+    """Returns the executable path of a binary.
     Args:
-        py_binary_name: string, the name of a py_binary that is in another Bazel
-            target"s data dependencies.
+        binary_name: string, the name of a binary.
     Raises:
         RuntimeError: Raised when it cannot locate the executable path.
     """
-    if os.name == "nt":
-        py_binary_name += ".exe"
-        manifest_file = os.path.join(FLAGS.test_srcdir, "MANIFEST")
-        workspace_name = os.environ["TEST_WORKSPACE"]
-        manifest_entry = "{}/{}".format(workspace_name, py_binary_name)
-        with open(manifest_file, "r") as manifest_fd:
-            for line in manifest_fd:
-                tokens = line.strip().split(" ")
-                if len(tokens) != 2:
-                    continue
-                if manifest_entry == tokens[0]:
-                    return tokens[1]
-        raise RuntimeError(
-            "Cannot locate executable path for {}, MANIFEST file: {}.".format(
-                py_binary_name, manifest_file))
-    else:
-        # NOTE: __file__ may be .py or .pyc, depending on how the module was
-        # loaded and executed.
-        path = __file__
+    # Get the base path
+    path = os.path.dirname(os.path.dirname(__file__))
+    # Return the first matching file
+    for subdir, _, files in os.walk(path):
+        for file in files:
+            if file == binary_name:
+                return os.path.join(subdir, file)
 
-        # Use the package name to find the root directory: every dot is
-        # a directory, plus one for ourselves.
-        for _ in range(__name__.count(".") + 1):
-            path = os.path.dirname(path)
-
-        root_directory = path
-        return os.path.join(root_directory, py_binary_name)
+    raise RuntimeError("Binary %s not found" % binary_name)
 
 
 class IntegrationTests(absltest.TestCase):
@@ -101,7 +76,7 @@ class IntegrationTests(absltest.TestCase):
         if env_overrides:
             env.update(env_overrides)
 
-        process = subprocess.Popen([get_executable_path(program_name)] +
+        process = subprocess.Popen([_get_executable_path(program_name)] +
                                    list(arguments),
                                    stdout=subprocess.PIPE,
                                    stderr=subprocess.PIPE,
@@ -166,26 +141,6 @@ class IntegrationTests(absltest.TestCase):
             "https://tfhub.dev/tensorflow/small_bert/bert_en_uncased_L-2_H-128_A-2/1"  # pylint: disable=line-too-long
         )
 
-        self.test_eval_output = """test.tfrecord
-              precision    recall  f1-score   support
-
-     ADDRESS       1.00      1.00      1.00         1
-   TELEPHONE       1.00      1.00      1.00         1
-
-   micro avg       1.00      1.00      1.00         2
-   macro avg       1.00      1.00      1.00         2
-weighted avg       1.00      1.00      1.00         2"""
-
-        self.test2_eval_output = """test2.tfrecord
-              precision    recall  f1-score   support
-
-     ADDRESS       0.00      0.00      0.00         1
-   TELEPHONE       0.00      0.00      0.00         1
-
-   micro avg       0.00      0.00      0.00         2
-   macro avg       0.00      0.00      0.00         2
-weighted avg       0.00      0.00      0.00         2"""
-
     def test_training(self):
         """Normal training."""
 
@@ -209,13 +164,11 @@ weighted avg       0.00      0.00      0.00         2"""
                                    "--epochs", "1", "--train_size", "6400",
                                    "--save_path", checkpoint_dir))
         model_path = os.path.join(checkpoint_dir, "model_01")
-        outputs = [self.test_eval_output, self.test2_eval_output]
         self.run_helper("evaluate",
                         arguments=("--module_url", self.module_url,
                                    "--model_path", model_path,
                                    "--test_data_paths", self.test_tfrecord,
-                                   "--test_data_paths", self.test2_tfrecord),
-                        expected_stdout_substrings=outputs)
+                                   "--test_data_paths", self.test2_tfrecord))
 
 
 if __name__ == "__main__":
