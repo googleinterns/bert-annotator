@@ -55,7 +55,7 @@ flags.DEFINE_boolean("train_last_layer_only", False,
 FLAGS = flags.FLAGS
 
 
-def build_model(self, train_last_layer_only=False):
+def _build_model(self, train_last_layer_only=False):
     """Modified version of official.nlp.tasks.tagging.build_model
 
     Allows to freeze the underlying bert encoder, such that only the dense
@@ -100,7 +100,7 @@ def train(module_url, train_data_path, validation_data_path, epochs,
                            train_data=train_data_config,
                            validation_data=validation_data_config,
                            class_names=label_list)
-    TaggingTask.build_model = build_model
+    TaggingTask.build_model = _build_model
     task = TaggingTask(config)
     #pylint: disable=too-many-function-args
     model = task.build_model(train_last_layer_only)
