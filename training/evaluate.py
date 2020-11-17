@@ -58,6 +58,8 @@ flags.DEFINE_boolean(
     "train_with_additional_labels", False,
     "Needs to be set if the flags other than address/phone were used for"
     " training, too.")
+flags.DEFINE_string("output_directory", None,
+                    "If given, the hypotheses are saved to this directory.")
 
 FLAGS = flags.FLAGS
 
@@ -473,14 +475,11 @@ def _get_predictions_from_lf_directory(lf_directory, raw_path, tokenizer):
                 labeled_example.complete_text, tokenizer)
 
             assert labeled_example.complete_text not in labeled_sentences
-            labeled_sentences[labeled_example.complete_text] = [
-                LABEL_OUTSIDE
-            ] * len(characters)
+            labeled_sentences[characters] = [LABEL_OUTSIDE] * len(characters)
     else:
         for document in get_documents(raw_path):
             characters = _remove_whitespace_and_parse(document.text, tokenizer)
-            labeled_sentences[document.text] = [LABEL_OUTSIDE
-                                                ] * len(characters)
+            labeled_sentences[characters] = [LABEL_OUTSIDE] * len(characters)
 
     for file_name in os.listdir(lf_directory):
         if not file_name.endswith(".lftxt"):
@@ -499,13 +498,22 @@ def _get_predictions_from_lf_directory(lf_directory, raw_path, tokenizer):
                                              tokenizer))
             assert label_length > 0
 
-            characterwise_labels = labeled_sentences[
-                labeled_example.complete_text]
-            assert characterwise_labels[prefix_length] == LABEL_OUTSIDE
+            characters = _remove_whitespace_and_parse(
+                labeled_example.complete_text, tokenizer)
+            # If the .lftxt file was generated as the output of another models
+            # prediction, the tokenizer will have lowercased the [UNK] token.
+            characters = characters.replace("[unk]", "[UNK]")
+            characterwise_labels = labeled_sentences[characters]
+            assert characterwise_labels[prefix_length] in [
+                LABEL_OUTSIDE,
+                "B-%s" % labeled_example.label.upper()
+            ]
             characterwise_labels[
                 prefix_length] = "B-%s" % labeled_example.label.upper()
             assert all([
-                label == LABEL_OUTSIDE
+                label
+                in [LABEL_OUTSIDE,
+                    "I-%s" % labeled_example.label.upper()]
                 for label in characterwise_labels[prefix_length +
                                                   1:prefix_length +
                                                   label_length]
@@ -565,6 +573,66 @@ def _extract_characterwise_target_labels(raw_path, tokenizer):
             raw_path, tokenizer, merge_identical_sentences=True)
 
 
+def _get_text_from_character_indices(words, start, end):
+    """Returns text between the start/end indices which do not count spaces."""
+    text = ""
+    accumulated_word_length = 0
+    for word in words:
+        accumulated_word_length += len(word)
+        if accumulated_word_length <= start:
+            continue
+        elif end is not None and accumulated_word_length > end + 1:
+            return text
+        if text != "":
+            text += " "
+        text += word
+    return text
+
+
+def _save_as_linkfragment(words, label_start, label_end, label, file):
+    """Writes a linkfragment to the file."""
+    prefix = _get_text_from_character_indices(words, 0, label_start - 1)
+    labelled_text = _get_text_from_character_indices(words, label_start,
+                                                     label_end)
+    suffix = _get_text_from_character_indices(words, label_end + 1, None)
+
+    file.write("%s {{{%s}}} %s\t%s\n" %
+               (prefix, labelled_text, suffix, label.lower()))
+
+
+def _save_predictions(output_directory, test_name,
+                      characterwise_predicted_label_names_per_sentence,
+                      words_per_sentence):
+    """Saves the hypotheses to an .lftxt file."""
+    with open(os.path.join(output_directory, "%s.lftxt" % test_name),
+              "w") as output_file:
+        for (characterwise_predicted_label_names,
+             words) in zip(characterwise_predicted_label_names_per_sentence,
+                           words_per_sentence):
+            label_start = 0
+            label = None
+            saved_at_least_once = False
+            for i, label_name in enumerate(
+                    characterwise_predicted_label_names):
+                if label_name == LABEL_OUTSIDE:
+                    if label is not None:
+                        _save_as_linkfragment(words, label_start, i - 1, label,
+                                              output_file)
+                        label = None
+                        saved_at_least_once = True
+                elif label_name.startswith("B-"):
+                    if label is not None:
+                        _save_as_linkfragment(words, label_start, i - 1, label,
+                                              output_file)
+                        saved_at_least_once = True
+                    label = label_name[len("B-"):]
+                    label_start = i
+                else:
+                    assert label_name == "I-%s" % label
+            if not saved_at_least_once:
+                _save_as_linkfragment(words, 0, -1, "OUTSIDE", output_file)
+
+
 def main(_):
     if len(FLAGS.input_paths) != len(FLAGS.raw_paths):
         raise ValueError("The number of inputs and raw paths must be equal.")
@@ -584,6 +652,12 @@ def main(_):
         (characterwise_target_labels_per_sentence,
          characters_per_sentence) = _extract_characterwise_target_labels(
              raw_path, tokenizer)
+
+        if FLAGS.output_directory:
+            _save_predictions(
+                FLAGS.output_directory, test_name,
+                characterwise_predicted_label_names_per_sentence,
+                words_per_sentence)
 
         if FLAGS.visualisation_folder:
             for visualised_label in MAIN_LABELS:
