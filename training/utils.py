@@ -18,8 +18,9 @@
 import collections
 import tensorflow_hub as hub
 import tensorflow as tf
+from google.protobuf.internal.decoder import _DecodeVarint32
 
-import protocol_buffer.documents_pb2 as proto_documents
+import protocol_buffer.document_pb2 as proto_document
 
 # HACK: Required to make bert.tokenization work with TF2.
 tf.gfile = tf.io.gfile
@@ -181,9 +182,18 @@ def get_labeled_text_from_document(document, only_main_labels=False):
 def get_documents(path):
     """Provides an iterator over all documents, where the boundaries have been
     updated to use codeunits."""
-    documents = proto_documents.Documents()
+    length_prefix_length = 10
+    document = proto_document.Document()
     with open(path, "rb") as src_file:
-        documents.ParseFromString(src_file.read())
-
-    for document in documents.documents:
-        yield _convert_token_boundaries_to_codeunits(document)
+        msg_buf = src_file.read(length_prefix_length)
+        while msg_buf:
+            # Get the message length.
+            msg_len, new_pos = _DecodeVarint32(msg_buf, 1)
+            msg_buf = msg_buf[new_pos:]
+            # Read the rest of the message.
+            msg_buf += src_file.read(msg_len - len(msg_buf))
+            document.ParseFromString(msg_buf)
+            msg_buf = msg_buf[msg_len:]
+            # Read the length prefix for the next message.
+            msg_buf += src_file.read(length_prefix_length)
+            yield _convert_token_boundaries_to_codeunits(document)
