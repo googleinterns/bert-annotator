@@ -521,6 +521,51 @@ def _get_predictions_from_lf_directory(lf_directory, raw_path, tokenizer):
     return list(labeled_sentences.values())
 
 
+def _extract_words(raw_path, tokenizer):
+    """Extracts all words as defined by the tokenizer for all sentences."""
+    if "proto" in raw_path:
+        return _extract_words_from_proto(raw_path, tokenizer)
+    else:
+        return _extract_words_from_lftxt(raw_path,
+                                         tokenizer,
+                                         merge_identical_sentences=True)
+
+
+def _get_characterwise_predicted_label_names(module_url, model_path,
+                                             input_path,
+                                             train_with_additional_labels,
+                                             words_per_sentence, raw_path,
+                                             tokenizer):
+    """Extracts the characterwise label names."""
+    if input_path.endswith(".tfrecord"):
+        predicted_label_ids_per_sentence = _infer(
+            module_url, model_path, input_path, train_with_additional_labels)
+
+        characterwise_predicted_label_ids_per_sentence = (
+            _transform_wordwise_labels_to_characterwise_labels(
+                words_per_sentence, predicted_label_ids_per_sentence))
+
+        characterwise_predicted_label_names_per_sentence = (
+            _convert_label_ids_to_names(
+                characterwise_predicted_label_ids_per_sentence))
+    else:
+        characterwise_predicted_label_names_per_sentence = (
+            _get_predictions_from_lf_directory(input_path, raw_path,
+                                               tokenizer))
+
+    return characterwise_predicted_label_names_per_sentence
+
+
+def _extract_characterwise_target_labels(raw_path, tokenizer):
+    """Extracts a label for each character."""
+    if "proto" in raw_path:
+        return _extract_characterwise_target_labels_from_proto(
+            raw_path, tokenizer)
+    else:
+        return _extract_characterwise_target_labels_from_lftxt(
+            raw_path, tokenizer, merge_identical_sentences=True)
+
+
 def main(_):
     if len(FLAGS.input_paths) != len(FLAGS.raw_paths):
         raise ValueError("The number of inputs and raw paths must be equal.")
@@ -529,39 +574,17 @@ def main(_):
         test_name = os.path.splitext(os.path.basename(raw_path))[0]
         tokenizer = create_tokenizer_from_hub_module(FLAGS.module_url)
 
-        if "proto" in raw_path:
-            words_per_sentence = _extract_words_from_proto(raw_path, tokenizer)
-        else:
-            words_per_sentence = _extract_words_from_lftxt(
-                raw_path, tokenizer, merge_identical_sentences=True)
+        words_per_sentence = _extract_words(raw_path, tokenizer)
 
-        if input_path.endswith(".tfrecord"):
-            predicted_label_ids_per_sentence = _infer(
+        characterwise_predicted_label_names_per_sentence = (
+            _get_characterwise_predicted_label_names(
                 FLAGS.module_url, FLAGS.model_path, input_path,
-                FLAGS.train_with_additional_labels)
+                FLAGS.train_with_additional_labels, words_per_sentence,
+                raw_path, tokenizer))
 
-            characterwise_predicted_label_ids_per_sentence = (
-                _transform_wordwise_labels_to_characterwise_labels(
-                    words_per_sentence, predicted_label_ids_per_sentence))
-
-            characterwise_predicted_label_names_per_sentence = (
-                _convert_label_ids_to_names(
-                    characterwise_predicted_label_ids_per_sentence))
-        else:
-            characterwise_predicted_label_names_per_sentence = (
-                _get_predictions_from_lf_directory(input_path, raw_path,
-                                                   tokenizer))
-
-        if "proto" in raw_path:
-            (characterwise_target_labels_per_sentence,
-             characters_per_sentence) = (
-                 _extract_characterwise_target_labels_from_proto(
-                     raw_path, tokenizer))
-        else:
-            (characterwise_target_labels_per_sentence,
-             characters_per_sentence) = (
-                 _extract_characterwise_target_labels_from_lftxt(
-                     raw_path, tokenizer, merge_identical_sentences=True))
+        (characterwise_target_labels_per_sentence,
+         characters_per_sentence) = _extract_characterwise_target_labels(
+             raw_path, tokenizer)
 
         if FLAGS.visualisation_folder:
             for visualised_label in MAIN_LABELS:
