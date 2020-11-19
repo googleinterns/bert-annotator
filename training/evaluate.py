@@ -411,9 +411,9 @@ def _transform_wordwise_labels_to_characterwise_labels(
         assert len(words) == len(predicted_label_ids)
         for word, label_id in zip(words, predicted_label_ids):
             if _is_label_type(LABELS[label_id], LabelType.BEGINNING):
-                characterwise_predicted_label_ids.append(label_id)
-                characterwise_predicted_label_ids.extend([label_id + 1] *
-                                                         (len(word) - 1))
+                characterwise_predicted_label_ids += [
+                    label_id
+                ] + [label_id + 1] * (len(word) - 1)
             else:
                 characterwise_predicted_label_ids.extend([label_id] *
                                                          len(word))
@@ -436,7 +436,7 @@ def main(_):
     for tfrecord_path, raw_path in zip(FLAGS.tfrecord_paths, FLAGS.raw_paths):
         if not tfrecord_path.endswith(".tfrecord"):
             raise ValueError("The test data must be in .tfrecord format.")
-        test_name = raw_path.split("/")[-1].split(".")[0]
+        test_name = os.path.splitext(os.path.basename(raw_path))[0]
         tokenizer = create_tokenizer_from_hub_module(FLAGS.module_url)
 
         predicted_label_ids_per_sentence = _infer(
