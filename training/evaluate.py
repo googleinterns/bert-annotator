@@ -40,10 +40,10 @@ flags.DEFINE_string("module_url", None,
                     "The URL to the pretrained Bert model.")
 flags.DEFINE_string("model_path", None, "The path to the trained model.")
 flags.DEFINE_multi_string("tfrecord_paths", [],
-                          "The path to the test data in .tfrecord format.")
+                          "The paths to the test data in .tfrecord format.")
 flags.DEFINE_multi_string(
     "raw_paths", [],
-    "The path to the test data in its original .binproto or .lftxt format.")
+    "The paths to the test data in its original .binproto or .lftxt format.")
 flags.DEFINE_string(
     "visualisation_folder", None,
     "If set, a comparison of the target/hypothesis labeling is saved in .html"
@@ -122,9 +122,9 @@ def _predict(task, params, model):
 
 
 def _viterbi(probabilities, train_with_additional_labels):
-    """"Applies the viterbi algorithm to find the most likely valid label
-    sequence.
+    """"Applies the viterbi algorithm.
 
+    This searches for the most likely valid label sequence.
     Depends on the specific order of labels.
     """
     labels = LABELS
@@ -204,8 +204,7 @@ def _infer(module_url, model_path, test_data_path,
 
 
 def _remove_whitespace_and_parse(text, tokenizer):
-    """Removes all whitespace and some special characters that are ignored by
-    the given tokenizer.
+    """Removes all whitespace and some special characters.
 
     The tokenizer discards some utf-8 characters, such as the right-to-left
     indicator. Applying the tokenizer is slow, but the safest way to guarantee
@@ -218,8 +217,7 @@ def _update_characterwise_target_labels(tokenizer, prefix, labeled_text,
                                         suffix, label,
                                         characterwise_target_labels,
                                         characters):
-    """Updates target_labels and characters to reflect the given text and
-    label."""
+    """Updates target_labels and characters w.r.t. the given text and label."""
     prefix_without_whitespace = _remove_whitespace_and_parse(prefix, tokenizer)
     characters.extend(prefix_without_whitespace)
     characterwise_target_labels.extend([LABEL_OUTSIDE] *
@@ -306,11 +304,18 @@ def _visualise(test_name, characterwise_target_labels_per_sentence,
                     zip(characterwise_target_labels_per_sentence,
                         characterwise_predicted_labels_per_sentence,
                         characters_per_sentence, words_per_sentence)):
-            assert len(characterwise_target_labels) == len(
-                characterwise_predicted_labels
-            ) == len(characters), "Values are %d, %d, %d (sentence %d)" % (
-                len(characterwise_target_labels),
-                len(characterwise_predicted_labels), len(characters), i)
+            characterwise_target_labels_length = len(
+                characterwise_target_labels)
+            characterwise_predicted_labels_length = len(
+                characterwise_predicted_labels)
+            characters_length = len(characters)
+            assert (
+                characterwise_target_labels_length ==
+                characterwise_predicted_labels_length == characters_length
+            ), ("Hypotheses/targets have different lengths: %d, %d, %d"
+                " (sentence %d)") % (characterwise_target_labels_length,
+                                     characterwise_predicted_labels_length,
+                                     characters_length, i)
 
             word_index = 0
             word_position = 0
@@ -353,8 +358,7 @@ def _score(characterwise_target_labels_per_sentence,
 
 
 def _extract_words_from_proto(path, tokenizer):
-    """Extracts all words as defined by the tokenizer from the given .binproto
-    file."""
+    """Extracts all words from the .binproto file."""
     words_per_sentence = []
     for document in get_documents(path):
         words = split_into_words(document.text, tokenizer)
@@ -363,8 +367,7 @@ def _extract_words_from_proto(path, tokenizer):
 
 
 def _extract_words_from_lftxt(path, tokenizer):
-    """Extracts all words as defined by the tokenizer from the given .lftxt
-    file."""
+    """Extracts all words from the given .lftxt file."""
     words_per_sentence = []
     with open(path, "r") as src_file:
         for _, text_without_braces, _ in get_labeled_text_from_linkfragment(

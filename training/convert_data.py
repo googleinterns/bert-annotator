@@ -47,7 +47,7 @@ flags.DEFINE_string(
     "The path to the (augmented) development data in .binproto/.tftxt format.")
 flags.DEFINE_multi_string(
     "test_data_input_paths", [],
-    "The path to the test data in .binproto/.tftxt format. May be defined more"
+    "The paths to the test data in .binproto/.tftxt format. May be defined more"
     " than once.")
 flags.DEFINE_string(
     "train_data_output_path", None,
@@ -59,8 +59,8 @@ flags.DEFINE_string(
     " records.")
 flags.DEFINE_multi_string(
     "test_data_output_paths", [],
-    "The path in which generated test input data will be written as tf records."
-    " May be defined more than once, in the same order as"
+    "The paths in which generated test input data will be written as tf"
+    " records. May be defined more than once, in the same order as"
     " test_data_input_paths.")
 flags.DEFINE_string("meta_data_file_path", None,
                     "The path in which input meta data will be written.")
@@ -172,8 +172,7 @@ def _write_example_to_file(examples,
                            text_preprocessing=None,
                            moving_window_overlap=20,
                            mask_overlap=False):
-    """Writes `InputExample`s into a tfrecord file with `tf.train.Example`
-    protos.
+    """Writes `InputExample`s to a tfrecord file with `tf.train.Example` protos.
 
     Identical to tagging_data_lib.write_example_to_file except for the
     additional parameters that are passed to _tokenize_example.
