@@ -287,6 +287,7 @@ def _visualise(test_name, characterwise_target_labels_per_sentence,
     assert len(characterwise_target_labels_per_sentence) == len(
         characterwise_predicted_labels_per_sentence) == len(
             characters_per_sentence)
+    number_of_sentences = len(characterwise_target_labels_per_sentence)
 
     directory = os.path.join(visualisation_folder, test_name)
     if not os.path.exists(directory):
@@ -299,11 +300,14 @@ def _visualise(test_name, characterwise_target_labels_per_sentence,
         file.write("<font color='red'>Missed labels</font> <br>\n")
         file.write("<br>\n")
 
-        for i, (characterwise_target_labels, characterwise_predicted_labels,
-                characters, words) in enumerate(
-                    zip(characterwise_target_labels_per_sentence,
-                        characterwise_predicted_labels_per_sentence,
-                        characters_per_sentence, words_per_sentence)):
+        for i in range(number_of_sentences):
+            characterwise_target_labels = (
+                characterwise_target_labels_per_sentence[i])
+            characterwise_predicted_labels = (
+                characterwise_predicted_labels_per_sentence[i])
+            characters = characters_per_sentence[i]
+            words = words_per_sentence[i]
+
             characterwise_target_labels_length = len(
                 characterwise_target_labels)
             characterwise_predicted_labels_length = len(
