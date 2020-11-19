@@ -392,7 +392,7 @@ void Augmenter::MaybeDropContextKeepLabels(
       // If no labels exist, the range was duplicated, so the index needs to
       // be updated.
       if (no_labels) {
-        droppable_ranges[0].end = drop_tokens_start;
+        droppable_ranges[0].end = drop_tokens_start - 1;
       }
     }
     // For context before the first label, drop a prefix of the sentence. //
