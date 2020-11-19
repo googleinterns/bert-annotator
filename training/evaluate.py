@@ -20,6 +20,7 @@ from __future__ import division
 from __future__ import print_function
 
 import os
+from enum import Enum
 from absl import app, flags
 import numpy as np
 from seqeval.scheme import IOB2
@@ -57,6 +58,8 @@ flags.DEFINE_boolean(
     " training, too.")
 
 FLAGS = flags.FLAGS
+
+LabelType = Enum("LabelType", "OUTSIDE BEGINNING INSIDE")
 
 
 def _predict(task, params, model):
@@ -142,7 +145,7 @@ def _viterbi(probabilities, train_with_additional_labels):
             labels)  # An invalid value ensures it will be updated.
         for current_label_id in range(len(labels)):
             current_label_name = labels[current_label_id]
-            if current_label_name.startswith("I-"):
+            if _is_label_type(current_label_name, LabelType.INSIDE):
                 current_main_label_name = current_label_name[2:]
                 valid_prev_label_names = [("B-%s" % current_main_label_name),
                                           ("I-%s" % current_main_label_name)]
@@ -381,6 +384,18 @@ def _extract_words_from_lftxt(path, tokenizer):
     return words_per_sentence
 
 
+def _is_label_type(label_name, label_type):
+    """Checks whether the label is of the specified type."""
+    if label_name == LABEL_OUTSIDE:
+        real_label_type = LabelType.OUTSIDE
+    elif label_name.startswith("B-"):
+        real_label_type = LabelType.BEGINNING
+    else:
+        assert label_name.startswith("I-")
+        real_label_type = LabelType.INSIDE
+    return label_type == real_label_type
+
+
 def _transform_wordwise_labels_to_characterwise_labels(
         words_per_sentence, predicted_label_ids_per_sentence):
     """Duplicates the labels such that each character is assigned a label.
@@ -395,7 +410,7 @@ def _transform_wordwise_labels_to_characterwise_labels(
 
         assert len(words) == len(predicted_label_ids)
         for word, label_id in zip(words, predicted_label_ids):
-            if LABELS[label_id].startswith("B-"):
+            if _is_label_type(LABELS[label_id], LabelType.BEGINNING):
                 characterwise_predicted_label_ids.append(label_id)
                 characterwise_predicted_label_ids.extend([label_id + 1] *
                                                          (len(word) - 1))
