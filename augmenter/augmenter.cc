@@ -232,6 +232,15 @@ void Augmenter::Augment() {
       MaskDigits(&document);
     }
   }
+
+  for (const bert_annotator::Document& document : documents_.documents()) {
+    if (document.text().length() == 0) {
+      std::cerr << "Empty document in output detected. This will break the "
+                   "evaluation scripts, aborting."
+                << std::endl;
+      abort();
+    }
+  }
 }
 
 void Augmenter::AddConcatenatedDocument(

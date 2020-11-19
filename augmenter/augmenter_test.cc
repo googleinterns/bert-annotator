@@ -236,6 +236,23 @@ TEST(AugmenterDeathTest, InvalidCaseProbabilitySum) {
       "most one.");
 }
 
+TEST(AugmenterDeathTest, EmptyDocument) {
+  bert_annotator::Documents documents =
+      ConstructBertDocument({DocumentSpec("", {}, {})});
+  augmenter::Augmentations augmentations = GetDefaultAugmentations();
+  MockRandomSampler address_sampler;
+  MockRandomSampler phone_sampler;
+  absl::MockingBitGen bitgen;
+  ShufflerStub shuffler;
+
+  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+                                  &phone_sampler, &shuffler, bitgen);
+
+  EXPECT_DEATH({ augmenter.Augment(); },
+               "Empty document in output detected. This will break the "
+               "evaluation scripts, aborting.");
+}
+
 TEST(AugmenterTest, CreateMissingLabelList) {
   bert_annotator::Documents documents = ConstructBertDocument(
       {DocumentSpec("Text", {TokenSpec("Text", 0, 3)}, {})});
