@@ -127,14 +127,14 @@ def _viterbi(probabilities, train_with_additional_labels):
     labels = LABELS
     if train_with_additional_labels:
         labels += ADDITIONAL_LABELS
-    path_probabilities = np.array([0.0] * len(labels))
+    path_probabilities = np.zeros(len(labels))
     label_outside_index = labels.index(LABEL_OUTSIDE)
     path_probabilities[label_outside_index] = 1.0
     label_id_map = {label: i for i, label in enumerate(labels)}
     path_pointers = []
     for prob_token in probabilities:
         prev_path_probabilities = path_probabilities.copy()
-        path_probabilities = np.array([0.0] * len(labels))
+        path_probabilities = np.zeros(len(labels))
         new_pointers = [len(labels) + 1] * len(
             labels)  # An invalid value ensures it will be updated.
         for current_label_id in range(len(labels)):
@@ -143,7 +143,7 @@ def _viterbi(probabilities, train_with_additional_labels):
                 current_main_label_name = current_label_name[2:]
                 valid_prev_label_names = [("B-%s" % current_main_label_name),
                                           ("I-%s" % current_main_label_name)]
-                mask = np.array([0] * len(labels))
+                mask = np.zeros(len(labels))
                 for prev_label_name in valid_prev_label_names:
                     prev_label_id = label_id_map[prev_label_name]
                     mask[prev_label_id] = 1
