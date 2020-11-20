@@ -154,7 +154,7 @@ class IntegrationTests(absltest.TestCase):
                         arguments=("--module_url", self.module_url,
                                    "--train_data_path", self.train_tfrecord,
                                    "--validation_data_path", self.dev_tfrecord,
-                                   "--epochs", "1", "--train_size", "6400",
+                                   "--epochs", "1", "--train_size", "128",
                                    "--save_path", checkpoint_dir))
         model_path = os.path.join(checkpoint_dir, "model_01")
         visualisation_dir = os.path.join(self.out_dir, "visualisation")
@@ -186,7 +186,7 @@ class IntegrationTests(absltest.TestCase):
                         arguments=("--module_url", self.module_url,
                                    "--train_data_path", self.train_tfrecord,
                                    "--validation_data_path", self.dev_tfrecord,
-                                   "--epochs", "1", "--train_size", "6400",
+                                   "--epochs", "1", "--train_size", "128",
                                    "--save_path", checkpoint_dir,
                                    "--train_with_additional_labels"))
         model_path = os.path.join(checkpoint_dir, "model_01")
