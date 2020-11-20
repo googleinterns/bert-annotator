@@ -8,12 +8,9 @@ http_archive(
     sha256 = "b6d46438523a3ec0f3cead544190ee13223a52f6a6765a29eae7b7cc24cc83a0",
 )
 
-#load("@rules_python//python:pip.bzl", "pip_repositories")
-#pip_repositories()
 load("@rules_python//python:pip.bzl", "pip_install")
 
-
-pip_install(   # or pip3_import
+pip_install(
    name = "pip_dependencies",
    requirements = "requirements.txt",
 )

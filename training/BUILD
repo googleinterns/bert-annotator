@@ -20,7 +20,7 @@ py_binary(
   srcs = ["train.py"],
   deps = [
     ":utils",
-  ]
+  ],
 )
 
 py_binary(
@@ -28,7 +28,7 @@ py_binary(
   srcs = ["evaluate.py"],
   deps = [
     ":utils",
-  ]
+  ],
 )
 
 load("@pip_dependencies//:requirements.bzl", "requirement")

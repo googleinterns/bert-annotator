@@ -20,7 +20,6 @@ from __future__ import division
 from __future__ import print_function
 
 import os
-import re
 import subprocess
 
 from absl import flags
@@ -29,26 +28,22 @@ from absl.testing import absltest
 FLAGS = flags.FLAGS
 
 
-def _normalize_newlines(s):
-    return re.sub("(\r\n)|\r", "\n", s)
-
-
-def _get_executable_path(binary_name):
-    """Returns the executable path of a binary.
+def _get_dependency(name):
+    """Returns the executable path of a dependency.
     Args:
-        binary_name: string, the name of a binary.
+        binary_name: string, the name of a dependency.
     Raises:
-        RuntimeError: Raised when it cannot locate the executable path.
+        FileNotFoundError: Raised when it cannot locate the dependency path.
     """
     # Get the base path
     path = os.path.dirname(os.path.dirname(__file__))
     # Return the first matching file
     for subdir, _, files in os.walk(path):
         for file in files:
-            if file == binary_name:
+            if file == name:
                 return os.path.join(subdir, file)
 
-    raise RuntimeError("Binary %s not found" % binary_name)
+    raise FileNotFoundError("Binary %s not found" % name)
 
 
 class IntegrationTests(absltest.TestCase):
@@ -57,8 +52,8 @@ class IntegrationTests(absltest.TestCase):
     def run_helper(self,
                    program_name,
                    expect_success=True,
-                   expected_stdout_substrings=None,
-                   expected_stderr_substrings=None,
+                   expected_stdout_substrings=(),
+                   expected_stderr_substrings=(),
                    arguments=(),
                    env_overrides=None):
         """Executes the given script, asserting the defined behaviour.
@@ -67,27 +62,18 @@ class IntegrationTests(absltest.TestCase):
         https://github.com/abseil/abseil-py/blob/m
         aster/absl/tests/app_test.py
         """
-        if expected_stdout_substrings is None:
-            expected_stdout_substrings = []
-        if expected_stderr_substrings is None:
-            expected_stderr_substrings = []
         env = os.environ.copy()
         env["PYTHONIOENCODING"] = "utf8"
         if env_overrides:
             env.update(env_overrides)
 
-        process = subprocess.Popen([_get_executable_path(program_name)] +
+        process = subprocess.Popen([_get_dependency(program_name)] +
                                    list(arguments),
                                    stdout=subprocess.PIPE,
                                    stderr=subprocess.PIPE,
                                    env=env,
-                                   universal_newlines=False)
+                                   universal_newlines=True)
         stdout, stderr = process.communicate()
-        # In Python 2, we can"t control the encoding used by universal_newline
-        # mode, which can cause UnicodeDecodeErrors when subprocess tries to
-        # conver the bytes to unicode, so we have to decode it manually.
-        stdout = _normalize_newlines(stdout.decode("utf8"))
-        stderr = _normalize_newlines(stderr.decode("utf8"))
 
         print(program_name, stdout)
         print(program_name, stderr)
