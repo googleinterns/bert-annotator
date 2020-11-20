@@ -216,25 +216,27 @@ def _remove_whitespace_and_parse(text, tokenizer):
     return "".join(split_into_words(text, tokenizer))
 
 
-def _update_characterwise_target_labels(tokenizer, prefix, labeled_text,
-                                        suffix, label,
+def _update_characterwise_target_labels(tokenizer, labeled_example,
                                         characterwise_target_labels,
                                         characters):
     """Updates target_labels and characters w.r.t. the given text and label."""
-    prefix_without_whitespace = _remove_whitespace_and_parse(prefix, tokenizer)
+    prefix_without_whitespace = _remove_whitespace_and_parse(
+        labeled_example.prefix, tokenizer)
     characters.extend(prefix_without_whitespace)
     characterwise_target_labels.extend([LABEL_OUTSIDE] *
                                        len(prefix_without_whitespace))
 
     labeled_text_without_whitespace = _remove_whitespace_and_parse(
-        labeled_text, tokenizer)
+        labeled_example.selection, tokenizer)
     characters.extend(labeled_text_without_whitespace)
     if len(labeled_text_without_whitespace) > 0:
-        characterwise_target_labels.append("B-%s" % label)
-        characterwise_target_labels.extend(
-            ["I-%s" % label] * (len(labeled_text_without_whitespace) - 1))
+        characterwise_target_labels += [
+            "B-%s" % labeled_example.label
+        ] + ["I-%s" % labeled_example.label
+             ] * (len(labeled_text_without_whitespace) - 1)
 
-    suffix_without_whitespace = _remove_whitespace_and_parse(suffix, tokenizer)
+    suffix_without_whitespace = _remove_whitespace_and_parse(
+        labeled_example.suffix, tokenizer)
     characters.extend(suffix_without_whitespace)
     characterwise_target_labels.extend([LABEL_OUTSIDE] *
                                        len(suffix_without_whitespace))
@@ -247,10 +249,9 @@ def _extract_characterwise_target_labels_from_proto(path, tokenizer):
     for document in get_documents(path):
         characterwise_target_labels = []
         characters = []
-        for prefix, labeled_text, label in get_labeled_text_from_document(
+        for labeled_example in get_labeled_text_from_document(
                 document, only_main_labels=True):
-            _update_characterwise_target_labels(tokenizer, prefix,
-                                                labeled_text, "", label,
+            _update_characterwise_target_labels(tokenizer, labeled_example,
                                                 characterwise_target_labels,
                                                 characters)
 
@@ -265,13 +266,11 @@ def _extract_characterwise_target_labels_from_lftxt(path, tokenizer):
     characterwise_target_labels_per_sentence = []
     characters_per_sentence = []
     with open(path, "r") as src_file:
-        for (prefix, labeled_text,
-             suffix), _, label in get_labeled_text_from_linkfragment(src_file):
+        for labeled_example in get_labeled_text_from_linkfragment(src_file):
             characterwise_target_labels = []
             characters = []
 
-            _update_characterwise_target_labels(tokenizer, prefix,
-                                                labeled_text, suffix, label,
+            _update_characterwise_target_labels(tokenizer, labeled_example,
                                                 characterwise_target_labels,
                                                 characters)
 
@@ -377,9 +376,8 @@ def _extract_words_from_lftxt(path, tokenizer):
     """Extracts all words from the given .lftxt file."""
     words_per_sentence = []
     with open(path, "r") as src_file:
-        for _, text_without_braces, _ in get_labeled_text_from_linkfragment(
-                src_file):
-            words = split_into_words(text_without_braces, tokenizer)
+        for labeled_example in get_labeled_text_from_linkfragment(src_file):
+            words = split_into_words(labeled_example.complete_text, tokenizer)
             words_per_sentence.append(words)
     return words_per_sentence
 

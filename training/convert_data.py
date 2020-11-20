@@ -226,12 +226,11 @@ def _read_binproto(file_name, tokenizer, use_additional_labels,
         text = document.text
 
         if use_gold_tokenization_and_include_target_labels:
-            for prefix, labeled_text, label in get_labeled_text_from_document(
-                    document):
-                _add_label(prefix, LABEL_OUTSIDE, tokenizer, example,
-                           use_additional_labels)
-                _add_label(labeled_text, label, tokenizer, example,
-                           use_additional_labels)
+            for labeled_example in get_labeled_text_from_document(document):
+                _add_label(labeled_example.prefix, LABEL_OUTSIDE, tokenizer,
+                           example, use_additional_labels)
+                _add_label(labeled_example.selection, labeled_example.label,
+                           tokenizer, example, use_additional_labels)
         else:
             # The tokenizer will split the text without taking the target labels
             # into account.
@@ -252,18 +251,17 @@ def _read_lftxt(file_name, tokenizer, use_additional_labels,
     sentence_id = 0
     example = tagging_data_lib.InputExample(sentence_id=0)
     with open(file_name, "r") as src_file:
-        for ((prefix, labeled_text, suffix), text_without_braces,
-             label) in get_labeled_text_from_linkfragment(src_file):
+        for labeled_example in get_labeled_text_from_linkfragment(src_file):
 
             if use_gold_tokenization_and_include_target_labels:
-                _add_label(prefix, LABEL_OUTSIDE, tokenizer, example,
-                           use_additional_labels)
-                _add_label(labeled_text, label, tokenizer, example,
-                           use_additional_labels)
-                _add_label(suffix, LABEL_OUTSIDE, tokenizer, example,
-                           use_additional_labels)
+                _add_label(labeled_example.prefix, LABEL_OUTSIDE, tokenizer,
+                           example, use_additional_labels)
+                _add_label(labeled_example.selection, labeled_example.label,
+                           tokenizer, example, use_additional_labels)
+                _add_label(labeled_example.suffix, LABEL_OUTSIDE, tokenizer,
+                           example, use_additional_labels)
             else:
-                _add_label(text_without_braces,
+                _add_label(labeled_example.complete_text,
                            LABEL_OUTSIDE,
                            tokenizer,
                            example,

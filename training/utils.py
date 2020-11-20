@@ -15,6 +15,7 @@
 #
 """Shared constants and functions."""
 
+import collections
 import tensorflow_hub as hub
 import tensorflow as tf
 
@@ -72,6 +73,10 @@ MOVING_WINDOW_MASK_LABEL_ID = -2
 BERT_SENTENCE_START = "[CLS]"
 BERT_SENTENCE_SEPARATOR = "[SEP]"
 BERT_SENTENCE_PADDING = "[PAD]"
+
+LabeledExample = collections.namedtuple(
+    "LabeledExample",
+    ["prefix", "selection", "suffix", "complete_text", "label"])
 
 
 def create_tokenizer_from_hub_module(module_url):
@@ -134,7 +139,11 @@ def get_labeled_text_from_linkfragment(linkfragments):
 
         text_without_braces = text.replace("{{{", "").replace("}}}", "")
 
-        yield (prefix, labeled_text, suffix), text_without_braces, label
+        yield LabeledExample(prefix=prefix,
+                             selection=labeled_text,
+                             suffix=suffix,
+                             complete_text=text_without_braces,
+                             label=label)
 
 
 def get_labeled_text_from_document(document, only_main_labels=False):
@@ -154,10 +163,18 @@ def get_labeled_text_from_document(document, only_main_labels=False):
 
         last_label_end = label_end
 
-        yield prefix, labeled_text, label.label
+        yield LabeledExample(prefix=prefix,
+                             selection=labeled_text,
+                             suffix="",
+                             complete_text=None,
+                             label=label.label)
 
     suffix = text[last_label_end + 1:]
-    yield suffix, "", LABEL_OUTSIDE
+    yield LabeledExample(prefix="",
+                         selection="",
+                         suffix=suffix,
+                         complete_text=None,
+                         label=LABEL_OUTSIDE)
 
 
 def get_documents(path):
