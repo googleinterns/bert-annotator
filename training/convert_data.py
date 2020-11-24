@@ -32,7 +32,8 @@ from training.utils import (LABELS, LABEL_CONTAINER_NAME, MAIN_LABELS,
                             MAIN_LABEL_ADDRESS, MAIN_LABEL_TELEPHONE,
                             LABEL_OUTSIDE, UNK_TOKEN, PADDING_LABEL_ID,
                             MOVING_WINDOW_MASK_LABEL_ID, LF_TELEPHONE_LABEL,
-                            LF_ADDRESS_LABEL, create_tokenizer_from_hub_module)
+                            LF_ADDRESS_LABEL, ADDITIONAL_LABELS,
+                            create_tokenizer_from_hub_module)
 
 flags.DEFINE_string("module_url", None,
                     "The URL to the pretrained Bert model.")
@@ -67,6 +68,9 @@ flags.DEFINE_string("meta_data_file_path", None,
 flags.DEFINE_integer(
     "moving_window_overlap", 20, "The size of the overlap for a moving window."
     " Setting it to zero restores the default behaviour of hard splitting.")
+flags.DEFINE_boolean(
+    "train_with_additional_labels", False,
+    "If set, the flags other than address/phone are used for training, too.")
 
 FLAGS = flags.FLAGS
 
@@ -88,11 +92,12 @@ def _convert_token_boundaries_to_codeunits(document):
     return document
 
 
-def _add_label(text, label, tokenizer, example):
+def _add_label(text, label, tokenizer, example, use_additional_labels):
     label_id_map = {label: i for i, label in enumerate(LABELS)}
 
     words = _split_into_words(text, tokenizer)
-    if label in MAIN_LABELS:
+    if label in MAIN_LABELS or (use_additional_labels
+                                and label in MAIN_LABELS + ADDITIONAL_LABELS):
         example.add_word_and_label_id(words[0], label_id_map["B-%s" % label])
         for word in words[1:]:
             example.add_word_and_label_id(word, label_id_map["I-%s" % label])
@@ -229,7 +234,7 @@ def _write_example_to_file(examples,
     return num_tokenized_examples
 
 
-def _read_binproto(file_name, tokenizer):
+def _read_binproto(file_name, tokenizer, use_additional_labels):
     """Reads one file and returns a list of `InputExample` instances."""
     documents = proto_documents.Documents()
     with open(file_name, "rb") as src_file:
@@ -248,13 +253,13 @@ def _read_binproto(file_name, tokenizer):
             label_end = document.token[label.token_end].end
 
             _add_label(text[last_label_end + 1:label_start], LABEL_OUTSIDE,
-                       tokenizer, example)
+                       tokenizer, example, use_additional_labels)
             _add_label(text[label_start:label_end + 1], label.label, tokenizer,
-                       example)
+                       example, use_additional_labels)
 
             last_label_end = label_end
         _add_label(text[last_label_end + 1:], LABEL_OUTSIDE, tokenizer,
-                   example)
+                   example, use_additional_labels)
 
         if example.words:
             examples.append(example)
@@ -285,7 +290,7 @@ def _parse_linkfragment(lines):
         yield (prefix, labeled_text, suffix), label
 
 
-def _read_lftxt(file_name, tokenizer):
+def _read_lftxt(file_name, tokenizer, use_additional_labels):
     """Reads one file and returns a list of `InputExample` instances."""
     examples = []
     sentence_id = 0
@@ -293,9 +298,12 @@ def _read_lftxt(file_name, tokenizer):
     with open(file_name, "r") as src_file:
         for (prefix, labeled_text,
              suffix), label in _parse_linkfragment(src_file):
-            _add_label(prefix, LABEL_OUTSIDE, tokenizer, example)
-            _add_label(labeled_text, label, tokenizer, example)
-            _add_label(suffix, LABEL_OUTSIDE, tokenizer, example)
+            _add_label(prefix, LABEL_OUTSIDE, tokenizer, example,
+                       use_additional_labels)
+            _add_label(labeled_text, label, tokenizer, example,
+                       use_additional_labels)
+            _add_label(suffix, LABEL_OUTSIDE, tokenizer, example,
+                       use_additional_labels)
 
             if example.words:
                 examples.append(example)
@@ -363,12 +371,13 @@ def _split_into_words(text, tokenizer):
     return joined_words
 
 
-def _get_examples(path, tokenizer):
+def _get_examples(path, tokenizer, train_with_additional_labels):
     """Loads the data from a .binproto or .lftxt file."""
     if path.endswith(".binproto"):
-        examples = _read_binproto(path, tokenizer)
+        examples = _read_binproto(path, tokenizer,
+                                  train_with_additional_labels)
     elif FLAGS.train_data_input_path.endswith(".lftxt"):
-        examples = _read_lftxt(path, tokenizer)
+        examples = _read_lftxt(path, tokenizer, train_with_additional_labels)
     else:
         raise ValueError(
             "Invalid file format, only .binproto and .lftxt are supported.")
@@ -381,12 +390,15 @@ def main(_):
 
     tokenizer = create_tokenizer_from_hub_module(FLAGS.module_url)
 
-    train_examples = _get_examples(FLAGS.train_data_input_path, tokenizer)
-    dev_examples = _get_examples(FLAGS.dev_data_input_path, tokenizer)
+    train_examples = _get_examples(FLAGS.train_data_input_path, tokenizer,
+                                   FLAGS.train_with_additional_labels)
+    dev_examples = _get_examples(FLAGS.dev_data_input_path, tokenizer,
+                                 FLAGS.train_with_additional_labels)
     test_examples = {}
     for input_path, output_path in zip(FLAGS.test_data_input_paths,
                                        FLAGS.test_data_output_paths):
-        test_examples[output_path] = _get_examples(input_path, tokenizer)
+        test_examples[output_path] = _get_examples(
+            input_path, tokenizer, train_with_additional_labels=False)
 
     moving_window_overlap = FLAGS.moving_window_overlap
     if moving_window_overlap % 2 != 0:

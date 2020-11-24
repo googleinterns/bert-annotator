@@ -158,6 +158,40 @@ class IntegrationTests(absltest.TestCase):
                        "--test_data_paths", self.test2_tfrecord,
                        "--visualisation_folder", visualisation_dir))
 
+    def test_training_additional_labels(self):
+        """Training with additional labels."""
+
+        checkpoint_dir = os.path.join(self.out_dir, "checkpoints")
+        self.run_helper(
+            "convert_data",
+            arguments=("--module_url", self.module_url,
+                       "--train_data_input_path", self.train_lftxt,
+                       "--train_data_output_path", self.train_tfrecord,
+                       "--dev_data_input_path", self.train_lftxt,
+                       "--dev_data_output_path", self.dev_tfrecord,
+                       "--test_data_input_paths", self.test_lftxt,
+                       "--test_data_output_paths", self.test_tfrecord,
+                       "--test_data_input_paths", self.test2_lftxt,
+                       "--test_data_output_paths", self.test2_tfrecord,
+                       "--meta_data_file_path", self.meta_data,
+                       "--train_with_additional_labels"))
+        self.run_helper("train",
+                        arguments=("--module_url", self.module_url,
+                                   "--train_data_path", self.train_tfrecord,
+                                   "--validation_data_path", self.dev_tfrecord,
+                                   "--epochs", "1", "--train_size", "6400",
+                                   "--save_path", checkpoint_dir,
+                                   "--train_with_additional_labels"))
+        model_path = os.path.join(checkpoint_dir, "model_01")
+        visualisation_dir = os.path.join(self.out_dir, "visualisation")
+        self.run_helper("evaluate",
+                        arguments=("--module_url", self.module_url,
+                                   "--model_path", model_path,
+                                   "--test_data_paths", self.test_tfrecord,
+                                   "--test_data_paths", self.test2_tfrecord,
+                                   "--visualisation_folder", visualisation_dir,
+                                   "--train_with_additional_labels"))
+
 
 if __name__ == "__main__":
     absltest.main()

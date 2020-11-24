@@ -30,8 +30,9 @@ import orbit
 from official.nlp.tasks import utils
 from official.nlp.tasks.tagging import TaggingConfig, TaggingTask
 from official.nlp.data import tagging_dataloader
-from training.utils import (BERT_SENTENCE_PADDING, BERT_SENTENCE_SEPARATOR,
-                            BERT_SENTENCE_START, LABELS, MAIN_LABELS,
+from training.utils import (ADDITIONAL_LABELS, BERT_SENTENCE_PADDING,
+                            BERT_SENTENCE_SEPARATOR, BERT_SENTENCE_START,
+                            LABELS, LABEL_OUTSIDE, MAIN_LABELS,
                             PADDING_LABEL_ID, MOVING_WINDOW_MASK_LABEL_ID,
                             create_tokenizer_from_hub_module)
 
@@ -47,6 +48,10 @@ flags.DEFINE_string(
 flags.DEFINE_boolean(
     "strict_eval", False,
     "Only used for scoring. If True, a label must not begin with an 'I-' tag.")
+flags.DEFINE_boolean(
+    "train_with_additional_labels", False,
+    "Needs to be set if the flags other than address/phone were used for"
+    " training, too.")
 
 FLAGS = flags.FLAGS
 
@@ -113,28 +118,43 @@ def _predict(task, params, model):
     return sorted(outputs, key=lambda x: (x[0], x[1]))
 
 
-def _viterbi(probabilities):
+def _viterbi(probabilities, train_with_additional_labels):
     """"Applies the viterbi algorithm to find the most likely valid label
     sequence.
 
     Depends on the specific order of labels.
     """
-    path_probabilities = [0.0, 0.0, 1.0, 0.0, 0.0]  # Label 3 is "outside"
+    labels = LABELS
+    if train_with_additional_labels:
+        labels += ADDITIONAL_LABELS
+    path_probabilities = np.zeros(len(labels))
+    label_outside_index = labels.index(LABEL_OUTSIDE)
+    path_probabilities[label_outside_index] = 1.0
+    label_id_map = {label: i for i, label in enumerate(labels)}
     path_pointers = []
     for prob_token in probabilities:
         prev_path_probabilities = path_probabilities.copy()
-        path_probabilities = [0.0] * 5
-        new_pointers = [99] * 5  # An invalid value ensures it will be updated.
-        for current_label in range(5):
-            for prev_label in range(5):
-                prev_prob = prev_path_probabilities[prev_label]
-                if (current_label == 1 and prev_label not in [0, 1]) or (
-                        current_label == 4 and prev_label not in [3, 4]):
-                    prev_prob = 0
-                total_prob = prev_prob * prob_token[current_label]
-                if total_prob > path_probabilities[current_label]:
-                    path_probabilities[current_label] = total_prob
-                    new_pointers[current_label] = prev_label
+        path_probabilities = np.zeros(len(labels))
+        new_pointers = [len(labels) + 1] * len(
+            labels)  # An invalid value ensures it will be updated.
+        for current_label_id in range(len(labels)):
+            current_label_name = labels[current_label_id]
+            if current_label_name.startswith("I-"):
+                current_main_label_name = current_label_name[2:]
+                valid_prev_label_names = [("B-%s" % current_main_label_name),
+                                          ("I-%s" % current_main_label_name)]
+                mask = np.zeros(len(labels))
+                for prev_label_name in valid_prev_label_names:
+                    prev_label_id = label_id_map[prev_label_name]
+                    mask[prev_label_id] = 1
+                masked_prev_path_probabilities = prev_path_probabilities * mask
+            else:
+                masked_prev_path_probabilities = prev_path_probabilities
+            total_prob = masked_prev_path_probabilities * prob_token[
+                current_label_id]
+            max_prob_index = np.argmax(total_prob)
+            path_probabilities[current_label_id] = total_prob[max_prob_index]
+            new_pointers[current_label_id] = max_prob_index
         path_pointers.append(new_pointers)
 
     most_likely_path = []
@@ -146,7 +166,8 @@ def _viterbi(probabilities):
     return most_likely_path
 
 
-def _infer(module_url, model_path, test_data_path):
+def _infer(module_url, model_path, test_data_path,
+           train_with_additional_labels):
     """Computes the predicted label sequence using the trained model."""
     test_data_config = tagging_dataloader.TaggingDataConfig(
         input_path=test_data_path,
@@ -155,7 +176,10 @@ def _infer(module_url, model_path, test_data_path):
         is_training=False,
         include_sentence_id=True,
         drop_remainder=False)
-    config = TaggingConfig(hub_module_url=module_url, class_names=LABELS)
+    labels = LABELS
+    if train_with_additional_labels:
+        labels += ADDITIONAL_LABELS
+    config = TaggingConfig(hub_module_url=module_url, class_names=labels)
     task = TaggingTask(config)
     model = task.build_model()
     model.load_weights(model_path)
@@ -170,7 +194,7 @@ def _infer(module_url, model_path, test_data_path):
 
     merged_predictions = []
     for probabilities in merged_probabilities:
-        prediction = _viterbi(probabilities)
+        prediction = _viterbi(probabilities, train_with_additional_labels)
         merged_predictions.append(prediction)
 
     return merged_predictions
@@ -233,11 +257,9 @@ def _extract_target_labels(module_url, trg_path):
     return targets, texts
 
 
-def _visualise(module_url, trg_path, prediction_ids, visualised_label,
+def _visualise(module_url, trg_path, predictions, visualised_label,
                visualisation_folder):
     """Generates a .html file comparing the hypothesis/target labels."""
-    predictions = [[LABELS[id] for id in ids] for ids in prediction_ids]
-
     targets, texts = _extract_target_labels(module_url, trg_path)
 
     assert len(targets) == len(predictions) == len(texts)
@@ -274,10 +296,8 @@ def _visualise(module_url, trg_path, prediction_ids, visualised_label,
             file.write("<br>\n")
 
 
-def _score(module_url, trg_path, prediction_ids, use_strict_mode):
+def _score(module_url, trg_path, prediction_labels, use_strict_mode):
     """Computes the precision, recall and f1 scores of the hypotheses."""
-    prediction_labels = [[LABELS[id] for id in ids] for ids in prediction_ids]
-
     targets, _ = _extract_target_labels(module_url, trg_path)
 
     if use_strict_mode:
@@ -294,14 +314,20 @@ def main(_):
         if not test_data_path.endswith(".tfrecord"):
             raise ValueError("The test data must be in .tfrecord format.")
 
-        prediction_ids = _infer(FLAGS.module_url, FLAGS.model_path,
-                                test_data_path)
+        prediction_ids_per_sentence = _infer(
+            FLAGS.module_url, FLAGS.model_path, test_data_path,
+            FLAGS.train_with_additional_labels)
+        labels = LABELS
+        if FLAGS.train_with_additional_labels:
+            labels += ADDITIONAL_LABELS
+        prediction_labels = [[labels[label_id] for label_id in prediction_ids]
+                             for prediction_ids in prediction_ids_per_sentence]
         if FLAGS.visualisation_folder:
             for label in MAIN_LABELS:
-                _visualise(FLAGS.module_url, test_data_path, prediction_ids,
+                _visualise(FLAGS.module_url, test_data_path, prediction_labels,
                            label, FLAGS.visualisation_folder)
 
-        report = _score(FLAGS.module_url, test_data_path, prediction_ids,
+        report = _score(FLAGS.module_url, test_data_path, prediction_labels,
                         FLAGS.strict_eval)
         print("Scores for %s:" % test_data_path)
         print(report)
