@@ -227,6 +227,7 @@ def _read_binproto(file_name, tokenizer, use_additional_labels,
 
         if use_gold_tokenization_and_include_target_labels:
             for labeled_example in get_labeled_text_from_document(document):
+                assert labeled_example.suffix == ""
                 _add_label(labeled_example.prefix, LABEL_OUTSIDE, tokenizer,
                            example, use_additional_labels)
                 _add_label(labeled_example.selection, labeled_example.label,
@@ -259,6 +260,7 @@ def _read_lftxt(path, tokenizer, use_additional_labels,
                 # Recover the previous example object.
                 sentence_id -= 1
                 example = examples[-1]
+                del examples[-1]
                 prefix_word_length = len(
                     split_into_words(labeled_example.prefix, tokenizer))
                 if any([
