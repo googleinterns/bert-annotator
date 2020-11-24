@@ -27,13 +27,12 @@ import tensorflow as tf
 from official.nlp.data import tagging_data_lib
 from com_google_research_bert import tokenization
 
-import protocol_buffer.documents_pb2 as proto_documents
-from training.utils import (LABELS, LABEL_CONTAINER_NAME, MAIN_LABELS,
-                            MAIN_LABEL_ADDRESS, MAIN_LABEL_TELEPHONE,
-                            LABEL_OUTSIDE, UNK_TOKEN, PADDING_LABEL_ID,
-                            MOVING_WINDOW_MASK_LABEL_ID, LF_TELEPHONE_LABEL,
-                            LF_ADDRESS_LABEL, ADDITIONAL_LABELS,
-                            create_tokenizer_from_hub_module)
+from training.utils import (LABELS, MAIN_LABELS, LABEL_OUTSIDE, UNK_TOKEN,
+                            PADDING_LABEL_ID, MOVING_WINDOW_MASK_LABEL_ID,
+                            ADDITIONAL_LABELS,
+                            create_tokenizer_from_hub_module, split_into_words,
+                            get_labeled_text_from_linkfragment, get_documents,
+                            get_labeled_text_from_document)
 
 flags.DEFINE_string("module_url", None,
                     "The URL to the pretrained Bert model.")
@@ -48,7 +47,7 @@ flags.DEFINE_string(
     "The path to the (augmented) development data in .binproto/.tftxt format.")
 flags.DEFINE_multi_string(
     "test_data_input_paths", [],
-    "The path to the test data in .binproto/.tftxt format. May be defined more"
+    "The paths to the test data in .binproto/.tftxt format. May be defined more"
     " than once.")
 flags.DEFINE_string(
     "train_data_output_path", None,
@@ -60,8 +59,8 @@ flags.DEFINE_string(
     " records.")
 flags.DEFINE_multi_string(
     "test_data_output_paths", [],
-    "The path in which generated test input data will be written as tf records."
-    " May be defined more than once, in the same order as"
+    "The paths in which generated test input data will be written as tf"
+    " records. May be defined more than once, in the same order as"
     " test_data_input_paths.")
 flags.DEFINE_string("meta_data_file_path", None,
                     "The path in which input meta data will be written.")
@@ -75,27 +74,11 @@ flags.DEFINE_boolean(
 FLAGS = flags.FLAGS
 
 
-def _convert_token_boundaries_to_codeunits(document):
-    """Converts the indices of the token boundaries from codepoints to"
-    codeunits.
-    """
-
-    text_as_string = document.text
-    text_as_bytes = bytes(text_as_string, "utf-8")
-    for token in document.token:
-        prefix_as_bytes = text_as_bytes[:token.start]
-        token_as_bytes = text_as_bytes[token.start:token.end + 1]
-        prefix_as_string = prefix_as_bytes.decode("utf-8")
-        token_as_string = token_as_bytes.decode("utf-8")
-        token.start = len(prefix_as_string)
-        token.end = len(prefix_as_string) + len(token_as_string) - 1
-    return document
-
-
 def _add_label(text, label, tokenizer, example, use_additional_labels):
+    """Adds one label for each word in the text to the example."""
     label_id_map = {label: i for i, label in enumerate(LABELS)}
 
-    words = _split_into_words(text, tokenizer)
+    words = split_into_words(text, tokenizer)
     if label in MAIN_LABELS or (use_additional_labels
                                 and label in MAIN_LABELS + ADDITIONAL_LABELS):
         example.add_word_and_label_id(words[0], label_id_map["B-%s" % label])
@@ -189,8 +172,7 @@ def _write_example_to_file(examples,
                            text_preprocessing=None,
                            moving_window_overlap=20,
                            mask_overlap=False):
-    """Writes `InputExample`s into a tfrecord file with `tf.train.Example`
-    protos.
+    """Writes `InputExample`s to a tfrecord file with `tf.train.Example` protos.
 
     Identical to tagging_data_lib.write_example_to_file except for the
     additional parameters that are passed to _tokenize_example.
@@ -234,32 +216,26 @@ def _write_example_to_file(examples,
     return num_tokenized_examples
 
 
-def _read_binproto(file_name, tokenizer, use_additional_labels):
+def _read_binproto(file_name, tokenizer, use_additional_labels,
+                   use_gold_tokenization_and_include_target_labels):
     """Reads one file and returns a list of `InputExample` instances."""
-    documents = proto_documents.Documents()
-    with open(file_name, "rb") as src_file:
-        documents.ParseFromString(src_file.read())
-
     examples = []
     sentence_id = 0
     example = tagging_data_lib.InputExample(sentence_id=0)
-    for document in documents.documents:
-        document = _convert_token_boundaries_to_codeunits(document)
+    for document in get_documents(file_name):
         text = document.text
 
-        last_label_end = -1
-        for label in document.labeled_spans[LABEL_CONTAINER_NAME].labeled_span:
-            label_start = document.token[label.token_start].start
-            label_end = document.token[label.token_end].end
-
-            _add_label(text[last_label_end + 1:label_start], LABEL_OUTSIDE,
-                       tokenizer, example, use_additional_labels)
-            _add_label(text[label_start:label_end + 1], label.label, tokenizer,
-                       example, use_additional_labels)
-
-            last_label_end = label_end
-        _add_label(text[last_label_end + 1:], LABEL_OUTSIDE, tokenizer,
-                   example, use_additional_labels)
+        if use_gold_tokenization_and_include_target_labels:
+            for labeled_example in get_labeled_text_from_document(document):
+                _add_label(labeled_example.prefix, LABEL_OUTSIDE, tokenizer,
+                           example, use_additional_labels)
+                _add_label(labeled_example.selection, labeled_example.label,
+                           tokenizer, example, use_additional_labels)
+        else:
+            # The tokenizer will split the text without taking the target labels
+            # into account.
+            _add_label(text, LABEL_OUTSIDE, tokenizer, example,
+                       use_additional_labels)
 
         if example.words:
             examples.append(example)
@@ -268,42 +244,28 @@ def _read_binproto(file_name, tokenizer, use_additional_labels):
     return examples
 
 
-def _parse_linkfragment(lines):
-    """Parses the given linkfragment lines."""
-    for line in lines:
-        text, label_description = line.split("\t")
-        prefix, remaining_text = text.split("{{{")
-        labeled_text, suffix = remaining_text.split("}}}")
-
-        prefix = prefix.strip()
-        labeled_text = labeled_text.strip()
-        label_description = label_description.strip()
-        suffix = suffix.strip()
-
-        if label_description == LF_ADDRESS_LABEL:
-            label = MAIN_LABEL_ADDRESS
-        elif label_description == LF_TELEPHONE_LABEL:
-            label = MAIN_LABEL_TELEPHONE
-        else:
-            label = LABEL_OUTSIDE
-
-        yield (prefix, labeled_text, suffix), label
-
-
-def _read_lftxt(file_name, tokenizer, use_additional_labels):
+def _read_lftxt(file_name, tokenizer, use_additional_labels,
+                use_gold_tokenization_and_include_target_labels):
     """Reads one file and returns a list of `InputExample` instances."""
     examples = []
     sentence_id = 0
     example = tagging_data_lib.InputExample(sentence_id=0)
     with open(file_name, "r") as src_file:
-        for (prefix, labeled_text,
-             suffix), label in _parse_linkfragment(src_file):
-            _add_label(prefix, LABEL_OUTSIDE, tokenizer, example,
-                       use_additional_labels)
-            _add_label(labeled_text, label, tokenizer, example,
-                       use_additional_labels)
-            _add_label(suffix, LABEL_OUTSIDE, tokenizer, example,
-                       use_additional_labels)
+        for labeled_example in get_labeled_text_from_linkfragment(src_file):
+
+            if use_gold_tokenization_and_include_target_labels:
+                _add_label(labeled_example.prefix, LABEL_OUTSIDE, tokenizer,
+                           example, use_additional_labels)
+                _add_label(labeled_example.selection, labeled_example.label,
+                           tokenizer, example, use_additional_labels)
+                _add_label(labeled_example.suffix, LABEL_OUTSIDE, tokenizer,
+                           example, use_additional_labels)
+            else:
+                _add_label(labeled_example.complete_text,
+                           LABEL_OUTSIDE,
+                           tokenizer,
+                           example,
+                           use_additional_labels=False)
 
             if example.words:
                 examples.append(example)
@@ -359,25 +321,17 @@ def _generate_tf_records(tokenizer, max_seq_length, train_examples,
         writer.write(json.dumps(meta_data, indent=4) + "\n")
 
 
-def _split_into_words(text, tokenizer):
-    """Splits the text given the tokenizer, but merges subwords."""
-    words = tokenizer.tokenize(text)
-    joined_words = []
-    for word in words:
-        if word.startswith("##"):
-            joined_words[-1] += word[2:]
-        else:
-            joined_words.append(word)
-    return joined_words
-
-
-def _get_examples(path, tokenizer, train_with_additional_labels):
+def _get_examples(path, tokenizer, train_with_additional_labels,
+                  use_gold_tokenization_and_include_target_labels):
     """Loads the data from a .binproto or .lftxt file."""
     if path.endswith(".binproto"):
-        examples = _read_binproto(path, tokenizer,
-                                  train_with_additional_labels)
+        examples = _read_binproto(
+            path, tokenizer, train_with_additional_labels,
+            use_gold_tokenization_and_include_target_labels)
     elif FLAGS.train_data_input_path.endswith(".lftxt"):
-        examples = _read_lftxt(path, tokenizer, train_with_additional_labels)
+        examples = _read_lftxt(
+            path, tokenizer, train_with_additional_labels,
+            use_gold_tokenization_and_include_target_labels)
     else:
         raise ValueError(
             "Invalid file format, only .binproto and .lftxt are supported.")
@@ -390,15 +344,24 @@ def main(_):
 
     tokenizer = create_tokenizer_from_hub_module(FLAGS.module_url)
 
-    train_examples = _get_examples(FLAGS.train_data_input_path, tokenizer,
-                                   FLAGS.train_with_additional_labels)
-    dev_examples = _get_examples(FLAGS.dev_data_input_path, tokenizer,
-                                 FLAGS.train_with_additional_labels)
+    train_examples = _get_examples(
+        FLAGS.train_data_input_path,
+        tokenizer,
+        FLAGS.train_with_additional_labels,
+        use_gold_tokenization_and_include_target_labels=True)
+    dev_examples = _get_examples(
+        FLAGS.dev_data_input_path,
+        tokenizer,
+        FLAGS.train_with_additional_labels,
+        use_gold_tokenization_and_include_target_labels=True)
     test_examples = {}
     for input_path, output_path in zip(FLAGS.test_data_input_paths,
                                        FLAGS.test_data_output_paths):
         test_examples[output_path] = _get_examples(
-            input_path, tokenizer, train_with_additional_labels=False)
+            input_path,
+            tokenizer,
+            train_with_additional_labels=False,
+            use_gold_tokenization_and_include_target_labels=False)
 
     moving_window_overlap = FLAGS.moving_window_overlap
     if moving_window_overlap % 2 != 0:

@@ -123,7 +123,11 @@ And evaluate:
 ./bazel-bin/training/evaluate \
  --module_url=[MODULE URL] \
  --model_path=data/output/trained_model \
- --test_data_paths=data/output/test_lucidsky.tfrecord \
- --test_data_paths=data/output/test_phone.tfrecord \
- --test_data_paths=data/output/test_address.tfrecord
+ --tfrecord_paths=data/output/test_lucidsky.tfrecord \
+ --raw_paths=data/output/test.binproto \
+ --tfrecord_paths=data/output/test_address.tfrecord \
+ --raw_paths=data/input/raw/test_address.lftxt \
+ --tfrecord_paths=data/output/test_phone.tfrecord \
+ --raw_paths=data/input/raw/test_phone.lftxt \
+ --visualisation_folder=visualisation/
 ```

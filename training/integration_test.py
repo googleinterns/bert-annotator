@@ -154,8 +154,9 @@ class IntegrationTests(absltest.TestCase):
         self.run_helper(
             "evaluate",
             arguments=("--module_url", self.module_url, "--model_path",
-                       model_path, "--test_data_paths", self.test_tfrecord,
-                       "--test_data_paths", self.test2_tfrecord,
+                       model_path, "--tfrecord_paths", self.test_tfrecord,
+                       "--raw_paths", self.test_lftxt, "--tfrecord_paths",
+                       self.test2_tfrecord, "--raw_paths", self.test2_lftxt,
                        "--visualisation_folder", visualisation_dir))
 
     def test_training_additional_labels(self):
@@ -184,13 +185,14 @@ class IntegrationTests(absltest.TestCase):
                                    "--train_with_additional_labels"))
         model_path = os.path.join(checkpoint_dir, "model_01")
         visualisation_dir = os.path.join(self.out_dir, "visualisation")
-        self.run_helper("evaluate",
-                        arguments=("--module_url", self.module_url,
-                                   "--model_path", model_path,
-                                   "--test_data_paths", self.test_tfrecord,
-                                   "--test_data_paths", self.test2_tfrecord,
-                                   "--visualisation_folder", visualisation_dir,
-                                   "--train_with_additional_labels"))
+        self.run_helper(
+            "evaluate",
+            arguments=("--module_url", self.module_url, "--model_path",
+                       model_path, "--tfrecord_paths", self.test_tfrecord,
+                       "--raw_paths", self.test_lftxt, "--tfrecord_paths",
+                       self.test2_tfrecord, "--raw_paths", self.test2_lftxt,
+                       "--visualisation_folder", visualisation_dir,
+                       "--train_with_additional_labels"))
 
 
 if __name__ == "__main__":

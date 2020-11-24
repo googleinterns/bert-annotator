@@ -20,6 +20,7 @@ from __future__ import division
 from __future__ import print_function
 
 import os
+from enum import Enum
 from absl import app, flags
 import numpy as np
 from seqeval.scheme import IOB2
@@ -30,17 +31,20 @@ import orbit
 from official.nlp.tasks import utils
 from official.nlp.tasks.tagging import TaggingConfig, TaggingTask
 from official.nlp.data import tagging_dataloader
-from training.utils import (ADDITIONAL_LABELS, BERT_SENTENCE_PADDING,
-                            BERT_SENTENCE_SEPARATOR, BERT_SENTENCE_START,
-                            LABELS, LABEL_OUTSIDE, MAIN_LABELS,
-                            PADDING_LABEL_ID, MOVING_WINDOW_MASK_LABEL_ID,
-                            create_tokenizer_from_hub_module)
+from training.utils import (ADDITIONAL_LABELS, LABELS, LABEL_OUTSIDE,
+                            MAIN_LABELS, create_tokenizer_from_hub_module,
+                            split_into_words,
+                            get_labeled_text_from_linkfragment, get_documents,
+                            get_labeled_text_from_document)
 
 flags.DEFINE_string("module_url", None,
                     "The URL to the pretrained Bert model.")
 flags.DEFINE_string("model_path", None, "The path to the trained model.")
-flags.DEFINE_multi_string("test_data_paths", [],
-                          "The path to the test data in .tfrecord format.")
+flags.DEFINE_multi_string("tfrecord_paths", [],
+                          "The paths to the test data in .tfrecord format.")
+flags.DEFINE_multi_string(
+    "raw_paths", [],
+    "The paths to the test data in its original .binproto or .lftxt format.")
 flags.DEFINE_string(
     "visualisation_folder", None,
     "If set, a comparison of the target/hypothesis labeling is saved in .html"
@@ -54,6 +58,8 @@ flags.DEFINE_boolean(
     " training, too.")
 
 FLAGS = flags.FLAGS
+
+LabelType = Enum("LabelType", "OUTSIDE BEGINNING INSIDE")
 
 
 def _predict(task, params, model):
@@ -119,9 +125,9 @@ def _predict(task, params, model):
 
 
 def _viterbi(probabilities, train_with_additional_labels):
-    """"Applies the viterbi algorithm to find the most likely valid label
-    sequence.
+    """"Applies the viterbi algorithm.
 
+    This searches for the most likely valid label sequence.
     Depends on the specific order of labels.
     """
     labels = LABELS
@@ -139,7 +145,7 @@ def _viterbi(probabilities, train_with_additional_labels):
             labels)  # An invalid value ensures it will be updated.
         for current_label_id in range(len(labels)):
             current_label_name = labels[current_label_id]
-            if current_label_name.startswith("I-"):
+            if _is_label_type(current_label_name, LabelType.INSIDE):
                 current_main_label_name = current_label_name[2:]
                 valid_prev_label_names = [("B-%s" % current_main_label_name),
                                           ("I-%s" % current_main_label_name)]
@@ -200,136 +206,276 @@ def _infer(module_url, model_path, test_data_path,
     return merged_predictions
 
 
-def _extract_target_labels(module_url, trg_path):
-    """Extracts the target labels from the given .tfrecord file."""
-    feature_description = {
-        "input_ids":
-        tf.io.FixedLenSequenceFeature([], tf.int64, allow_missing=True),
-        "input_mask":
-        tf.io.FixedLenSequenceFeature([], tf.int64, allow_missing=True),
-        "label_ids":
-        tf.io.FixedLenSequenceFeature([], tf.int64, allow_missing=True),
-        "segment_ids":
-        tf.io.FixedLenSequenceFeature([], tf.int64, allow_missing=True),
-        "sentence_id":
-        tf.io.FixedLenSequenceFeature([], tf.int64, allow_missing=True),
-        "sub_sentence_id":
-        tf.io.FixedLenSequenceFeature([], tf.int64, allow_missing=True),
-    }
+def _remove_whitespace_and_parse(text, tokenizer):
+    """Removes all whitespace and some special characters.
 
-    def _parse_function(example_proto):
-        return tf.io.parse_single_example(example_proto, feature_description)
-
-    tokenizer = create_tokenizer_from_hub_module(module_url)
-    targets = []
-    texts = []
-    raw_dataset = tf.data.TFRecordDataset(trg_path)
-    parsed_dataset = raw_dataset.map(_parse_function)
-    target_labels = []
-    tokens = []
-    for features in parsed_dataset:
-        if features["sub_sentence_id"][0] == 0:
-            if target_labels:
-                targets.append(target_labels)
-                texts.append(tokens)
-            target_labels = []
-            tokens = []
-
-        for token_id, label_id in zip(features["input_ids"].numpy(),
-                                      features["label_ids"].numpy()):
-            token = tokenizer.convert_ids_to_tokens([token_id
-                                                     ])[0].replace("##", "")
-            if token in [
-                    BERT_SENTENCE_START, BERT_SENTENCE_SEPARATOR,
-                    BERT_SENTENCE_PADDING
-            ]:
-                continue
-            if label_id == MOVING_WINDOW_MASK_LABEL_ID:
-                continue
-            elif label_id == PADDING_LABEL_ID:
-                tokens[-1] += token
-            else:
-                target_labels.append(LABELS[label_id])
-                tokens.append(token)
-    targets.append(target_labels)
-    texts.append(tokens)
-
-    return targets, texts
+    The tokenizer discards some utf-8 characters, such as the right-to-left
+    indicator. Applying the tokenizer is slow, but the safest way to guarantee
+    consistent behaviour.
+    """
+    return "".join(split_into_words(text, tokenizer))
 
 
-def _visualise(module_url, trg_path, predictions, visualised_label,
+def _update_characterwise_target_labels(tokenizer, labeled_example,
+                                        characterwise_target_labels,
+                                        characters):
+    """Updates target_labels and characters w.r.t. the given text and label."""
+    prefix_without_whitespace = _remove_whitespace_and_parse(
+        labeled_example.prefix, tokenizer)
+    characters.extend(prefix_without_whitespace)
+    characterwise_target_labels.extend([LABEL_OUTSIDE] *
+                                       len(prefix_without_whitespace))
+
+    labeled_text_without_whitespace = _remove_whitespace_and_parse(
+        labeled_example.selection, tokenizer)
+    characters.extend(labeled_text_without_whitespace)
+    if len(labeled_text_without_whitespace) > 0:
+        characterwise_target_labels += [
+            "B-%s" % labeled_example.label
+        ] + ["I-%s" % labeled_example.label
+             ] * (len(labeled_text_without_whitespace) - 1)
+
+    suffix_without_whitespace = _remove_whitespace_and_parse(
+        labeled_example.suffix, tokenizer)
+    characters.extend(suffix_without_whitespace)
+    characterwise_target_labels.extend([LABEL_OUTSIDE] *
+                                       len(suffix_without_whitespace))
+
+
+def _extract_characterwise_target_labels_from_proto(path, tokenizer):
+    """Extracts a label for each character from the given .binproto file."""
+    characterwise_target_labels_per_sentence = []
+    characters_per_sentence = []
+    for document in get_documents(path):
+        characterwise_target_labels = []
+        characters = []
+        for labeled_example in get_labeled_text_from_document(
+                document, only_main_labels=True):
+            _update_characterwise_target_labels(tokenizer, labeled_example,
+                                                characterwise_target_labels,
+                                                characters)
+
+        characterwise_target_labels_per_sentence.append(
+            characterwise_target_labels)
+        characters_per_sentence.append(characters)
+    return characterwise_target_labels_per_sentence, characters_per_sentence
+
+
+def _extract_characterwise_target_labels_from_lftxt(path, tokenizer):
+    """Extracts a label for each character from the given .lftxt file."""
+    characterwise_target_labels_per_sentence = []
+    characters_per_sentence = []
+    with open(path, "r") as src_file:
+        for labeled_example in get_labeled_text_from_linkfragment(src_file):
+            characterwise_target_labels = []
+            characters = []
+
+            _update_characterwise_target_labels(tokenizer, labeled_example,
+                                                characterwise_target_labels,
+                                                characters)
+
+            characterwise_target_labels_per_sentence.append(
+                characterwise_target_labels)
+            characters_per_sentence.append(characters)
+
+    return characterwise_target_labels_per_sentence, characters_per_sentence
+
+
+def _visualise(test_name, characterwise_target_labels_per_sentence,
+               characterwise_predicted_labels_per_sentence,
+               characters_per_sentence, words_per_sentence, visualised_label,
                visualisation_folder):
     """Generates a .html file comparing the hypothesis/target labels."""
-    targets, texts = _extract_target_labels(module_url, trg_path)
+    assert len(characterwise_target_labels_per_sentence) == len(
+        characterwise_predicted_labels_per_sentence) == len(
+            characters_per_sentence)
+    number_of_sentences = len(characterwise_target_labels_per_sentence)
 
-    assert len(targets) == len(predictions) == len(texts)
-
-    test_data_name = trg_path.split("/")[-1][:-len(".tfrecord")]
-    directory = os.path.join(visualisation_folder, test_data_name)
+    directory = os.path.join(visualisation_folder, test_name)
     if not os.path.exists(directory):
         os.makedirs(directory)
     file_name = os.path.join(directory, "%s.html" % visualised_label.lower())
     with open(file_name, "w") as file:
-        file.write("%s labels in %s <br>\n" % (visualised_label, trg_path))
+        file.write("%s labels in %s <br>\n" % (visualised_label, test_name))
         file.write("<font color='green'>Correct labels</font> <br>\n")
         file.write("<font color='blue'>Superfluous labels</font> <br>\n")
         file.write("<font color='red'>Missed labels</font> <br>\n")
         file.write("<br>\n")
 
-        for target_labels, predicted_labels, tokens in zip(
-                targets, predictions, texts):
-            assert len(target_labels) == len(predicted_labels) == len(tokens)
+        for i in range(number_of_sentences):
+            characterwise_target_labels = (
+                characterwise_target_labels_per_sentence[i])
+            characterwise_predicted_labels = (
+                characterwise_predicted_labels_per_sentence[i])
+            characters = characters_per_sentence[i]
+            words = words_per_sentence[i]
 
-            for target_label, predicted_label, token in zip(
-                    target_labels, predicted_labels, tokens):
+            characterwise_target_labels_length = len(
+                characterwise_target_labels)
+            characterwise_predicted_labels_length = len(
+                characterwise_predicted_labels)
+            characters_length = len(characters)
+            assert (
+                characterwise_target_labels_length ==
+                characterwise_predicted_labels_length == characters_length
+            ), ("Hypotheses/targets have different lengths: %d, %d, %d"
+                " (sentence %d)") % (characterwise_target_labels_length,
+                                     characterwise_predicted_labels_length,
+                                     characters_length, i)
+
+            word_index = 0
+            word_position = 0
+            for target_label, predicted_label, character in zip(
+                    characterwise_target_labels,
+                    characterwise_predicted_labels, characters):
                 if target_label.endswith(
                         visualised_label) and predicted_label.endswith(
                             visualised_label):
-                    file.write("<font color='green'>" + token + "</font>")
+                    file.write("<font color='green'>" + character + "</font>")
                 elif target_label.endswith(visualised_label):
-                    file.write("<font color='red'>" + token + "</font>")
+                    file.write("<font color='red'>" + character + "</font>")
                 elif predicted_label.endswith(visualised_label):
-                    file.write("<font color='blue'>" + token + "</font>")
+                    file.write("<font color='blue'>" + character + "</font>")
                 else:
-                    file.write(token)
-                file.write(" ")
+                    file.write(character)
+
+                word_position += 1
+                if word_position == len(words[word_index]):
+                    word_index += 1
+                    word_position = 0
+                    file.write(" ")
+
             file.write("<br>\n")
 
 
-def _score(module_url, trg_path, prediction_labels, use_strict_mode):
+def _score(characterwise_target_labels_per_sentence,
+           characterwise_predicted_labels_per_sentence, use_strict_mode):
     """Computes the precision, recall and f1 scores of the hypotheses."""
-    targets, _ = _extract_target_labels(module_url, trg_path)
-
     if use_strict_mode:
-        return classification_report(targets,
-                                     prediction_labels,
-                                     mode="strict",
-                                     scheme=IOB2)
+        return classification_report(
+            characterwise_target_labels_per_sentence,
+            characterwise_predicted_labels_per_sentence,
+            mode="strict",
+            scheme=IOB2)
     else:
-        return classification_report(targets, prediction_labels)
+        return classification_report(
+            characterwise_target_labels_per_sentence,
+            characterwise_predicted_labels_per_sentence)
+
+
+def _extract_words_from_proto(path, tokenizer):
+    """Extracts all words from the .binproto file."""
+    words_per_sentence = []
+    for document in get_documents(path):
+        words = split_into_words(document.text, tokenizer)
+        words_per_sentence.append(words)
+    return words_per_sentence
+
+
+def _extract_words_from_lftxt(path, tokenizer):
+    """Extracts all words from the given .lftxt file."""
+    words_per_sentence = []
+    with open(path, "r") as src_file:
+        for labeled_example in get_labeled_text_from_linkfragment(src_file):
+            words = split_into_words(labeled_example.complete_text, tokenizer)
+            words_per_sentence.append(words)
+    return words_per_sentence
+
+
+def _is_label_type(label_name, label_type):
+    """Checks whether the label is of the specified type."""
+    if label_name == LABEL_OUTSIDE:
+        real_label_type = LabelType.OUTSIDE
+    elif label_name.startswith("B-"):
+        real_label_type = LabelType.BEGINNING
+    else:
+        assert label_name.startswith("I-")
+        real_label_type = LabelType.INSIDE
+    return label_type == real_label_type
+
+
+def _transform_wordwise_labels_to_characterwise_labels(
+        words_per_sentence, predicted_label_ids_per_sentence):
+    """Duplicates the labels such that each character is assigned a label.
+
+    For "B-" labels, only the first character of the word is assigned the "B-"
+    label, all other characters are assigned the corresponding "I-" label.
+    """
+    characterwise_predicted_label_ids_per_sentence = []
+    for words, predicted_label_ids in zip(words_per_sentence,
+                                          predicted_label_ids_per_sentence):
+        characterwise_predicted_label_ids = []
+
+        assert len(words) == len(predicted_label_ids)
+        for word, label_id in zip(words, predicted_label_ids):
+            if _is_label_type(LABELS[label_id], LabelType.BEGINNING):
+                characterwise_predicted_label_ids += [
+                    label_id
+                ] + [label_id + 1] * (len(word) - 1)
+            else:
+                characterwise_predicted_label_ids.extend([label_id] *
+                                                         len(word))
+        characterwise_predicted_label_ids_per_sentence.append(
+            characterwise_predicted_label_ids)
+    return characterwise_predicted_label_ids_per_sentence
+
+
+def _convert_label_ids_to_names(label_ids_per_sentence):
+    labels = LABELS + ADDITIONAL_LABELS
+    label_names_per_sentence = [[labels[label_id] for label_id in label_ids]
+                                for label_ids in label_ids_per_sentence]
+    return label_names_per_sentence
 
 
 def main(_):
-    for test_data_path in FLAGS.test_data_paths:
-        if not test_data_path.endswith(".tfrecord"):
+    if len(FLAGS.tfrecord_paths) != len(FLAGS.raw_paths):
+        raise ValueError("The number of tfrecord and raw paths must be equal.")
+
+    for tfrecord_path, raw_path in zip(FLAGS.tfrecord_paths, FLAGS.raw_paths):
+        if not tfrecord_path.endswith(".tfrecord"):
             raise ValueError("The test data must be in .tfrecord format.")
+        test_name = os.path.splitext(os.path.basename(raw_path))[0]
+        tokenizer = create_tokenizer_from_hub_module(FLAGS.module_url)
 
-        prediction_ids_per_sentence = _infer(
-            FLAGS.module_url, FLAGS.model_path, test_data_path,
+        predicted_label_ids_per_sentence = _infer(
+            FLAGS.module_url, FLAGS.model_path, tfrecord_path,
             FLAGS.train_with_additional_labels)
-        labels = LABELS
-        if FLAGS.train_with_additional_labels:
-            labels += ADDITIONAL_LABELS
-        prediction_labels = [[labels[label_id] for label_id in prediction_ids]
-                             for prediction_ids in prediction_ids_per_sentence]
-        if FLAGS.visualisation_folder:
-            for label in MAIN_LABELS:
-                _visualise(FLAGS.module_url, test_data_path, prediction_labels,
-                           label, FLAGS.visualisation_folder)
 
-        report = _score(FLAGS.module_url, test_data_path, prediction_labels,
+        if "proto" in raw_path:
+            words_per_sentence = _extract_words_from_proto(raw_path, tokenizer)
+        else:
+            words_per_sentence = _extract_words_from_lftxt(raw_path, tokenizer)
+
+        characterwise_predicted_label_ids_per_sentence = (
+            _transform_wordwise_labels_to_characterwise_labels(
+                words_per_sentence, predicted_label_ids_per_sentence))
+
+        characterwise_predicted_label_names_per_sentence = (
+            _convert_label_ids_to_names(
+                characterwise_predicted_label_ids_per_sentence))
+
+        if "proto" in raw_path:
+            (characterwise_target_labels_per_sentence,
+             characters_per_sentence) = (
+                 _extract_characterwise_target_labels_from_proto(
+                     raw_path, tokenizer))
+        else:
+            (characterwise_target_labels_per_sentence,
+             characters_per_sentence) = (
+                 _extract_characterwise_target_labels_from_lftxt(
+                     raw_path, tokenizer))
+
+        if FLAGS.visualisation_folder:
+            for visualised_label in MAIN_LABELS:
+                _visualise(test_name, characterwise_target_labels_per_sentence,
+                           characterwise_predicted_label_names_per_sentence,
+                           characters_per_sentence, words_per_sentence,
+                           visualised_label, FLAGS.visualisation_folder)
+
+        report = _score(characterwise_target_labels_per_sentence,
+                        characterwise_predicted_label_names_per_sentence,
                         FLAGS.strict_eval)
-        print("Scores for %s:" % test_data_path)
+        print("Scores for %s:" % test_name)
         print(report)
 
 
