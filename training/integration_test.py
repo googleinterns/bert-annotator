@@ -27,6 +27,40 @@ from absl.testing import absltest
 
 FLAGS = flags.FLAGS
 
+_train_textproto_content = """documents {
+  text: "At 42 Street."
+  token: {
+    word: "At"
+    start: 0
+    end: 1
+  }
+  token: {
+    word: "42"
+    start: 3
+    end: 4
+  }
+  token: {
+    word: "Street"
+    start: 6
+    end: 11
+  }
+  token: {
+    word: "."
+    start: 12
+    end: 12
+  }
+  labeled_spans: {
+    key: "lucid"
+    value: {
+      labeled_span: {
+        token_start: 1
+        token_end: 2
+        label: "ADDRESS"
+      }
+    }
+  }
+}"""
+
 
 def _get_dependency(name):
     """Returns the executable path of a dependency.
@@ -105,46 +139,12 @@ class IntegrationTests(absltest.TestCase):
         with open(self.augmenter_replacement_input, "w") as file:
             file.write("Replacement\t1")
 
-        train_textproto_content = """documents {   # (nlp_saft.Document)
-  text     : "At 42 Street."
-  token: {      # (nlp_saft.Token) size=9B
-    word    : "At"
-    start   : 0
-    end     : 1
-  }     # token[0]
-  token: {      # (nlp_saft.Token) size=9B
-    word    : "42"
-    start   : 3
-    end     : 4
-  }     # token[1]
-  token: {      # (nlp_saft.Token) size=15B
-    word    : "Street" # size=7
-    start   : 6
-    end     : 11
-  }     # token[2]
-  token: {      # (nlp_saft.Token) size=15B
-    word    : "." # size=7
-    start   : 12
-    end     : 12
-  }     # token[3]
-  labeled_spans: {      # (nlp_saft.Document.LabeledSpansEntry) size=53B
-    key  : "lucid"      # size=5
-    value: {    # (nlp_saft.LabeledSpans) size=44B
-      labeled_span: {   # (nlp_saft.LabeledSpan) size=12B
-        token_start : 1
-        token_end   : 2
-        label       : "ADDRESS"  # size=6
-      } # labeled_spans[0].value.labeled_span[0]
-    }   # labeled_spans[0].value
-  }     # labeled_spans[0]
-}"""
-
         self.train_data_dir = os.path.join(self.out_dir, "train")
         os.makedirs(self.train_data_dir)
         self.train_textproto = os.path.join(self.train_data_dir,
                                             "train.textproto")
         with open(self.train_textproto, "w") as f:
-            f.write(train_textproto_content)
+            f.write(_train_textproto_content)
         training_text = ["At {{{42 Street}}}.\taddress\n"]
         self.train_lftxt = os.path.join(self.train_data_dir, "train.lftxt")
         with open(self.train_lftxt, "w") as f:
@@ -156,7 +156,7 @@ class IntegrationTests(absltest.TestCase):
         self.test_textproto = os.path.join(self.test_data_dir,
                                            "test.textproto")
         with open(self.test_textproto, "w") as f:
-            f.write(train_textproto_content)
+            f.write(_train_textproto_content)
         self.test_lftxt = os.path.join(self.test_data_dir, "test.lftxt")
         with open(self.test_lftxt, "w") as f:
             f.writelines(training_text)
