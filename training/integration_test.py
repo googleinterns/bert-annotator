@@ -150,11 +150,13 @@ class IntegrationTests(absltest.TestCase):
                                    "--epochs", "1", "--train_size", "6400",
                                    "--save_path", checkpoint_dir))
         model_path = os.path.join(checkpoint_dir, "model_01")
-        self.run_helper("evaluate",
-                        arguments=("--module_url", self.module_url,
-                                   "--model_path", model_path,
-                                   "--test_data_paths", self.test_tfrecord,
-                                   "--test_data_paths", self.test2_tfrecord))
+        visualisation_dir = os.path.join(self.out_dir, "visualisation")
+        self.run_helper(
+            "evaluate",
+            arguments=("--module_url", self.module_url, "--model_path",
+                       model_path, "--test_data_paths", self.test_tfrecord,
+                       "--test_data_paths", self.test2_tfrecord,
+                       "--visualisation_folder", visualisation_dir))
 
 
 if __name__ == "__main__":
