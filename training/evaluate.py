@@ -32,16 +32,18 @@ from official.nlp.tasks import utils
 from official.nlp.tasks.tagging import TaggingConfig, TaggingTask
 from official.nlp.data import tagging_dataloader
 from training.utils import (ADDITIONAL_LABELS, LABELS, LABEL_OUTSIDE,
-                            MAIN_LABELS, create_tokenizer_from_hub_module,
-                            split_into_words,
+                            MAIN_LABELS, LabeledExample,
+                            create_tokenizer_from_hub_module, split_into_words,
                             get_labeled_text_from_linkfragment, get_documents,
                             get_labeled_text_from_document)
 
 flags.DEFINE_string("module_url", None,
                     "The URL to the pretrained Bert model.")
 flags.DEFINE_string("model_path", None, "The path to the trained model.")
-flags.DEFINE_multi_string("tfrecord_paths", [],
-                          "The paths to the test data in .tfrecord format.")
+flags.DEFINE_multi_string(
+    "input_paths", [],
+    "The paths to the test data in .tfrecord format (to be labeled) or a folder"
+    " containing .lftxt files with precomputed labels.")
 flags.DEFINE_multi_string(
     "raw_paths", [],
     "The paths to the test data in its original .binproto or .lftxt format.")
@@ -265,18 +267,17 @@ def _extract_characterwise_target_labels_from_lftxt(path, tokenizer):
     """Extracts a label for each character from the given .lftxt file."""
     characterwise_target_labels_per_sentence = []
     characters_per_sentence = []
-    with open(path, "r") as src_file:
-        for labeled_example in get_labeled_text_from_linkfragment(src_file):
-            characterwise_target_labels = []
-            characters = []
+    for labeled_example in get_labeled_text_from_linkfragment(path):
+        characterwise_target_labels = []
+        characters = []
 
-            _update_characterwise_target_labels(tokenizer, labeled_example,
-                                                characterwise_target_labels,
-                                                characters)
+        _update_characterwise_target_labels(tokenizer, labeled_example,
+                                            characterwise_target_labels,
+                                            characters)
 
-            characterwise_target_labels_per_sentence.append(
-                characterwise_target_labels)
-            characters_per_sentence.append(characters)
+        characterwise_target_labels_per_sentence.append(
+            characterwise_target_labels)
+        characters_per_sentence.append(characters)
 
     return characterwise_target_labels_per_sentence, characters_per_sentence
 
@@ -375,10 +376,9 @@ def _extract_words_from_proto(path, tokenizer):
 def _extract_words_from_lftxt(path, tokenizer):
     """Extracts all words from the given .lftxt file."""
     words_per_sentence = []
-    with open(path, "r") as src_file:
-        for labeled_example in get_labeled_text_from_linkfragment(src_file):
-            words = split_into_words(labeled_example.complete_text, tokenizer)
-            words_per_sentence.append(words)
+    for labeled_example in get_labeled_text_from_linkfragment(path):
+        words = split_into_words(labeled_example.complete_text, tokenizer)
+        words_per_sentence.append(words)
     return words_per_sentence
 
 
@@ -427,32 +427,103 @@ def _convert_label_ids_to_names(label_ids_per_sentence):
     return label_names_per_sentence
 
 
-def main(_):
-    if len(FLAGS.tfrecord_paths) != len(FLAGS.raw_paths):
-        raise ValueError("The number of tfrecord and raw paths must be equal.")
+def _unescape_backslashes(labeled_example):
+    return LabeledExample(
+        prefix=labeled_example.prefix.replace("\\\\", "\\"),
+        selection=labeled_example.selection.replace("\\\\", "\\"),
+        suffix=labeled_example.suffix.replace("\\\\", "\\"),
+        complete_text=labeled_example.complete_text.replace("\\\\", "\\"),
+        label=labeled_example.label)
 
-    for tfrecord_path, raw_path in zip(FLAGS.tfrecord_paths, FLAGS.raw_paths):
-        if not tfrecord_path.endswith(".tfrecord"):
-            raise ValueError("The test data must be in .tfrecord format.")
+
+def _get_predictions_from_lf_directory(lf_directory, raw_path, tokenizer):
+    """Extracts the characterwise label names from all .lftxt files in the given
+    directory.
+    """
+    # Will contain tuples (sentence, labels). A map cannot be used, as sentences
+    # may be duplicated.
+    labeled_sentences = []
+
+    if raw_path.endswith(".lftxt"):
+        for labeled_example in get_labeled_text_from_linkfragment(raw_path):
+            characters = _remove_whitespace_and_parse(
+                labeled_example.complete_text, tokenizer)
+
+            labeled_sentences.append([
+                labeled_example.complete_text,
+                [LABEL_OUTSIDE] * len(characters)
+            ])
+    else:
+        for document in get_documents(raw_path):
+            characters = _remove_whitespace_and_parse(document.text, tokenizer)
+            labeled_sentences.append(
+                [document.text, [LABEL_OUTSIDE] * len(characters)])
+
+    for file_name in os.listdir(lf_directory):
+        if not file_name.endswith(".lftxt"):
+            continue
+
+        for labeled_example in get_labeled_text_from_linkfragment(
+                os.path.join(lf_directory, file_name)):
+            if labeled_example.label == LABEL_OUTSIDE:
+                continue
+            labeled_example = _unescape_backslashes(labeled_example)
+            prefix_length = len(
+                _remove_whitespace_and_parse(labeled_example.prefix,
+                                             tokenizer))
+            label_length = len(
+                _remove_whitespace_and_parse(labeled_example.selection,
+                                             tokenizer))
+            assert label_length > 0
+
+            match = False
+            for key, characterwise_labels in labeled_sentences:
+                if key != labeled_example.complete_text:
+                    continue
+                match = True
+                assert characterwise_labels[prefix_length] == LABEL_OUTSIDE
+                characterwise_labels[
+                    prefix_length] = "B-%s" % labeled_example.label.upper()
+                for i in range(1, label_length):
+                    assert characterwise_labels[prefix_length +
+                                                i] == LABEL_OUTSIDE
+                    characterwise_labels[
+                        prefix_length +
+                        i] = "I-%s" % labeled_example.label.upper()
+            assert match
+
+    return [labels for _, labels in labeled_sentences]
+
+
+def main(_):
+    if len(FLAGS.input_paths) != len(FLAGS.raw_paths):
+        raise ValueError("The number of inputs and raw paths must be equal.")
+
+    for input_path, raw_path in zip(FLAGS.input_paths, FLAGS.raw_paths):
         test_name = os.path.splitext(os.path.basename(raw_path))[0]
         tokenizer = create_tokenizer_from_hub_module(FLAGS.module_url)
-
-        predicted_label_ids_per_sentence = _infer(
-            FLAGS.module_url, FLAGS.model_path, tfrecord_path,
-            FLAGS.train_with_additional_labels)
 
         if "proto" in raw_path:
             words_per_sentence = _extract_words_from_proto(raw_path, tokenizer)
         else:
             words_per_sentence = _extract_words_from_lftxt(raw_path, tokenizer)
 
-        characterwise_predicted_label_ids_per_sentence = (
-            _transform_wordwise_labels_to_characterwise_labels(
-                words_per_sentence, predicted_label_ids_per_sentence))
+        if input_path.endswith(".tfrecord"):
+            predicted_label_ids_per_sentence = _infer(
+                FLAGS.module_url, FLAGS.model_path, input_path,
+                FLAGS.train_with_additional_labels)
 
-        characterwise_predicted_label_names_per_sentence = (
-            _convert_label_ids_to_names(
-                characterwise_predicted_label_ids_per_sentence))
+            characterwise_predicted_label_ids_per_sentence = (
+                _transform_wordwise_labels_to_characterwise_labels(
+                    words_per_sentence, predicted_label_ids_per_sentence))
+
+            characterwise_predicted_label_names_per_sentence = (
+                _convert_label_ids_to_names(
+                    characterwise_predicted_label_ids_per_sentence))
+        else:
+            characterwise_predicted_label_names_per_sentence = (
+                _get_predictions_from_lf_directory(input_path, raw_path,
+                                                   tokenizer))
 
         if "proto" in raw_path:
             (characterwise_target_labels_per_sentence,
@@ -481,6 +552,5 @@ def main(_):
 
 if __name__ == "__main__":
     flags.mark_flag_as_required("module_url")
-    flags.mark_flag_as_required("model_path")
 
     app.run(main)

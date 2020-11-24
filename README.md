@@ -123,11 +123,23 @@ And evaluate:
 ./bazel-bin/training/evaluate \
  --module_url=[MODULE URL] \
  --model_path=data/output/trained_model \
- --tfrecord_paths=data/output/test_lucidsky.tfrecord \
+ --input_paths=data/output/test_lucidsky.tfrecord \
  --raw_paths=data/output/test.binproto \
- --tfrecord_paths=data/output/test_address.tfrecord \
+ --input_paths=data/output/test_address.tfrecord \
  --raw_paths=data/input/raw/test_address.lftxt \
- --tfrecord_paths=data/output/test_phone.tfrecord \
+ --input_paths=data/output/test_phone.tfrecord \
+ --raw_paths=data/input/raw/test_phone.lftxt \
+ --visualisation_folder=visualisation/
+```
+
+You can also evaluate pre-generated labels if they were stored as linkfragments.
+As the `input_paths`, pass a path to a directory containing one or more
+linkfragment files.
+
+```sh
+./bazel-bin/training/evaluate \
+ --module_url=[MODULE URL] \
+ --input_paths=directory_with_linkfragments/ \
  --raw_paths=data/input/raw/test_phone.lftxt \
  --visualisation_folder=visualisation/
 ```

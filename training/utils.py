@@ -118,32 +118,33 @@ def _convert_token_boundaries_to_codeunits(document):
     return document
 
 
-def get_labeled_text_from_linkfragment(linkfragments):
+def get_labeled_text_from_linkfragment(path):
     """Provides an iterator over all labeled texts in the linkfragments."""
-    for linkfragment in linkfragments:
-        text, label_description = linkfragment.split("\t")
-        prefix, remaining_text = text.split("{{{")
-        labeled_text, suffix = remaining_text.split("}}}")
+    with open(path, "r") as file:
+        for linkfragment in file:
+            text, label_description = linkfragment.split("\t")
+            prefix, remaining_text = text.split("{{{")
+            labeled_text, suffix = remaining_text.split("}}}")
 
-        prefix = prefix.strip()
-        labeled_text = labeled_text.strip()
-        label_description = label_description.strip()
-        suffix = suffix.strip()
+            prefix = prefix.strip()
+            labeled_text = labeled_text.strip()
+            label_description = label_description.strip()
+            suffix = suffix.strip()
 
-        if label_description == LF_ADDRESS_LABEL:
-            label = MAIN_LABEL_ADDRESS
-        elif label_description == LF_TELEPHONE_LABEL:
-            label = MAIN_LABEL_TELEPHONE
-        else:
-            label = LABEL_OUTSIDE
+            if label_description == LF_ADDRESS_LABEL:
+                label = MAIN_LABEL_ADDRESS
+            elif label_description == LF_TELEPHONE_LABEL:
+                label = MAIN_LABEL_TELEPHONE
+            else:
+                label = LABEL_OUTSIDE
 
-        text_without_braces = text.replace("{{{", "").replace("}}}", "")
+            text_without_braces = text.replace("{{{", "").replace("}}}", "")
 
-        yield LabeledExample(prefix=prefix,
-                             selection=labeled_text,
-                             suffix=suffix,
-                             complete_text=text_without_braces,
-                             label=label)
+            yield LabeledExample(prefix=prefix,
+                                 selection=labeled_text,
+                                 suffix=suffix,
+                                 complete_text=text_without_braces,
+                                 label=label)
 
 
 def get_labeled_text_from_document(document, only_main_labels=False):
