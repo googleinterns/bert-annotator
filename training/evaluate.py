@@ -247,6 +247,7 @@ def _extract_characterwise_target_labels_from_proto(path, tokenizer):
         total_prefix = ""
         for labeled_example in get_labeled_text_from_document(
                 document, only_main_labels=True):
+            assert labeled_example.suffix == ""
             total_prefix += labeled_example.prefix
             labeled_example.prefix = total_prefix
             _update_characterwise_target_labels(tokenizer, labeled_example,

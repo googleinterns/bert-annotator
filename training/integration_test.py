@@ -24,11 +24,12 @@ import subprocess
 
 from absl import flags
 from absl.testing import absltest
+from tensorflow.python.lib.io.file_io import filecmp
 
 FLAGS = flags.FLAGS
 
 _train_textproto_content = """documents {
-  text: "At 42 Street."
+  text: "At 42 Street or here."
   token: {
     word: "At"
     start: 0
@@ -45,9 +46,19 @@ _train_textproto_content = """documents {
     end: 11
   }
   token: {
+    word: "or"
+    start: 13
+    end: 14
+  }
+  token: {
+    word: "here"
+    start: 16
+    end: 19
+  }
+  token: {
     word: "."
-    start: 12
-    end: 12
+    start: 20
+    end: 20
   }
   labeled_spans: {
     key: "lucid"
@@ -55,6 +66,11 @@ _train_textproto_content = """documents {
       labeled_span: {
         token_start: 1
         token_end: 2
+        label: "ADDRESS"
+      }
+      labeled_span: {
+        token_start: 4
+        token_end: 4
         label: "ADDRESS"
       }
     }
@@ -145,7 +161,10 @@ class IntegrationTests(absltest.TestCase):
                                             "train.textproto")
         with open(self.train_textproto, "w") as f:
             f.write(_train_textproto_content)
-        training_text = ["At {{{42 Street}}}.\taddress\n"]
+        training_text = [
+            "At {{{42 Street}}} or here.\taddress\n",
+            "At 42 Street or {{{here}}}.\taddress"
+        ]
         self.train_lftxt = os.path.join(self.train_data_dir, "train.lftxt")
         with open(self.train_lftxt, "w") as f:
             f.writelines(training_text)
@@ -295,6 +314,26 @@ class IntegrationTests(absltest.TestCase):
             arguments=("--module_url", self.module_url, "--input_paths",
                        self.test_data_dir, "--raw_paths", self.test_lftxt,
                        "--visualisation_folder", visualisation_dir))
+
+    def test_file_format_equivalence(self):
+        """Test data conversion."""
+        self.run_helper(
+            "main",
+            arguments=("--corpora", "train", "--input_directory",
+                       self.train_data_dir, "--output_directory",
+                       self.train_data_dir, "--addresses_path",
+                       self.augmenter_replacement_input, "--phones_path",
+                       self.augmenter_replacement_input, "--num_total", "0"))
+        train_binproto = os.path.join(self.train_data_dir, "train.binproto")
+        self.run_helper("convert_data",
+                        arguments=("--module_url", self.module_url,
+                                   "--train_data_input_path", train_binproto,
+                                   "--train_data_output_path",
+                                   self.train_tfrecord,
+                                   "--dev_data_input_path", self.test_lftxt,
+                                   "--dev_data_output_path", self.dev_tfrecord,
+                                   "--meta_data_file_path", self.meta_data))
+        filecmp(self.train_tfrecord, self.dev_tfrecord)
 
 
 if __name__ == "__main__":
