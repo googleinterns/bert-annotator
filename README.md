@@ -90,14 +90,14 @@ Transform the (augmented or original) data into TFRecord files
  --module_url=[MODULE URL] \
  --train_data_input_path=data/output/train.binproto \
  --dev_data_input_path=data/permanent_output/dev.binproto \
- --test_data_input_path=data/output/test.binproto \
- --test_data_input_path=data/input/raw/test_phone.lftxt \
- --test_data_input_path=data/input/raw/test_address.lftxt \
+ --test_data_input_paths=data/output/test.binproto \
+ --test_data_input_paths=data/input/raw/test_phone.lftxt \
+ --test_data_input_paths=data/input/raw/test_address.lftxt \
  --train_data_output_path=data/output/train.tfrecord \
  --dev_data_output_path=data/output/dev.tfrecord \
- --test_data_output_path=data/output/test_lucidsky.tfrecord \
- --test_data_output_path=data/output/test_phone.tfrecord \
- --test_data_output_path=data/output/test_address.tfrecord \
+ --test_data_output_paths=data/output/test_lucidsky.tfrecord \
+ --test_data_output_paths=data/output/test_phone.tfrecord \
+ --test_data_output_paths=data/output/test_address.tfrecord \
  --meta_data_file_path=data/output/meta_data_file.test
 ```
 

@@ -1,4 +1,4 @@
-load("@rules_python//python:defs.bzl", "py_library", "py_binary")
+load("@rules_python//python:defs.bzl", "py_library", "py_binary", "py_test")
 
 py_library(
   name = "utils",
@@ -20,7 +20,7 @@ py_binary(
   srcs = ["train.py"],
   deps = [
     ":utils",
-  ]
+  ],
 )
 
 py_binary(
@@ -28,5 +28,21 @@ py_binary(
   srcs = ["evaluate.py"],
   deps = [
     ":utils",
-  ]
+  ],
+)
+
+load("@pip_dependencies//:requirements.bzl", "requirement")
+
+py_test (
+  name = "integration_test",
+  srcs = [
+    "integration_test.py"
+  ],
+  deps = [
+    ":convert_data",
+    ":train",
+    ":evaluate",
+    requirement("tf_models_nightly"),
+  ],
+  size = "medium",
 )
