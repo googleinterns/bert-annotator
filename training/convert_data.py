@@ -30,9 +30,8 @@ from com_google_research_bert import tokenization
 from training.utils import (LABELS, MAIN_LABELS, LABEL_OUTSIDE, UNK_TOKEN,
                             PADDING_LABEL_ID, MOVING_WINDOW_MASK_LABEL_ID,
                             ADDITIONAL_LABELS,
-                            create_tokenizer_from_hub_module, split_into_words,
-                            get_labeled_text_from_linkfragment, get_documents,
-                            get_labeled_text_from_document)
+                            create_tokenizer_from_hub_module, split_into_words)
+from training.file_reader import get_file_reader
 
 flags.DEFINE_string("module_url", None,
                     "The URL to the pretrained Bert model.")
@@ -106,8 +105,8 @@ def _tokenize_example(example,
     half_moving_window_overlap = moving_window_overlap // 2
     moving_window_padding = [MOVING_WINDOW_MASK_LABEL_ID
                              ] * half_moving_window_overlap
-    # Needs additional [CLS] and [SEP] tokens.
-    max_length = max_length - 2
+    # Needs additional [CLS] and [SEP] tokens and space for the moving window.
+    max_length = max_length - 2 - moving_window_overlap
     new_examples = []
     new_example = tagging_data_lib.InputExample(
         sentence_id=example.sentence_id, sub_sentence_id=0)
@@ -216,87 +215,6 @@ def _write_example_to_file(examples,
     return num_tokenized_examples
 
 
-def _read_binproto(file_name, tokenizer, use_additional_labels,
-                   use_gold_tokenization_and_include_target_labels):
-    """Reads one file and returns a list of `InputExample` instances."""
-    examples = []
-    sentence_id = 0
-    example = tagging_data_lib.InputExample(sentence_id=0)
-    for document in get_documents(file_name):
-        text = document.text
-
-        if use_gold_tokenization_and_include_target_labels:
-            for labeled_example in get_labeled_text_from_document(document):
-                assert labeled_example.suffix == ""
-                _add_label(labeled_example.prefix, LABEL_OUTSIDE, tokenizer,
-                           example, use_additional_labels)
-                _add_label(labeled_example.selection, labeled_example.label,
-                           tokenizer, example, use_additional_labels)
-        else:
-            # The tokenizer will split the text without taking the target labels
-            # into account.
-            _add_label(text, LABEL_OUTSIDE, tokenizer, example,
-                       use_additional_labels)
-
-        if example.words:
-            examples.append(example)
-            sentence_id += 1
-            example = tagging_data_lib.InputExample(sentence_id=sentence_id)
-    return examples
-
-
-def _read_lftxt(path, tokenizer, use_additional_labels,
-                use_gold_tokenization_and_include_target_labels):
-    """Reads one file and returns a list of `InputExample` instances."""
-    label_id_map = {label: i for i, label in enumerate(LABELS)}
-    examples = []
-    sentence_id = 0
-    example = tagging_data_lib.InputExample(sentence_id=0)
-    prev_text = ""
-    for labeled_example in get_labeled_text_from_linkfragment(path):
-
-        if use_gold_tokenization_and_include_target_labels:
-            if prev_text == labeled_example.complete_text:
-                # Recover the previous example object.
-                sentence_id -= 1
-                example = examples[-1]
-                del examples[-1]
-                num_prefix_words = len(
-                    split_into_words(labeled_example.prefix, tokenizer))
-                if any([
-                        label_id != label_id_map[LABEL_OUTSIDE]
-                        for label_id in example.label_ids[num_prefix_words:]
-                ]):
-                    raise NotImplementedError(
-                        "If the .lftxt file contains the same sentence multiple"
-                        " times, they are assumed to be sorted in the order of"
-                        " labelled sequences.")
-                del example.label_ids[num_prefix_words:]
-                del example.words[num_prefix_words:]
-            else:
-                _add_label(labeled_example.prefix, LABEL_OUTSIDE, tokenizer,
-                           example, use_additional_labels)
-            _add_label(labeled_example.selection, labeled_example.label,
-                       tokenizer, example, use_additional_labels)
-            _add_label(labeled_example.suffix, LABEL_OUTSIDE, tokenizer,
-                       example, use_additional_labels)
-        else:
-            if prev_text == labeled_example.complete_text:
-                continue
-            _add_label(labeled_example.complete_text,
-                       LABEL_OUTSIDE,
-                       tokenizer,
-                       example,
-                       use_additional_labels=False)
-        prev_text = labeled_example.complete_text
-
-        if example.words:
-            examples.append(example)
-            sentence_id += 1
-            example = tagging_data_lib.InputExample(sentence_id=sentence_id)
-    return examples
-
-
 def _generate_tf_records(tokenizer, max_seq_length, train_examples,
                          dev_examples, test_input_data_examples,
                          train_data_output_path, dev_data_output_path,
@@ -343,46 +261,26 @@ def _generate_tf_records(tokenizer, max_seq_length, train_examples,
         writer.write(json.dumps(meta_data, indent=4) + "\n")
 
 
-def _get_examples(path, tokenizer, train_with_additional_labels,
-                  use_gold_tokenization_and_include_target_labels):
-    """Loads the data from a .binproto or .lftxt file."""
-    if path.endswith(".binproto"):
-        examples = _read_binproto(
-            path, tokenizer, train_with_additional_labels,
-            use_gold_tokenization_and_include_target_labels)
-    elif path.endswith(".lftxt"):
-        examples = _read_lftxt(
-            path, tokenizer, train_with_additional_labels,
-            use_gold_tokenization_and_include_target_labels)
-    else:
-        raise ValueError(
-            "Invalid file format, only .binproto and .lftxt are supported.")
-    return examples
-
-
 def main(_):
     if len(FLAGS.test_data_input_paths) != len(FLAGS.test_data_output_paths):
         raise ValueError("Specify an output path for each test input")
 
     tokenizer = create_tokenizer_from_hub_module(FLAGS.module_url)
 
-    train_examples = _get_examples(
-        FLAGS.train_data_input_path,
+    train_examples = get_file_reader(FLAGS.train_data_input_path).get_examples(
         tokenizer,
         FLAGS.train_with_additional_labels,
         use_gold_tokenization_and_include_target_labels=True)
-    dev_examples = _get_examples(
-        FLAGS.dev_data_input_path,
+    dev_examples = get_file_reader(FLAGS.dev_data_input_path).get_examples(
         tokenizer,
         FLAGS.train_with_additional_labels,
         use_gold_tokenization_and_include_target_labels=True)
     test_examples = {}
     for input_path, output_path in zip(FLAGS.test_data_input_paths,
                                        FLAGS.test_data_output_paths):
-        test_examples[output_path] = _get_examples(
-            input_path,
+        test_examples[output_path] = get_file_reader(input_path).get_examples(
             tokenizer,
-            train_with_additional_labels=False,
+            use_additional_labels=False,
             use_gold_tokenization_and_include_target_labels=False)
 
     moving_window_overlap = FLAGS.moving_window_overlap
