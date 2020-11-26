@@ -35,6 +35,7 @@ struct Augmentations {
   int num_contextless_addresses;
   int num_contextless_phones;
   bool mask_digits;
+  bool shuffle;
 };
 
 }  // namespace augmenter

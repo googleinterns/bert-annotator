@@ -57,6 +57,7 @@ cc_library(
   hdrs = ["proto_io.h"],
   deps = [
     "//protocol_buffer:documents_cc_proto",
+    "@com_google_absl//absl/strings:strings",
   ]
 )
 

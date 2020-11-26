@@ -201,6 +201,8 @@ class IntegrationTests(absltest.TestCase):
 
         self.train_tfrecord = os.path.join(self.train_data_dir,
                                            "train.tfrecord")
+        self.train_binproto = os.path.join(self.train_data_dir,
+                                           "train.binproto")
         self.dev_tfrecord = os.path.join(self.train_data_dir, "dev.tfrecord")
         self.test_tfrecord = os.path.join(self.test_data_dir, "test.tfrecord")
         self.test2_tfrecord = os.path.join(self.test2_data_dir,
@@ -217,20 +219,18 @@ class IntegrationTests(absltest.TestCase):
         """Test normal training."""
         self.run_helper(
             "main",
-            arguments=("--corpora", "train", "--input_directory",
-                       self.train_data_dir, "--output_directory",
-                       self.train_data_dir, "--addresses_path",
+            arguments=("--inputs", self.train_textproto, "--outputs",
+                       self.train_binproto, "--addresses_path",
                        self.augmenter_replacement_input, "--phones_path",
                        self.augmenter_replacement_input, "--num_total", "0"))
-        train_binproto = os.path.join(self.train_data_dir, "train.binproto")
         self.run_helper(
             "convert_data",
             arguments=("--module_url", self.module_url,
-                       "--train_data_input_path", train_binproto,
+                       "--train_data_input_path", self.train_binproto,
                        "--train_data_output_path", self.train_tfrecord,
-                       "--dev_data_input_path", train_binproto,
+                       "--dev_data_input_path", self.train_binproto,
                        "--dev_data_output_path", self.dev_tfrecord,
-                       "--test_data_input_paths", train_binproto,
+                       "--test_data_input_paths", self.train_binproto,
                        "--test_data_output_paths", self.test_tfrecord,
                        "--test_data_input_paths", self.test2_lftxt,
                        "--test_data_output_paths", self.test2_tfrecord,
@@ -247,7 +247,7 @@ class IntegrationTests(absltest.TestCase):
             "evaluate",
             arguments=("--module_url", self.module_url, "--model_path",
                        model_path, "--input_paths", self.train_tfrecord,
-                       "--raw_paths", train_binproto, "--input_paths",
+                       "--raw_paths", self.train_binproto, "--input_paths",
                        self.test_tfrecord, "--raw_paths", self.test_lftxt,
                        "--input_paths", self.test2_tfrecord, "--raw_paths",
                        self.test2_lftxt, "--visualisation_folder",
@@ -330,16 +330,14 @@ class IntegrationTests(absltest.TestCase):
         """Test data conversion."""
         self.run_helper(
             "main",
-            arguments=("--corpora", "train", "--input_directory",
-                       self.train_data_dir, "--output_directory",
-                       self.train_data_dir, "--addresses_path",
+            arguments=("--inputs", self.train_textproto, "--outputs",
+                       self.train_binproto, "--addresses_path",
                        self.augmenter_replacement_input, "--phones_path",
                        self.augmenter_replacement_input, "--num_total", "0"))
-        train_binproto = os.path.join(self.train_data_dir, "train.binproto")
         self.run_helper(
             "convert_data",
             arguments=("--module_url", self.module_url,
-                       "--train_data_input_path", train_binproto,
+                       "--train_data_input_path", self.train_binproto,
                        "--train_data_output_path", self.train_tfrecord,
                        "--dev_data_input_path", self.test_lftxt,
                        "--dev_data_output_path", self.dev_tfrecord,

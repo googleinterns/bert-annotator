@@ -122,7 +122,8 @@ augmenter::Augmentations GetDefaultAugmentations() {
       .prob_sentence_concatenation = 0.0,
       .num_contextless_addresses = 0,
       .num_contextless_phones = 0,
-      .mask_digits = false};
+      .mask_digits = false,
+      .shuffle = true};
 }
 
 void ExpectEq(const bert_annotator::Document a,
