@@ -112,7 +112,7 @@ class BinProtoReader(FileReader):
                     document, only_main_labels=True):
                 assert labeled_example.suffix == ""
                 total_prefix += labeled_example.prefix
-                labeled_example.prefix = total_prefix
+                labeled_example = labeled_example._replace(prefix=total_prefix)
                 self._update_characterwise_target_labels(
                     tokenizer, labeled_example, characterwise_target_labels)
                 total_prefix += labeled_example.selection
