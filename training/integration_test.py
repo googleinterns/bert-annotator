@@ -214,7 +214,7 @@ class IntegrationTests(absltest.TestCase):
         self.checkpoint_dir = os.path.join(self.out_dir, "checkpoints")
 
     def test_training(self):
-        """Test data conversion."""
+        """Test normal training."""
         self.run_helper(
             "main",
             arguments=("--corpora", "train", "--input_directory",
@@ -246,10 +246,12 @@ class IntegrationTests(absltest.TestCase):
         self.run_helper(
             "evaluate",
             arguments=("--module_url", self.module_url, "--model_path",
-                       model_path, "--input_paths", self.test_tfrecord,
-                       "--raw_paths", self.test_lftxt, "--input_paths",
-                       self.test2_tfrecord, "--raw_paths", self.test2_lftxt,
-                       "--visualisation_folder", visualisation_dir))
+                       model_path, "--input_paths", self.train_tfrecord,
+                       "--raw_paths", train_binproto, "--input_paths",
+                       self.test_tfrecord, "--raw_paths", self.test_lftxt,
+                       "--input_paths", self.test2_tfrecord, "--raw_paths",
+                       self.test2_lftxt, "--visualisation_folder",
+                       visualisation_dir))
 
     def test_training_additional_labels(self):
         """Training with additional labels."""
