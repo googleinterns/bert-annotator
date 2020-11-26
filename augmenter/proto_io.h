@@ -19,20 +19,24 @@
 
 #include <string>
 
+#include "absl/strings/match.h"
 #include "protocol_buffer/documents.pb.h"
 
 namespace augmenter {
 
 class ProtoIO {
  public:
-  bool LoadText(const std::string& directory, const std::string& corpus);
-  bool SaveText(const std::string& directory, const std::string& corpus) const;
-  bool SaveBinary(const std::string& directory, const std::string& corpus)
-    const;
+  bool Load(absl::string_view path);
+  bool Save(absl::string_view path) const;
   const bert_annotator::Documents documents() const;
   void set_documents(const bert_annotator::Documents documents);
 
  private:
+  bool LoadText(absl::string_view path);
+  bool SaveText(absl::string_view path) const;
+  bool SaveTxt(absl::string_view path) const;
+  bool LoadBinary(absl::string_view path);
+  bool SaveBinary(absl::string_view path) const;
   bert_annotator::Documents documents_;
 };
 

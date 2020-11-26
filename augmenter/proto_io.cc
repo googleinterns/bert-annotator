@@ -20,32 +20,80 @@
 #include <string>
 #include <iostream>
 
+#include "absl/strings/match.h"
 #include "google/protobuf/io/zero_copy_stream_impl.h"
 #include "google/protobuf/text_format.h"
 #include "protocol_buffer/documents.pb.h"
 
 namespace augmenter {
 
-bool ProtoIO::LoadText(const std::string& directory,
-                       const std::string& corpus) {
-  std::ifstream input(directory + "/" + corpus + ".textproto");
+bool ProtoIO::Load(absl::string_view path) {
+  if (absl::EndsWith(path, ".binproto")) {
+    return LoadBinary(path);
+  } else if (absl::EndsWith(path, ".textproto")) {
+    return LoadText(path);
+  } else {
+    std::cerr << "File format of file " << path << " is not supported"
+              << std::endl;
+    return false;
+  }
+}
+
+bool ProtoIO::LoadText(absl::string_view path) {
+  std::ifstream input(std::string(path), std::ios::in);
   if (input.fail()) {
-    std::cerr << "Failed to load corpus " << corpus << std::endl;
+    std::cerr << "Failed to load corpus " << path << std::endl;
     return false;
   }
   google::protobuf::io::IstreamInputStream fileInput(&input, std::ios::binary);
   if (!google::protobuf::TextFormat::Parse(&fileInput, &documents_)) {
-    std::cerr << "Failed to parse corpus " << corpus << std::endl;
+    std::cerr << "Failed to parse corpus " << path << std::endl;
     return false;
   }
-
   return true;
 }
 
-bool ProtoIO::SaveBinary(const std::string& directory,
-                         const std::string& corpus) const {
-  std::ofstream output(directory + "/" + corpus + ".binproto",
-                        std::ios::out | std::ios::trunc | std::ios::binary);
+bool ProtoIO::LoadBinary(absl::string_view path) {
+  std::ifstream input(std::string(path), std::ios::in | std::ios::binary);
+  if (input.fail()) {
+    std::cerr << "Failed to load corpus " << path << std::endl;
+    return false;
+  }
+  if (!documents_.ParseFromIstream(&input)) {
+    std::cerr << "Failed to parse corpus " << path << std::endl;
+    return false;
+  }
+  return true;
+}
+
+bool ProtoIO::Save(absl::string_view path) const {
+  if (absl::EndsWith(path, ".binproto")) {
+    return SaveBinary(path);
+  } else if (absl::EndsWith(path, ".textproto")) {
+    return SaveText(path);
+  } else if (absl::EndsWith(path, ".txt")) {
+    return SaveTxt(path);
+  } else {
+    std::cerr << "File format of file " << path << " is not supported"
+              << std::endl;
+    return false;
+  }
+}
+
+bool ProtoIO::SaveText(absl::string_view path) const {
+  std::ofstream output(std::string(path), std::ios::out);
+  google::protobuf::io::OstreamOutputStream fileOutput(&output,
+                                                       std::ios::binary);
+  if (!google::protobuf::TextFormat::Print(documents_, &fileOutput)) {
+    std::cerr << "Failed to save document." << std::endl;
+    return false;
+  }
+  return true;
+}
+
+bool ProtoIO::SaveBinary(absl::string_view path) const {
+  std::ofstream output(std::string(path),
+                       std::ios::out | std::ios::trunc | std::ios::binary);
   if (!documents_.SerializeToOstream(&output)) {
     std::cerr << "Failed to save document." << std::endl;
     return false;
@@ -53,17 +101,18 @@ bool ProtoIO::SaveBinary(const std::string& directory,
   return true;
 }
 
-bool ProtoIO::SaveText(const std::string& directory,
-                       const std::string& corpus) const {
-  std::ofstream output(directory + "/" + corpus + ".textproto");
-  google::protobuf::io::OstreamOutputStream fileOutput(&output,
-                                                      std::ios::binary);
-  if (!google::protobuf::TextFormat::Print(documents_, &fileOutput)) {
-    std::cerr << "Failed to save document." << std::endl;
+bool ProtoIO::SaveTxt(absl::string_view path) const {
+  std::ofstream output(std::string(path), std::ios::out);
+  if (output.is_open()) {
+    for (const bert_annotator::Document& document : documents_.documents()) {
+      output << document.text() << "\n";
+    }
+    output.close();
+    return true;
+  } else {
+    std::cerr << "Failed to save document.";
     return false;
   }
-
-  return true;
 }
 
 const bert_annotator::Documents ProtoIO::documents() const {

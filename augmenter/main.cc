@@ -26,10 +26,10 @@
 #include "augmenter/random_sampler.h"
 #include "augmenter/shuffler.h"
 
-ABSL_FLAG(std::vector<std::string>, corpora, std::vector<std::string>({}),
-          "comma-separated list of corpora to augment");
-ABSL_FLAG(std::string, input_directory, "", "Path to the input directory.");
-ABSL_FLAG(std::string, output_directory, "", "Path to the output directory.");
+ABSL_FLAG(std::vector<std::string>, inputs, std::vector<std::string>({}),
+          "comma-separated list of input files");
+ABSL_FLAG(std::vector<std::string>, outputs, std::vector<std::string>({}),
+          "comma-separated list of output files");
 ABSL_FLAG(std::string, addresses_path, "",
           "Path to list of alternative addresses");
 ABSL_FLAG(std::string, phones_path, "",
@@ -70,9 +70,8 @@ ABSL_FLAG(int, num_contextless_phones, 0,
           "any context");
 ABSL_FLAG(bool, mask_digits, false,
           "If set, all digits are replaced with zeros");
-ABSL_FLAG(bool, save_as_text, false,
-          "If set, the augmented data is saved in text format. Useful for "
-          "debugging");
+ABSL_FLAG(bool, shuffle, true,
+          "If set, the documents are shuffled");
 
 // Augments the dataset by applying configurable actions, see defined flags.
 int main(int argc, char* argv[]) {
@@ -82,7 +81,8 @@ int main(int argc, char* argv[]) {
 
   absl::ParseCommandLine(argc, argv);
 
-  const std::vector<std::string> corpora = absl::GetFlag(FLAGS_corpora);
+  const std::vector<std::string> inputs = absl::GetFlag(FLAGS_inputs);
+  const std::vector<std::string> outputs = absl::GetFlag(FLAGS_outputs);
   const std::string addresses_path = absl::GetFlag(FLAGS_addresses_path);
   const std::string phones_path = absl::GetFlag(FLAGS_phones_path);
 
@@ -111,17 +111,18 @@ int main(int argc, char* argv[]) {
       .num_contextless_addresses =
           absl::GetFlag(FLAGS_num_contextless_addresses),
       .num_contextless_phones = absl::GetFlag(FLAGS_num_contextless_phones),
-      .mask_digits = absl::GetFlag(FLAGS_mask_digits)};
+      .mask_digits = absl::GetFlag(FLAGS_mask_digits),
+      .shuffle = absl::GetFlag(FLAGS_shuffle)};
 
-  augmenter::ProtoIO textproto_io = augmenter::ProtoIO();
-  std::string input_directory = absl::GetFlag(FLAGS_input_directory);
-  std::string output_directory = absl::GetFlag(FLAGS_output_directory);
-  for (const std::string& corpus : corpora) {
-    if (!textproto_io.LoadText(input_directory, corpus)) {
-      std::cerr << "Skipping corpus " << corpus << "." << std::endl;
+  augmenter::ProtoIO proto_io = augmenter::ProtoIO();
+  for (int i = 0; i < static_cast<int>(inputs.size()); ++i) {
+    const std::string& input_file = inputs[i];
+    const std::string& output_file = outputs[i];
+    if (!proto_io.Load(input_file)) {
+      std::cerr << "Skipping corpus " << input_file << "." << std::endl;
       continue;
     }
-    std::cout << "Processing corpus " << corpus << std::endl;
+    std::cout << "Processing corpus " << input_file << std::endl;
 
     if (addresses_path.empty()) {
       std::cerr << "List of alternative addresses must be provided."
@@ -155,15 +156,11 @@ int main(int argc, char* argv[]) {
     absl::BitGen bitgen;
 
     augmenter::Augmenter augmenter = augmenter::Augmenter(
-        textproto_io.documents(), augmentations, &address_sampler,
+        proto_io.documents(), augmentations, &address_sampler,
         &phones_sampler, &shuffler, bitgen);
     augmenter.Augment();
-    textproto_io.set_documents(augmenter.documents());
-    if (absl::GetFlag(FLAGS_save_as_text)) {
-      textproto_io.SaveText(output_directory, corpus);
-    } else {
-      textproto_io.SaveBinary(output_directory, corpus);
-    }
+    proto_io.set_documents(augmenter.documents());
+    proto_io.Save(output_file);
   }
 
   return 0;
