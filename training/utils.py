@@ -90,15 +90,8 @@ def create_tokenizer_from_hub_module(module_url):
 
 
 def split_into_words(text, tokenizer):
-    """Splits the text given the tokenizer, but merges subwords."""
-    words = tokenizer.tokenize(text)
-    joined_words = []
-    for word in words:
-        if word.startswith("##"):
-            joined_words[-1] += word[2:]
-        else:
-            joined_words.append(word)
-    return joined_words
+    """Splits the text given the tokenizer."""
+    return tokenizer.basic_tokenizer.tokenize(text)
 
 
 def remove_whitespace_and_parse(text, tokenizer):
