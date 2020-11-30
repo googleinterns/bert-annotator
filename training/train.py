@@ -47,8 +47,8 @@ flags.DEFINE_enum("optimizer", "sgd", ["sgd", "adam"], "The optimizer.")
 flags.DEFINE_float("learning_rate", 0.01, "The learning rate.")
 flags.DEFINE_float(
     "plateau_lr_reduction", 0.2,
-    "The learning rate is reduced by  this factor once a plateau (measured on"
-    " the validation loss is reached)")
+    "The learning rate is reduced by this factor once a plateau (measured on"
+    " the validation loss) is reached)")
 flags.DEFINE_integer(
     "plateau_patience", 3,
     "How many epochs to wait on a plateau before the learning rate is reduced."
