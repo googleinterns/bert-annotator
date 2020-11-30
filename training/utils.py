@@ -75,6 +75,8 @@ BERT_SENTENCE_START = "[CLS]"
 BERT_SENTENCE_SEPARATOR = "[SEP]"
 BERT_SENTENCE_PADDING = "[PAD]"
 
+_MAX_BINPROTO_PREFIX_LENGTH = 10
+
 LabeledExample = collections.namedtuple(
     "LabeledExample",
     ["prefix", "selection", "suffix", "complete_text", "label"])
@@ -182,10 +184,9 @@ def get_labeled_text_from_document(document, only_main_labels=False):
 def get_documents(path):
     """Provides an iterator over all documents, where the boundaries have been
     updated to use codeunits."""
-    length_prefix_length = 10
     document = proto_document.Document()
     with open(path, "rb") as src_file:
-        msg_buf = src_file.read(length_prefix_length)
+        msg_buf = src_file.read(_MAX_BINPROTO_PREFIX_LENGTH)
         while msg_buf:
             # Get the message length.
             msg_len, new_pos = _DecodeVarint32(msg_buf, 1)
@@ -195,5 +196,5 @@ def get_documents(path):
             document.ParseFromString(msg_buf)
             msg_buf = msg_buf[msg_len:]
             # Read the length prefix for the next message.
-            msg_buf += src_file.read(length_prefix_length)
+            msg_buf += src_file.read(_MAX_BINPROTO_PREFIX_LENGTH)
             yield _convert_token_boundaries_to_codeunits(document)
