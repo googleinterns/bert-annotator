@@ -261,18 +261,18 @@ def _read_lftxt(path, tokenizer, use_additional_labels,
                 sentence_id -= 1
                 example = examples[-1]
                 del examples[-1]
-                prefix_word_length = len(
+                num_prefix_words = len(
                     split_into_words(labeled_example.prefix, tokenizer))
                 if any([
                         label_id != label_id_map[LABEL_OUTSIDE]
-                        for label_id in example.label_ids[prefix_word_length:]
+                        for label_id in example.label_ids[num_prefix_words:]
                 ]):
                     raise NotImplementedError(
                         "If the .lftxt file contains the same sentence multiple"
                         " times, they are assumed to be sorted in the order of"
                         " labelled sequences.")
-                del example.label_ids[prefix_word_length:]
-                del example.words[prefix_word_length:]
+                del example.label_ids[num_prefix_words:]
+                del example.words[num_prefix_words:]
             else:
                 _add_label(labeled_example.prefix, LABEL_OUTSIDE, tokenizer,
                            example, use_additional_labels)
