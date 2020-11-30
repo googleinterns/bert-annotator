@@ -539,11 +539,9 @@ def _extract_words(raw_path, tokenizer):
                                          merge_identical_sentences=True)
 
 
-def _get_characterwise_predicted_label_names(module_url, model_path,
-                                             input_path,
-                                             train_with_additional_labels,
-                                             words_per_sentence, raw_path,
-                                             tokenizer):
+def _infer_characterwise_label_names(module_url, model_path, input_path,
+                                     train_with_additional_labels,
+                                     words_per_sentence, raw_path, tokenizer):
     """Extracts the characterwise label names."""
     if input_path.endswith(".tfrecord"):
         predicted_label_ids_per_sentence = _infer(
@@ -615,13 +613,13 @@ def _save_predictions(output_directory, test_name,
             saved_at_least_once = False
             for i, label_name in enumerate(
                     characterwise_predicted_label_names):
-                if label_name == LABEL_OUTSIDE:
+                if _is_label_type(label_name, LabelType.OUTSIDE):
                     if label is not None:
                         _save_as_linkfragment(words, label_start, i - 1, label,
                                               output_file)
                         label = None
                         saved_at_least_once = True
-                elif label_name.startswith("B-"):
+                elif _is_label_type(label_name, LabelType.BEGINNING):
                     if label is not None:
                         _save_as_linkfragment(words, label_start, i - 1, label,
                                               output_file)
@@ -645,7 +643,7 @@ def main(_):
         words_per_sentence = _extract_words(raw_path, tokenizer)
 
         characterwise_predicted_label_names_per_sentence = (
-            _get_characterwise_predicted_label_names(
+            _infer_characterwise_label_names(
                 FLAGS.module_url, FLAGS.model_path, input_path,
                 FLAGS.train_with_additional_labels, words_per_sentence,
                 raw_path, tokenizer))
