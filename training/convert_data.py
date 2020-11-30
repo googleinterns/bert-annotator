@@ -256,7 +256,9 @@ def _read_lftxt(path, tokenizer, use_additional_labels,
         if use_gold_tokenization_and_include_target_labels:
             if prev_text == labeled_example.complete_text:
                 raise NotImplementedError(
-                    "Merging with target labels is not implemented.")
+                    "Merging non-overlapping labels from multiple instances of"
+                    " the same sentence is not implemented. Sentences can only"
+                    " be merged if no corresponding labels are saved.")
             _add_label(labeled_example.prefix, LABEL_OUTSIDE, tokenizer,
                        example, use_additional_labels)
             _add_label(labeled_example.selection, labeled_example.label,

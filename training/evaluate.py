@@ -447,8 +447,19 @@ def _unescape_backslashes(labeled_example):
 
 
 def _get_predictions_from_lf_directory(lf_directory, raw_path, tokenizer):
-    """Extracts the characterwise label names from all .lftxt files in the given
-    directory.
+    """Gets the characterwise labels from all .lftxt files in the directory.
+
+    Args:
+        lf_directory: Path to the directory. All contained .lftxt files are
+            parsed.
+        raw_path: Path to the file containing all sentences as they are used as
+            the input for inference. Necessary to get the correct sentence
+            order for the evaluation.
+        tokenizer: Tokenizer. Necessary to split the text into words and to
+            remove whitespace characters.
+
+    Returns:
+        List of characterwise target labels per sentence.
     """
     labeled_sentences = dict()  # Map sentences to their labels.
 
@@ -493,12 +504,19 @@ def _get_predictions_from_lf_directory(lf_directory, raw_path, tokenizer):
             assert characterwise_labels[prefix_length] == LABEL_OUTSIDE
             characterwise_labels[
                 prefix_length] = "B-%s" % labeled_example.label.upper()
-            for i in range(1, label_length):
-                assert characterwise_labels[prefix_length + i] == LABEL_OUTSIDE
-                characterwise_labels[
-                    prefix_length +
-                    i] = "I-%s" % labeled_example.label.upper()
+            assert all([
+                label == LABEL_OUTSIDE
+                for label in characterwise_labels[prefix_length +
+                                                  1:prefix_length +
+                                                  label_length]
+            ])
+            characterwise_labels[prefix_length + 1:prefix_length +
+                                 label_length] = [
+                                     "I-%s" % labeled_example.label.upper()
+                                 ] * (label_length - 1)
 
+    # The order is important, because it controls which label sequences are
+    # compared in the evaluation. Python 3.6+ preserves the insertion order.
     return list(labeled_sentences.values())
 
 
