@@ -23,18 +23,20 @@ import os
 from enum import Enum
 from absl import app, flags
 import numpy as np
+from official.nlp.data import tagging_data_lib
+from official.nlp.tasks import utils
+from official.nlp.tasks.tagging import TaggingConfig, TaggingTask
+from official.nlp.data import tagging_dataloader
 from seqeval.scheme import IOB2
 from seqeval.metrics import classification_report
 import tensorflow as tf
 import orbit
+from com_google_research_bert import tokenization
 
-from official.nlp.tasks import utils
-from official.nlp.tasks.tagging import TaggingConfig, TaggingTask
-from official.nlp.data import tagging_dataloader
 from training.utils import (ADDITIONAL_LABELS, LABELS, LABEL_OUTSIDE,
-                            MAIN_LABELS, LabeledExample,
+                            MAIN_LABELS, LabeledExample, add_tfrecord_label,
                             create_tokenizer_from_hub_module,
-                            remove_whitespace_and_parse)
+                            remove_whitespace_and_parse, write_example_to_file)
 from training.file_reader import get_file_reader
 
 flags.DEFINE_string("module_url", None,
@@ -58,8 +60,18 @@ flags.DEFINE_boolean(
     "train_with_additional_labels", False,
     "Needs to be set if the flags other than address/phone were used for"
     " training, too.")
+flags.DEFINE_boolean("save_output_as_lftxt", False,
+                     "If set, the hypotheses are saved in an .lftxt file.")
+flags.DEFINE_boolean("save_output_as_tfrecord", False,
+                     "If set, the hypotheses are saved in an .tfrecord file.")
 flags.DEFINE_string("output_directory", None,
-                    "If given, the hypotheses are saved to this directory.")
+                    "Controls where to save the hypotheses.")
+flags.DEFINE_integer(
+    "moving_window_overlap", 20, "The size of the overlap for a moving window."
+    " Setting it to zero restores the default behaviour of hard splitting.")
+flags.DEFINE_integer(
+    "max_seq_length", 128,
+    "The maximal sequence length. Longer sequences are split.")
 
 FLAGS = flags.FLAGS
 
@@ -479,9 +491,9 @@ def _save_as_linkfragment(words, label_start, label_end, label, file):
                (prefix, labelled_text, suffix, label.lower()))
 
 
-def _save_predictions(output_directory, test_name,
-                      characterwise_predicted_label_names_per_sentence,
-                      words_per_sentence):
+def _save_predictions_as_lftxt(
+        output_directory, test_name,
+        characterwise_predicted_label_names_per_sentence, words_per_sentence):
     """Saves the hypotheses to an .lftxt file."""
     with open(os.path.join(output_directory, "%s.lftxt" % test_name),
               "w") as output_file:
@@ -512,6 +524,65 @@ def _save_predictions(output_directory, test_name,
                 _save_as_linkfragment(words, 0, -1, "OUTSIDE", output_file)
 
 
+def _get_main_label_from_bio_label(label_name):
+    if _is_label_type(label_name, LabelType.OUTSIDE):
+        return LABEL_OUTSIDE
+    else:
+        return label_name[2:]  # Strip "B-" or "I-"
+
+
+def _save_predictions_as_tfrecord(
+        output_directory, test_name,
+        characterwise_predicted_label_names_per_sentence, words_per_sentence,
+        moving_window_overlap, max_seq_length, tokenizer):
+    """Saves the hypotheses to an .lftxt file."""
+    examples = []
+    sentence_id = 0
+    example = tagging_data_lib.InputExample(sentence_id=0)
+    for (characterwise_predicted_label_names,
+         words) in zip(characterwise_predicted_label_names_per_sentence,
+                       words_per_sentence):
+        selection_start = 0
+        selection_label = None
+        for i, label_name in enumerate(characterwise_predicted_label_names):
+            if i == 0:
+                selection_label = _get_main_label_from_bio_label(label_name)
+                continue
+
+            if _is_label_type(label_name, LabelType.BEGINNING) or (
+                    selection_label != LABEL_OUTSIDE
+                    and _is_label_type(label_name, LabelType.OUTSIDE)):
+                selection = _get_text_from_character_indices(
+                    words, selection_start, i - 1)
+                add_tfrecord_label(selection,
+                                   selection_label,
+                                   tokenizer,
+                                   example,
+                                   use_additional_labels=True)
+                selection_label = _get_main_label_from_bio_label(label_name)
+                selection_start = i
+        selection = _get_text_from_character_indices(words,
+                                                     selection_start,
+                                                     end=None)
+        add_tfrecord_label(selection,
+                           selection_label,
+                           tokenizer,
+                           example,
+                           use_additional_labels=True)
+        assert example.words
+        examples.append(example)
+        sentence_id += 1
+        example = tagging_data_lib.InputExample(sentence_id=sentence_id)
+    write_example_to_file(examples=examples,
+                          tokenizer=tokenizer,
+                          max_seq_length=max_seq_length,
+                          output_file=os.path.join(output_directory,
+                                                   "%s.tfrecord" % test_name),
+                          text_preprocessing=tokenization.convert_to_unicode,
+                          moving_window_overlap=moving_window_overlap,
+                          mask_overlap=False)
+
+
 def main(_):
     if len(FLAGS.input_paths) != len(FLAGS.raw_paths):
         raise ValueError("The number of inputs and raw paths must be equal.")
@@ -535,11 +606,26 @@ def main(_):
         (characterwise_target_labels_per_sentence, characters_per_sentence
          ) = file_reader.get_characterwise_target_labels(tokenizer)
 
-        if FLAGS.output_directory:
-            _save_predictions(
-                FLAGS.output_directory, test_name,
-                characterwise_predicted_label_names_per_sentence,
-                words_per_sentence)
+        if FLAGS.save_output_as_lftxt or FLAGS.save_output_as_tfrecord:
+            if not FLAGS.output_directory:
+                raise ValueError(
+                    "If the hypotheses are supposed to be saved, an output"
+                    " directory must be specified.")
+            if FLAGS.save_output_as_lftxt:
+                _save_predictions_as_lftxt(
+                    FLAGS.output_directory, test_name,
+                    characterwise_predicted_label_names_per_sentence,
+                    words_per_sentence)
+            if FLAGS.save_output_as_tfrecord:
+                _save_predictions_as_tfrecord(
+                    output_directory=FLAGS.output_directory,
+                    test_name=test_name,
+                    characterwise_predicted_label_names_per_sentence=
+                    characterwise_predicted_label_names_per_sentence,
+                    words_per_sentence=words_per_sentence,
+                    moving_window_overlap=FLAGS.moving_window_overlap,
+                    max_seq_length=FLAGS.max_seq_length,
+                    tokenizer=tokenizer)
 
         if FLAGS.visualisation_folder:
             for visualised_label in MAIN_LABELS:

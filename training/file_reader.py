@@ -16,10 +16,10 @@
 """Readers for different file formats."""
 
 from official.nlp.data import tagging_data_lib
-from training.utils import (ADDITIONAL_LABELS, LABELS, LABEL_CONTAINER_NAME,
-                            LABEL_OUTSIDE, LF_ADDRESS_LABEL,
-                            LF_TELEPHONE_LABEL, MAIN_LABELS, LabeledExample,
-                            MAIN_LABEL_ADDRESS, MAIN_LABEL_TELEPHONE,
+from training.utils import (LABELS, LABEL_CONTAINER_NAME, LABEL_OUTSIDE,
+                            LF_ADDRESS_LABEL, LF_TELEPHONE_LABEL, MAIN_LABELS,
+                            LabeledExample, MAIN_LABEL_ADDRESS,
+                            MAIN_LABEL_TELEPHONE, add_tfrecord_label,
                             split_into_words, remove_whitespace_and_parse)
 from google.protobuf.internal.decoder import _DecodeVarint32
 
@@ -55,24 +55,6 @@ class FileReader:
                      use_gold_tokenization_and_include_target_labels):
         raise NotImplementedError(
             "Needs to be implemented by the child class.")
-
-    def _add_label(self, text, label, tokenizer, example,
-                   use_additional_labels):
-        """Adds one label for each word in the text to the example."""
-        label_id_map = {label: i for i, label in enumerate(LABELS)}
-
-        words = split_into_words(text, tokenizer)
-        if label in MAIN_LABELS or (use_additional_labels and label
-                                    in MAIN_LABELS + ADDITIONAL_LABELS):
-            example.add_word_and_label_id(words[0],
-                                          label_id_map["B-%s" % label])
-            for word in words[1:]:
-                example.add_word_and_label_id(word,
-                                              label_id_map["I-%s" % label])
-        else:
-            for word in words:
-                example.add_word_and_label_id(word,
-                                              label_id_map[LABEL_OUTSIDE])
 
     def _update_characterwise_target_labels(self, tokenizer, labeled_example,
                                             characterwise_target_labels):
@@ -134,16 +116,17 @@ class BinProtoReader(FileReader):
             if use_gold_tokenization_and_include_target_labels:
                 for labeled_example in self._get_labeled_text(document):
                     assert labeled_example.suffix == ""
-                    self._add_label(labeled_example.prefix, LABEL_OUTSIDE,
-                                    tokenizer, example, use_additional_labels)
-                    self._add_label(labeled_example.selection,
-                                    labeled_example.label, tokenizer, example,
-                                    use_additional_labels)
+                    add_tfrecord_label(labeled_example.prefix, LABEL_OUTSIDE,
+                                       tokenizer, example,
+                                       use_additional_labels)
+                    add_tfrecord_label(labeled_example.selection,
+                                       labeled_example.label, tokenizer,
+                                       example, use_additional_labels)
             else:
                 # The tokenizer will split the text without taking the target
                 # labels into account.
-                self._add_label(text, LABEL_OUTSIDE, tokenizer, example,
-                                use_additional_labels)
+                add_tfrecord_label(text, LABEL_OUTSIDE, tokenizer, example,
+                                   use_additional_labels)
 
             if example.words:
                 examples.append(example)
@@ -283,21 +266,22 @@ class LftxtReader(FileReader):
                     del example.label_ids[prefix_word_length:]
                     del example.words[prefix_word_length:]
                 else:
-                    self._add_label(labeled_example.prefix, LABEL_OUTSIDE,
-                                    tokenizer, example, use_additional_labels)
-                self._add_label(labeled_example.selection,
-                                labeled_example.label, tokenizer, example,
-                                use_additional_labels)
-                self._add_label(labeled_example.suffix, LABEL_OUTSIDE,
-                                tokenizer, example, use_additional_labels)
+                    add_tfrecord_label(labeled_example.prefix, LABEL_OUTSIDE,
+                                       tokenizer, example,
+                                       use_additional_labels)
+                add_tfrecord_label(labeled_example.selection,
+                                   labeled_example.label, tokenizer, example,
+                                   use_additional_labels)
+                add_tfrecord_label(labeled_example.suffix, LABEL_OUTSIDE,
+                                   tokenizer, example, use_additional_labels)
             else:
                 if prev_text == labeled_example.complete_text:
                     continue
-                self._add_label(labeled_example.complete_text,
-                                LABEL_OUTSIDE,
-                                tokenizer,
-                                example,
-                                use_additional_labels=False)
+                add_tfrecord_label(labeled_example.complete_text,
+                                   LABEL_OUTSIDE,
+                                   tokenizer,
+                                   example,
+                                   use_additional_labels=False)
             prev_text = labeled_example.complete_text
 
             if example.words:
@@ -390,11 +374,11 @@ class TxtReader(FileReader):
             for text in file:
                 if prev_text == text:
                     continue
-                self._add_label(text,
-                                LABEL_OUTSIDE,
-                                tokenizer,
-                                example,
-                                use_additional_labels=False)
+                add_tfrecord_label(text,
+                                   LABEL_OUTSIDE,
+                                   tokenizer,
+                                   example,
+                                   use_additional_labels=False)
                 prev_text = text
 
                 if example.words:
