@@ -313,6 +313,7 @@ class LftxtReader(FileReader):
 
                 text_without_braces = text.replace("{{{",
                                                    "").replace("}}}", "")
+                text_without_braces = text_without_braces.strip()
 
                 yield LabeledExample(prefix=prefix,
                                      selection=labeled_text,
