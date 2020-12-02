@@ -152,7 +152,19 @@ def _tokenize_example(example,
         if text_preprocessing:
             word = text_preprocessing(word)
         subwords = tokenizer.tokenize(word)
-        if (not subwords or len(subwords) > max_length) and word:
+
+        word_is_empty = not subwords
+        # max_length takes the moving window into account, to avoid that the
+        # sequence becomes too long after copying the previous context.
+        word_too_long = len(subwords) > max_length
+        # If the current sequence would be completely masked out due to the
+        # moving window, a new example must not be started yet.
+        current_sequence_too_short = len(
+            new_example.words) <= moving_window_overlap and len(
+                subwords) + len(new_example.words) > max_length
+
+        if (word_is_empty or word_too_long
+                or current_sequence_too_short) and word:
             subwords = [UNK_TOKEN]
 
         if len(subwords) + len(new_example.words) > max_length:
