@@ -45,7 +45,7 @@ flags.DEFINE_integer("batch_size", 64, "The number of samples per batch.")
 flags.DEFINE_enum("optimizer", "sgd", ["sgd", "adam"], "The optimizer.")
 flags.DEFINE_float("learning_rate", 0.01, "The learning rate.")
 flags.DEFINE_float(
-    "plateau_lr_reduction", 0.2,
+    "plateau_lr_reduction", 1.0,
     "The learning rate is reduced by this factor once a plateau (measured on"
     " the validation loss) is reached)")
 flags.DEFINE_integer(
@@ -57,71 +57,110 @@ flags.DEFINE_boolean(
     "If set, the flags other than address/phone are used, too.")
 flags.DEFINE_boolean("train_last_layer_only", False,
                      "If set, only the last layer is trainable.")
+flags.DEFINE_string(
+    "tpu_ip", None,
+    "The internal ip address of the TPU node. If not set, no tpu is used.")
 
 FLAGS = flags.FLAGS
 
 
 def train(module_url, train_data_path, validation_data_path, epochs,
           train_size, save_path, batch_size, optimizer_name, learning_rate,
-          train_last_layer_only):
-    train_data_config = tagging_dataloader.TaggingDataConfig(
-        input_path=train_data_path,
-        seq_length=128,
-        global_batch_size=batch_size)
-    validation_data_config = tagging_dataloader.TaggingDataConfig(
-        input_path=validation_data_path,
-        seq_length=128,
-        global_batch_size=batch_size,
-        is_training=False)
-    label_list = LABELS
-    if FLAGS.train_with_additional_labels:
-        label_list = LABELS + ADDITIONAL_LABELS
-    config = TaggingConfig(hub_module_url=module_url,
-                           train_data=train_data_config,
-                           validation_data=validation_data_config,
-                           class_names=label_list)
-    task = ConfigurableTrainingTaggingTask(config)
-    model = task.build_model(train_last_layer_only)
-    if optimizer_name == "sgd":
-        optimizer = tf.keras.optimizers.SGD(lr=learning_rate)
+          train_last_layer_only, plateau_lr_reduction, plateau_patience,
+          tpu_ip):
+    if tpu_ip is not None:
+        if plateau_lr_reduction != 1.0:
+            raise NotImplementedError(
+                "Learning rate reduction cannot be used on TPUs, because the"
+                " validation set cannot be evaluated.")
+        resolver = tf.distribute.cluster_resolver.TPUClusterResolver(
+            tpu="grpc://%s" % tpu_ip)
+        tf.config.experimental_connect_to_cluster(resolver)
+        tf.tpu.experimental.initialize_tpu_system(resolver)
+        strategy = tf.distribute.TPUStrategy(resolver)
     else:
-        optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
-    model.compile(
-        optimizer=optimizer,
-        metrics=[tf.keras.metrics.SparseCategoricalAccuracy(name="accuracy")])
-    model.train_step = functools.partial(task.train_step,
-                                         model=model,
-                                         optimizer=model.optimizer)
-    model.test_step = functools.partial(task.validation_step, model=model)
-    dataset_train = task.build_inputs(config.train_data)
-    dataset_validation = task.build_inputs(config.validation_data)
+        if plateau_lr_reduction != 1.0 and validation_data_path is None:
+            raise ValueError(
+                "In order to reduce the learning rate on plateaus, a validation"
+                " set must be specified.")
+        strategy = tf.distribute.get_strategy()
 
-    checkpoint = ModelCheckpoint(save_path + "/model_{epoch:02d}",
-                                 verbose=1,
-                                 save_best_only=False,
-                                 save_weights_only=True,
-                                 period=1)
-    reduce_lr = ReduceLROnPlateau(monitor="val_loss",
-                                  factor=FLAGS.plateau_lr_reduction,
-                                  patience=FLAGS.plateau_patience,
-                                  verbose=1)
-    model.fit(dataset_train,
-              validation_data=dataset_validation,
-              epochs=epochs,
-              steps_per_epoch=train_size // batch_size,
-              callbacks=[checkpoint, reduce_lr])
+    with strategy.scope():
+        train_data_config = tagging_dataloader.TaggingDataConfig(
+            input_path=train_data_path,
+            seq_length=128,
+            global_batch_size=batch_size)
+        if validation_data_path is not None:
+            validation_data_config = tagging_dataloader.TaggingDataConfig(
+                input_path=validation_data_path,
+                seq_length=128,
+                global_batch_size=batch_size,
+                is_training=False)
+        else:
+            validation_data_config = None
+
+        label_list = LABELS
+        if FLAGS.train_with_additional_labels:
+            label_list = LABELS + ADDITIONAL_LABELS
+        config = TaggingConfig(hub_module_url=module_url,
+                               train_data=train_data_config,
+                               validation_data=validation_data_config,
+                               class_names=label_list)
+        task = ConfigurableTrainingTaggingTask(config)
+        model = task.build_model(train_last_layer_only)
+        if optimizer_name == "sgd":
+            optimizer = tf.keras.optimizers.SGD(lr=learning_rate)
+        else:
+            optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
+
+        iterations_per_epoch = train_size // batch_size
+        model.compile(
+            optimizer=optimizer,
+            metrics=[
+                tf.keras.metrics.SparseCategoricalAccuracy(name="accuracy")
+            ],
+            steps_per_execution=iterations_per_epoch)
+        model.train_step = functools.partial(task.train_step,
+                                             model=model,
+                                             optimizer=model.optimizer)
+        dataset_train = task.build_inputs(config.train_data)
+
+        checkpoint = ModelCheckpoint(save_path + "/model_{epoch:02d}",
+                                     verbose=1,
+                                     save_best_only=False,
+                                     save_weights_only=True,
+                                     period=1)
+        callbacks = [checkpoint]
+
+        additional_fit_parameters = {}
+        if plateau_lr_reduction != 1.0:
+            dataset_validation = task.build_inputs(config.validation_data)
+            reduce_lr = ReduceLROnPlateau(monitor="val_loss",
+                                          factor=plateau_lr_reduction,
+                                          patience=plateau_patience,
+                                          verbose=1)
+            callbacks.append(reduce_lr)
+            additional_fit_parameters["validation_data"] = dataset_validation
+            model.test_step = functools.partial(task.validation_step,
+                                                model=model)
+
+        model.fit(dataset_train,
+                  epochs=epochs,
+                  steps_per_epoch=iterations_per_epoch,
+                  callbacks=callbacks,
+                  **additional_fit_parameters)
 
 
 def main(_):
     train(FLAGS.module_url, FLAGS.train_data_path, FLAGS.validation_data_path,
           FLAGS.epochs, FLAGS.train_size, FLAGS.save_path, FLAGS.batch_size,
-          FLAGS.optimizer, FLAGS.learning_rate, FLAGS.train_last_layer_only)
+          FLAGS.optimizer, FLAGS.learning_rate, FLAGS.train_last_layer_only,
+          FLAGS.plateau_lr_reduction, FLAGS.plateau_patience, FLAGS.tpu_ip)
 
 
 if __name__ == "__main__":
     flags.mark_flag_as_required("module_url")
     flags.mark_flag_as_required("train_data_path")
-    flags.mark_flag_as_required("validation_data_path")
     flags.mark_flag_as_required("epochs")
     flags.mark_flag_as_required("train_size")
     flags.mark_flag_as_required("save_path")

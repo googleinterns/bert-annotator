@@ -17,13 +17,16 @@
 
 from abc import ABCMeta, abstractmethod
 from official.nlp.data import tagging_data_lib
-from training.utils import (LABEL_CONTAINER_NAME, LABEL_ID_MAP, LABEL_OUTSIDE,
-                            LF_ADDRESS_LABEL, LF_TELEPHONE_LABEL, MAIN_LABELS,
+from tensorflow.io.gfile import GFile
+from google.protobuf.internal.decoder import _DecodeVarint32
+from official.nlp.data import tagging_data_lib
+
+from training.utils import (LABELS, LABEL_CONTAINER_NAME, LABEL_ID_MAP,
+                            LABEL_OUTSIDE, LF_ADDRESS_LABEL,
+                            LF_TELEPHONE_LABEL, MAIN_LABELS,
                             MAIN_LABEL_ADDRESS, MAIN_LABEL_TELEPHONE,
                             LabeledExample, add_tfrecord_label,
                             split_into_words, remove_whitespace_and_parse)
-from google.protobuf.internal.decoder import _DecodeVarint32
-
 import protocol_buffer.document_pb2 as proto_document
 
 _MAX_BINPROTO_PREFIX_LENGTH = 10
@@ -159,7 +162,7 @@ class BinProtoReader(FileReader):
     def _get_documents(self):
         """Provides an iterator over all documents."""
         document = proto_document.Document()
-        with open(self.path, "rb") as src_file:
+        with GFile(self.path, "rb") as src_file:
             msg_buf = src_file.read(_MAX_BINPROTO_PREFIX_LENGTH)
             while msg_buf:
                 # Get the message length.
@@ -330,7 +333,7 @@ class LftxtReader(FileReader):
 
     def get_labeled_text(self):
         """Provides an iterator over all labeled texts in the linkfragments."""
-        with open(self.path, "r") as file:
+        with GFile(self.path, "r") as file:
             for linkfragment in file:
                 text, label_description = linkfragment.split("\t")
                 prefix, remaining_text = text.split("{{{")
@@ -369,7 +372,7 @@ class TxtReader(FileReader):
         """Returns all words as defined by the tokenizer."""
         words_per_sentence = []
         characters_per_sentence = set()
-        with open(self.path, "r") as file:
+        with GFile(self.path, "r") as file:
             for text in file:
                 characters = remove_whitespace_and_parse(text, tokenizer)
                 if characters in characters_per_sentence:
@@ -389,7 +392,7 @@ class TxtReader(FileReader):
         characters_per_sentence_set = set()
         characterwise_target_labels = []
         characters = []
-        with open(self.path, "r") as file:
+        with GFile(self.path, "r") as file:
             for text in file:
                 if characters in characters_per_sentence_set:
                     continue
@@ -416,7 +419,7 @@ class TxtReader(FileReader):
         sentence_id = 0
         example = tagging_data_lib.InputExample(sentence_id=0)
         prev_text = ""
-        with open(self.path, "r") as file:
+        with GFile(self.path, "r") as file:
             for text in file:
                 if prev_text == text:
                     continue
