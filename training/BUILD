@@ -11,6 +11,14 @@ py_library(
   ],
 )
 
+py_library(
+  name = "custom_tagging_task",
+  srcs = ["custom_tagging_task.py"],
+  deps = [
+    requirement("tf_models_nightly"),
+  ],
+)
+
 py_binary(
   name = "convert_data",
   srcs = ["convert_data.py"],
@@ -27,6 +35,7 @@ py_binary(
   srcs = ["train.py"],
   deps = [
     ":utils",
+    ":custom_tagging_task",
     requirement("tf_models_nightly"),
   ],
   python_version = "PY3",
