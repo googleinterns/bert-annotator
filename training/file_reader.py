@@ -15,6 +15,7 @@
 #
 """Readers for different file formats."""
 
+from abc import ABCMeta, abstractmethod
 from official.nlp.data import tagging_data_lib
 from training.utils import (ADDITIONAL_LABELS, LABEL_CONTAINER_NAME,
                             LABEL_ID_MAP, LABEL_OUTSIDE, LF_ADDRESS_LABEL,
@@ -41,23 +42,24 @@ def get_file_reader(path):
             "Only .binproto, .lftxt and .txt input files are supported.")
 
 
-class FileReader:
+class FileReader(metaclass=ABCMeta):
     """Base class for file readers."""
+    @abstractmethod
     def __init__(self, path):
-        self.path = path
+        pass
 
+    @abstractmethod
     def get_words(self, path, tokenizer):
-        raise NotImplementedError(
-            "Needs to be implemented by the child class.")
+        pass
 
+    @abstractmethod
     def get_characterwise_target_labels(self, path, tokenizer):
-        raise NotImplementedError(
-            "Needs to be implemented by the child class.")
+        pass
 
+    @abstractmethod
     def get_examples(self, path, tokenizer, use_additional_labels,
                      use_gold_tokenization_and_include_target_labels):
-        raise NotImplementedError(
-            "Needs to be implemented by the child class.")
+        pass
 
     def _add_label(self, text, label, tokenizer, example,
                    use_additional_labels):
@@ -93,6 +95,10 @@ class FileReader:
 
 class BinProtoReader(FileReader):
     """File reader for .binproto files."""
+    def __init__(self, path):
+        #pylint: disable=super-init-not-called)
+        self.path = path
+
     def get_words(self, tokenizer):
         """Returns all words as defined by the tokenizer."""
         words_per_sentence = []
@@ -216,6 +222,10 @@ class BinProtoReader(FileReader):
 
 class LftxtReader(FileReader):
     """File reader for .lftxt files."""
+    def __init__(self, path):
+        #pylint: disable=super-init-not-called)
+        self.path = path
+
     def get_words(self, tokenizer):
         """Returns all words as defined by the tokenizer."""
         words_per_sentence = []
@@ -338,6 +348,10 @@ class LftxtReader(FileReader):
 
 class TxtReader(FileReader):
     """File reader for .txt files."""
+    def __init__(self, path):
+        #pylint: disable=super-init-not-called)
+        self.path = path
+
     def get_words(self, tokenizer):
         """Returns all words as defined by the tokenizer."""
         words_per_sentence = []
