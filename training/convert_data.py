@@ -326,7 +326,7 @@ def _get_examples(path, tokenizer, train_with_additional_labels,
         examples = _read_binproto(
             path, tokenizer, train_with_additional_labels,
             use_gold_tokenization_and_include_target_labels)
-    elif FLAGS.train_data_input_path.endswith(".lftxt"):
+    elif path.endswith(".lftxt"):
         examples = _read_lftxt(
             path, tokenizer, train_with_additional_labels,
             use_gold_tokenization_and_include_target_labels)

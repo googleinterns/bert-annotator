@@ -27,6 +27,40 @@ from absl.testing import absltest
 
 FLAGS = flags.FLAGS
 
+_train_textproto_content = """documents {
+  text: "At 42 Street."
+  token: {
+    word: "At"
+    start: 0
+    end: 1
+  }
+  token: {
+    word: "42"
+    start: 3
+    end: 4
+  }
+  token: {
+    word: "Street"
+    start: 6
+    end: 11
+  }
+  token: {
+    word: "."
+    start: 12
+    end: 12
+  }
+  labeled_spans: {
+    key: "lucid"
+    value: {
+      labeled_span: {
+        token_start: 1
+        token_end: 2
+        label: "ADDRESS"
+      }
+    }
+  }
+}"""
+
 
 def _get_dependency(name):
     """Returns the executable path of a dependency.
@@ -100,21 +134,33 @@ class IntegrationTests(absltest.TestCase):
     def setUp(self):
         """Creates temporary files for training/evaluation."""
         self.out_dir = self.create_tempdir()
-        training_text = [
-            "Meet at {{{221b Baker Street}}}.\taddress\n",
-            "Call at {{{+01 2345 6789}}}!\tphone"
-        ]
+        self.augmenter_replacement_input = os.path.join(
+            self.out_dir, "replacements.txt")
+        with open(self.augmenter_replacement_input, "w") as file:
+            file.write("Replacement\t1")
+
         self.train_data_dir = os.path.join(self.out_dir, "train")
         os.makedirs(self.train_data_dir)
+        self.train_textproto = os.path.join(self.train_data_dir,
+                                            "train.textproto")
+        with open(self.train_textproto, "w") as f:
+            f.write(_train_textproto_content)
+        training_text = ["At {{{42 Street}}}.\taddress\n"]
         self.train_lftxt = os.path.join(self.train_data_dir, "train.lftxt")
         with open(self.train_lftxt, "w") as f:
             f.writelines(training_text)
+
         # test on train corpus to see overfitting.
         self.test_data_dir = os.path.join(self.out_dir, "test")
         os.makedirs(self.test_data_dir)
+        self.test_textproto = os.path.join(self.test_data_dir,
+                                           "test.textproto")
+        with open(self.test_textproto, "w") as f:
+            f.write(_train_textproto_content)
         self.test_lftxt = os.path.join(self.test_data_dir, "test.lftxt")
         with open(self.test_lftxt, "w") as f:
             f.writelines(training_text)
+
         self.test2_data_dir = os.path.join(self.out_dir, "test2")
         os.makedirs(self.test2_data_dir)
         self.test2_lftxt = os.path.join(self.test2_data_dir, "test2.lftxt")
@@ -136,20 +182,28 @@ class IntegrationTests(absltest.TestCase):
         )
 
     def test_training(self):
-        """Normal training."""
-        checkpoint_dir = os.path.join(self.out_dir, "checkpoints")
+        """Test data conversion."""
+        self.run_helper(
+            "main",
+            arguments=("--corpora", "train", "--input_directory",
+                       self.train_data_dir, "--output_directory",
+                       self.train_data_dir, "--addresses_path",
+                       self.augmenter_replacement_input, "--phones_path",
+                       self.augmenter_replacement_input, "--num_total", "0"))
+        train_binproto = os.path.join(self.train_data_dir, "train.binproto")
         self.run_helper(
             "convert_data",
             arguments=("--module_url", self.module_url,
-                       "--train_data_input_path", self.train_lftxt,
+                       "--train_data_input_path", train_binproto,
                        "--train_data_output_path", self.train_tfrecord,
-                       "--dev_data_input_path", self.train_lftxt,
+                       "--dev_data_input_path", train_binproto,
                        "--dev_data_output_path", self.dev_tfrecord,
-                       "--test_data_input_paths", self.test_lftxt,
+                       "--test_data_input_paths", train_binproto,
                        "--test_data_output_paths", self.test_tfrecord,
                        "--test_data_input_paths", self.test2_lftxt,
                        "--test_data_output_paths", self.test2_tfrecord,
                        "--meta_data_file_path", self.meta_data))
+        checkpoint_dir = os.path.join(self.out_dir, "checkpoints")
         self.run_helper("train",
                         arguments=("--module_url", self.module_url,
                                    "--train_data_path", self.train_tfrecord,

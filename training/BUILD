@@ -47,5 +47,8 @@ py_test (
     ":evaluate",
     requirement("tf_models_nightly"),
   ],
+  data = [
+    "//augmenter:main",
+  ],
   size = "large",
 )
