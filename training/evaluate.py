@@ -532,7 +532,7 @@ def _get_predictions_from_lf_directory(lf_directory, raw_path, tokenizer):
 
 def _extract_words(raw_path, tokenizer):
     """Extracts all words as defined by the tokenizer for all sentences."""
-    if "proto" in raw_path:
+    if raw_path.endswith(".binproto"):
         return _extract_words_from_proto(raw_path, tokenizer)
     else:
         return _extract_words_from_lftxt(raw_path,
@@ -565,7 +565,7 @@ def _infer_characterwise_label_names(module_url, model_path, input_path,
 
 def _extract_characterwise_target_labels(raw_path, tokenizer):
     """Extracts a label for each character."""
-    if "proto" in raw_path:
+    if raw_path.endswith(".binproto"):
         return _extract_characterwise_target_labels_from_proto(
             raw_path, tokenizer)
     else:
