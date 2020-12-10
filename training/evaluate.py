@@ -177,8 +177,22 @@ def _viterbi(probabilities, train_with_additional_labels):
     return most_likely_path
 
 
-def _infer(module_url, model_path, test_data_path,
-           train_with_additional_labels):
+def _get_model_and_task(module_url, model_path, train_with_additional_labels):
+    """Returns the loaded model and corresponding task."""
+    labels = LABELS
+    if train_with_additional_labels:
+        labels += ADDITIONAL_LABELS
+    config = TaggingConfig(hub_module_url=module_url, class_names=labels)
+    task = TaggingTask(config)
+    if model_path:
+        model = task.build_model()
+        model.load_weights(model_path)
+    else:
+        model = None
+    return model, task
+
+
+def _infer(model, task, test_data_path, train_with_additional_labels):
     """Computes the predicted label sequence using the trained model."""
     test_data_config = tagging_dataloader.TaggingDataConfig(
         input_path=test_data_path,
@@ -187,13 +201,6 @@ def _infer(module_url, model_path, test_data_path,
         is_training=False,
         include_sentence_id=True,
         drop_remainder=False)
-    labels = LABELS
-    if train_with_additional_labels:
-        labels += ADDITIONAL_LABELS
-    config = TaggingConfig(hub_module_url=module_url, class_names=labels)
-    task = TaggingTask(config)
-    model = task.build_model()
-    model.load_weights(model_path)
     predictions = _predict(task, test_data_config, model)
 
     merged_probabilities = []
@@ -540,13 +547,13 @@ def _extract_words(raw_path, tokenizer):
                                          merge_identical_sentences=True)
 
 
-def _infer_characterwise_label_names(module_url, model_path, input_path,
+def _infer_characterwise_label_names(model, task, input_path,
                                      train_with_additional_labels,
                                      words_per_sentence, raw_path, tokenizer):
     """Extracts the characterwise label names."""
     if input_path.endswith(".tfrecord"):
         predicted_label_ids_per_sentence = _infer(
-            module_url, model_path, input_path, train_with_additional_labels)
+            model, task, input_path, train_with_additional_labels)
 
         characterwise_predicted_label_ids_per_sentence = (
             _transform_wordwise_labels_to_characterwise_labels(
@@ -637,6 +644,9 @@ def main(_):
     if len(FLAGS.input_paths) != len(FLAGS.raw_paths):
         raise ValueError("The number of inputs and raw paths must be equal.")
 
+    model, task = _get_model_and_task(FLAGS.module_url, FLAGS.model_path,
+                                      FLAGS.train_with_additional_labels)
+
     for input_path, raw_path in zip(FLAGS.input_paths, FLAGS.raw_paths):
         test_name = os.path.splitext(os.path.basename(raw_path))[0]
         tokenizer = create_tokenizer_from_hub_module(FLAGS.module_url)
@@ -645,9 +655,8 @@ def main(_):
 
         characterwise_predicted_label_names_per_sentence = (
             _infer_characterwise_label_names(
-                FLAGS.module_url, FLAGS.model_path, input_path,
-                FLAGS.train_with_additional_labels, words_per_sentence,
-                raw_path, tokenizer))
+                model, task, input_path, FLAGS.train_with_additional_labels,
+                words_per_sentence, raw_path, tokenizer))
 
         (characterwise_target_labels_per_sentence,
          characters_per_sentence) = _extract_characterwise_target_labels(
