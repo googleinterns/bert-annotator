@@ -4,8 +4,6 @@ A possible improvement for entity selection and classification
 
 ## General Setup
 
-This requires Python >=3.6!
-
 First, clone this repository using 
 
 ```sh

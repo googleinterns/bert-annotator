@@ -21,6 +21,7 @@ from __future__ import print_function
 
 import os
 from enum import Enum
+from collections import OrderedDict
 from absl import app, flags
 import numpy as np
 from seqeval.scheme import IOB2
@@ -461,7 +462,7 @@ def _get_predictions_from_lf_directory(lf_directory, raw_path, tokenizer):
     Returns:
         List of characterwise target labels per sentence.
     """
-    labeled_sentences = dict()  # Map sentences to their labels.
+    labeled_sentences = OrderedDict()  # Map sentences to their labels.
 
     if raw_path.endswith(".lftxt"):
         prev_text = ""
@@ -516,7 +517,7 @@ def _get_predictions_from_lf_directory(lf_directory, raw_path, tokenizer):
                                  ] * (label_length - 1)
 
     # The order is important, because it controls which label sequences are
-    # compared in the evaluation. Python 3.6+ preserves the insertion order.
+    # compared in the evaluation. The usage of OrderedDict allows this.
     return list(labeled_sentences.values())
 
 
