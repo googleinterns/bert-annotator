@@ -1,4 +1,5 @@
 load("@rules_python//python:defs.bzl", "py_library", "py_binary", "py_test")
+load("@pip_dependencies//:requirements.bzl", "requirement")
 
 py_library(
   name = "utils",
@@ -16,6 +17,7 @@ py_binary(
     ":utils",
     "@com_google_research_bert//:tokenization",
   ],
+  python_version = "PY3",
 )
 
 py_binary(
@@ -24,6 +26,7 @@ py_binary(
   deps = [
     ":utils",
   ],
+  python_version = "PY3",
 )
 
 py_binary(
@@ -31,10 +34,9 @@ py_binary(
   srcs = ["evaluate.py"],
   deps = [
     ":utils",
-  ]
+  ],
+  python_version = "PY3",
 )
-
-load("@pip_dependencies//:requirements.bzl", "requirement")
 
 py_test (
   name = "integration_test",
@@ -51,4 +53,5 @@ py_test (
     "//augmenter:main",
   ],
   size = "large",
+  python_version = "PY3",
 )

@@ -250,9 +250,15 @@ def _read_lftxt(path, tokenizer, use_additional_labels,
     examples = []
     sentence_id = 0
     example = tagging_data_lib.InputExample(sentence_id=0)
+    prev_text = ""
     for labeled_example in get_labeled_text_from_linkfragment(path):
 
         if use_gold_tokenization_and_include_target_labels:
+            if prev_text == labeled_example.complete_text:
+                raise NotImplementedError(
+                    "Merging non-overlapping labels from multiple instances of"
+                    " the same sentence is not implemented. Sentences can only"
+                    " be merged if no corresponding labels are saved.")
             _add_label(labeled_example.prefix, LABEL_OUTSIDE, tokenizer,
                        example, use_additional_labels)
             _add_label(labeled_example.selection, labeled_example.label,
@@ -260,11 +266,14 @@ def _read_lftxt(path, tokenizer, use_additional_labels,
             _add_label(labeled_example.suffix, LABEL_OUTSIDE, tokenizer,
                        example, use_additional_labels)
         else:
+            if prev_text == labeled_example.complete_text:
+                continue
             _add_label(labeled_example.complete_text,
                        LABEL_OUTSIDE,
                        tokenizer,
                        example,
                        use_additional_labels=False)
+        prev_text = labeled_example.complete_text
 
         if example.words:
             examples.append(example)
