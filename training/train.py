@@ -21,11 +21,12 @@ from __future__ import print_function
 
 from absl import app, flags
 import functools
+from official.nlp.tasks.tagging import TaggingConfig
+from official.nlp.data import tagging_dataloader
 import tensorflow as tf
 from tensorflow.keras.callbacks import ModelCheckpoint
-
-from official.nlp.tasks.tagging import TaggingConfig, TaggingTask
-from official.nlp.data import tagging_dataloader
+from training.configurable_training_tagging_task import (
+    ConfigurableTrainingTaggingTask)
 from training.utils import LABELS, ADDITIONAL_LABELS
 
 flags.DEFINE_string("module_url", None,
@@ -47,12 +48,15 @@ flags.DEFINE_float("learning_rate", 0.01, "The learning rate.")
 flags.DEFINE_boolean(
     "train_with_additional_labels", False,
     "If set, the flags other than address/phone are used, too.")
+flags.DEFINE_boolean("train_last_layer_only", False,
+                     "If set, only the last layer is trainable.")
 
 FLAGS = flags.FLAGS
 
 
 def train(module_url, train_data_path, validation_data_path, epochs,
-          train_size, save_path, batch_size, optimizer_name, learning_rate):
+          train_size, save_path, batch_size, optimizer_name, learning_rate,
+          train_last_layer_only):
     train_data_config = tagging_dataloader.TaggingDataConfig(
         input_path=train_data_path,
         seq_length=128,
@@ -69,8 +73,8 @@ def train(module_url, train_data_path, validation_data_path, epochs,
                            train_data=train_data_config,
                            validation_data=validation_data_config,
                            class_names=label_list)
-    task = TaggingTask(config)
-    model = task.build_model()
+    task = ConfigurableTrainingTaggingTask(config)
+    model = task.build_model(train_last_layer_only)
     if optimizer_name == "sgd":
         optimizer = tf.keras.optimizers.SGD(lr=learning_rate)
     else:
@@ -101,7 +105,7 @@ def train(module_url, train_data_path, validation_data_path, epochs,
 def main(_):
     train(FLAGS.module_url, FLAGS.train_data_path, FLAGS.validation_data_path,
           FLAGS.epochs, FLAGS.train_size, FLAGS.save_path, FLAGS.batch_size,
-          FLAGS.optimizer, FLAGS.learning_rate)
+          FLAGS.optimizer, FLAGS.learning_rate, FLAGS.train_last_layer_only)
 
 
 if __name__ == "__main__":

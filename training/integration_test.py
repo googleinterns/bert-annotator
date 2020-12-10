@@ -255,6 +255,38 @@ class IntegrationTests(absltest.TestCase):
                        "--visualisation_folder", visualisation_dir,
                        "--train_with_additional_labels"))
 
+    def test_training_last_layer_only(self):
+        """Training of the last layer only, the bert model is frozen."""
+        checkpoint_dir = os.path.join(self.out_dir, "checkpoints")
+        self.run_helper(
+            "convert_data",
+            arguments=("--module_url", self.module_url,
+                       "--train_data_input_path", self.train_lftxt,
+                       "--train_data_output_path", self.train_tfrecord,
+                       "--dev_data_input_path", self.train_lftxt,
+                       "--dev_data_output_path", self.dev_tfrecord,
+                       "--test_data_input_paths", self.test_lftxt,
+                       "--test_data_output_paths", self.test_tfrecord,
+                       "--test_data_input_paths", self.test2_lftxt,
+                       "--test_data_output_paths", self.test2_tfrecord,
+                       "--meta_data_file_path", self.meta_data))
+        self.run_helper("train",
+                        arguments=("--module_url", self.module_url,
+                                   "--train_data_path", self.train_tfrecord,
+                                   "--validation_data_path", self.dev_tfrecord,
+                                   "--epochs", "1", "--train_size", "128",
+                                   "--save_path", checkpoint_dir,
+                                   "--train_last_layer_only"))
+        model_path = os.path.join(checkpoint_dir, "model_01")
+        visualisation_dir = os.path.join(self.out_dir, "visualisation")
+        self.run_helper(
+            "evaluate",
+            arguments=("--module_url", self.module_url, "--model_path",
+                       model_path, "--input_paths", self.test_tfrecord,
+                       "--raw_paths", self.test_lftxt, "--input_paths",
+                       self.test2_tfrecord, "--raw_paths", self.test2_lftxt,
+                       "--visualisation_folder", visualisation_dir))
+
     def test_evaluate_lftxt(self):
         """Evaluate precomputed lftxt files."""
         visualisation_dir = os.path.join(self.out_dir, "visualisation")

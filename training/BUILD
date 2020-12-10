@@ -7,6 +7,15 @@ py_library(
   deps = [
     "//protocol_buffer:documents_py_proto",
     "@com_google_research_bert//:tokenization",
+    requirement("tf_models_nightly"),
+  ],
+)
+
+py_library(
+  name = "configurable_training_tagging_task",
+  srcs = ["configurable_training_tagging_task.py"],
+  deps = [
+    requirement("tf_models_nightly"),
   ],
 )
 
@@ -16,6 +25,7 @@ py_binary(
   deps = [
     ":utils",
     "@com_google_research_bert//:tokenization",
+    requirement("tf_models_nightly"),
   ],
   python_version = "PY3",
 )
@@ -25,6 +35,8 @@ py_binary(
   srcs = ["train.py"],
   deps = [
     ":utils",
+    ":configurable_training_tagging_task",
+    requirement("tf_models_nightly"),
   ],
   python_version = "PY3",
 )
@@ -34,6 +46,7 @@ py_binary(
   srcs = ["evaluate.py"],
   deps = [
     ":utils",
+    requirement("tf_models_nightly"),
   ],
   python_version = "PY3",
 )
