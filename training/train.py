@@ -25,7 +25,8 @@ from official.nlp.tasks.tagging import TaggingConfig
 from official.nlp.data import tagging_dataloader
 import tensorflow as tf
 from tensorflow.keras.callbacks import ModelCheckpoint
-from training.custom_tagging_task import CustomTaggingTask
+from training.configurable_training_tagging_task import (
+    ConfigurableTrainingTaggingTask)
 from training.utils import LABELS, ADDITIONAL_LABELS
 
 flags.DEFINE_string("module_url", None,
@@ -72,7 +73,7 @@ def train(module_url, train_data_path, validation_data_path, epochs,
                            train_data=train_data_config,
                            validation_data=validation_data_config,
                            class_names=label_list)
-    task = CustomTaggingTask(config)
+    task = ConfigurableTrainingTaggingTask(config)
     model = task.build_model(train_last_layer_only)
     if optimizer_name == "sgd":
         optimizer = tf.keras.optimizers.SGD(lr=learning_rate)

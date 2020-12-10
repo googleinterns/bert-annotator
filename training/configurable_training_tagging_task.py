@@ -22,7 +22,7 @@ from official.nlp.tasks.tagging import TaggingTask
 import tensorflow as tf
 
 
-class CustomTaggingTask(TaggingTask):
+class ConfigurableTrainingTaggingTask(TaggingTask):
     """TaggingTask with the option to only train the last layer."""
     def build_model(self, train_last_layer_only=False):
         """Modified version of official.nlp.tasks.tagging.build_model
