@@ -236,6 +236,23 @@ TEST(AugmenterDeathTest, InvalidCaseProbabilitySum) {
       "most one.");
 }
 
+TEST(AugmenterDeathTest, EmptyDocument) {
+  bert_annotator::Documents documents =
+      ConstructBertDocument({DocumentSpec("", {}, {})});
+  augmenter::Augmentations augmentations = GetDefaultAugmentations();
+  MockRandomSampler address_sampler;
+  MockRandomSampler phone_sampler;
+  absl::MockingBitGen bitgen;
+  ShufflerStub shuffler;
+
+  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+                                  &phone_sampler, &shuffler, bitgen);
+
+  EXPECT_DEATH({ augmenter.Augment(); },
+               "Empty document in output detected. This will break the "
+               "evaluation scripts, aborting.");
+}
+
 TEST(AugmenterTest, CreateMissingLabelList) {
   bert_annotator::Documents documents = ConstructBertDocument(
       {DocumentSpec("Text", {TokenSpec("Text", 0, 3)}, {})});
@@ -1269,7 +1286,7 @@ TEST(AugmenterTest, DropContextNoLabels) {
               Call(absl::IntervalClosed, bitgen, 1, 3))
       .WillOnce(Return(3));
   EXPECT_CALL(absl::MockUniform<int>(),
-              Call(absl::IntervalClosed, bitgen, 0, 2))
+              Call(absl::IntervalClosed, bitgen, 0, 1))
       .WillOnce(Return(0));
   ShufflerStub shuffler;
 
@@ -1312,7 +1329,7 @@ TEST(AugmenterTest, DropContextDropLabelsNoLabels) {
               Call(absl::IntervalClosed, bitgen, 1, 3))
       .WillOnce(Return(3));
   EXPECT_CALL(absl::MockUniform<int>(),
-              Call(absl::IntervalClosed, bitgen, 0, 2))
+              Call(absl::IntervalClosed, bitgen, 0, 1))
       .WillOnce(Return(0));
   ShufflerStub shuffler;
 
@@ -1326,6 +1343,42 @@ TEST(AugmenterTest, DropContextDropLabelsNoLabels) {
       ConstructBertDocument(
           {DocumentSpec("without any.",
                         {TokenSpec("without", 0, 6), TokenSpec("any", 8, 10)})})
+          .documents(0);
+  ExpectEq(augmented, expected);
+}
+
+TEST(AugmenterTest, DropContextDropLabelsNoLabelsSingleRemainingToken) {
+  bert_annotator::Documents documents = ConstructBertDocument({DocumentSpec(
+      "Some more text", {TokenSpec("Some", 0, 3), TokenSpec("more", 5, 8),
+                         TokenSpec("text", 10, 13)})});
+  augmenter::Augmentations augmentations = GetDefaultAugmentations();
+  augmentations.num_total = 1;
+  augmentations.prob_context_drop_outside_one_label = 0.5;
+  MockRandomSampler address_sampler;
+  MockRandomSampler phone_sampler;
+  absl::MockingBitGen bitgen;
+  EXPECT_CALL(absl::MockUniform<int>(),
+              Call(absl::IntervalClosed, bitgen, 0, 0))
+      .WillOnce(Return(0));  // Use first document.
+  EXPECT_CALL(absl::MockBernoulli(), Call(bitgen, 0))
+      .WillRepeatedly(Return(false));
+  EXPECT_CALL(absl::MockBernoulli(),
+              Call(bitgen, augmentations.prob_context_drop_outside_one_label))
+      .Times(2)
+      .WillRepeatedly(Return(true));  //  Drop from beginning and end.
+  EXPECT_CALL(absl::MockUniform<int>(),
+              Call(absl::IntervalClosed, bitgen, 1, 2))
+      .WillOnce(Return(1));
+  ShufflerStub shuffler;
+
+  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+                                  &phone_sampler, &shuffler, bitgen);
+
+  augmenter.Augment();
+
+  const bert_annotator::Document augmented = augmenter.documents().documents(1);
+  const bert_annotator::Document expected =
+      ConstructBertDocument({DocumentSpec("Some", {TokenSpec("Some", 0, 3)})})
           .documents(0);
   ExpectEq(augmented, expected);
 }

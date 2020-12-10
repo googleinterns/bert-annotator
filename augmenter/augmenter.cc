@@ -232,6 +232,15 @@ void Augmenter::Augment() {
       MaskDigits(&document);
     }
   }
+
+  for (const bert_annotator::Document& document : documents_.documents()) {
+    if (document.text().length() == 0) {
+      std::cerr << "Empty document in output detected. This will break the "
+                   "evaluation scripts, aborting."
+                << std::endl;
+      abort();
+    }
+  }
 }
 
 void Augmenter::AddConcatenatedDocument(
@@ -392,7 +401,7 @@ void Augmenter::MaybeDropContextKeepLabels(
       // If no labels exist, the range was duplicated, so the index needs to
       // be updated.
       if (no_labels) {
-        droppable_ranges[0].end = drop_tokens_start;
+        droppable_ranges[0].end = drop_tokens_start - 1;
       }
     }
     // For context before the first label, drop a prefix of the sentence. //
