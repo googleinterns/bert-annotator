@@ -227,6 +227,7 @@ def _read_binproto(file_name, tokenizer, use_additional_labels,
 
         if use_gold_tokenization_and_include_target_labels:
             for labeled_example in get_labeled_text_from_document(document):
+                assert labeled_example.suffix == ""
                 _add_label(labeled_example.prefix, LABEL_OUTSIDE, tokenizer,
                            example, use_additional_labels)
                 _add_label(labeled_example.selection, labeled_example.label,
@@ -247,6 +248,7 @@ def _read_binproto(file_name, tokenizer, use_additional_labels,
 def _read_lftxt(path, tokenizer, use_additional_labels,
                 use_gold_tokenization_and_include_target_labels):
     """Reads one file and returns a list of `InputExample` instances."""
+    label_id_map = {label: i for i, label in enumerate(LABELS)}
     examples = []
     sentence_id = 0
     example = tagging_data_lib.InputExample(sentence_id=0)
@@ -255,12 +257,25 @@ def _read_lftxt(path, tokenizer, use_additional_labels,
 
         if use_gold_tokenization_and_include_target_labels:
             if prev_text == labeled_example.complete_text:
-                raise NotImplementedError(
-                    "Merging non-overlapping labels from multiple instances of"
-                    " the same sentence is not implemented. Sentences can only"
-                    " be merged if no corresponding labels are saved.")
-            _add_label(labeled_example.prefix, LABEL_OUTSIDE, tokenizer,
-                       example, use_additional_labels)
+                # Recover the previous example object.
+                sentence_id -= 1
+                example = examples[-1]
+                del examples[-1]
+                num_prefix_words = len(
+                    split_into_words(labeled_example.prefix, tokenizer))
+                if any([
+                        label_id != label_id_map[LABEL_OUTSIDE]
+                        for label_id in example.label_ids[num_prefix_words:]
+                ]):
+                    raise NotImplementedError(
+                        "If the .lftxt file contains the same sentence multiple"
+                        " times, they are assumed to be sorted in the order of"
+                        " labelled sequences.")
+                del example.label_ids[num_prefix_words:]
+                del example.words[num_prefix_words:]
+            else:
+                _add_label(labeled_example.prefix, LABEL_OUTSIDE, tokenizer,
+                           example, use_additional_labels)
             _add_label(labeled_example.selection, labeled_example.label,
                        tokenizer, example, use_additional_labels)
             _add_label(labeled_example.suffix, LABEL_OUTSIDE, tokenizer,

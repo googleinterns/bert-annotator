@@ -173,10 +173,10 @@ def get_labeled_text_from_document(document, only_main_labels=False):
                              complete_text=None,
                              label=label.label)
 
-    suffix = text[last_label_end + 1:]
-    yield LabeledExample(prefix="",
+    remaining_text = text[last_label_end + 1:]
+    yield LabeledExample(prefix=remaining_text,
                          selection="",
-                         suffix=suffix,
+                         suffix="",
                          complete_text=None,
                          label=LABEL_OUTSIDE)
 
