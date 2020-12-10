@@ -75,9 +75,11 @@ flags.DEFINE_integer(
 flags.DEFINE_integer(
     "max_seq_length", 128,
     "The maximal sequence length. Longer sequences are split.")
+flags.DEFINE_integer("batch_size", 64, "The number of samples per batch.")
 flags.DEFINE_string(
-    "tpu_ip", None,
-    "The internal ip address of the TPU node. If not set, no tpu is used.")
+    "tpu", None,
+    "The internal address of the TPU node, including 'grpc://'. If not set, no"
+    " tpu is used.")
 
 FLAGS = flags.FLAGS
 
@@ -208,12 +210,13 @@ def _get_model_and_task(module_url, model_path, train_with_additional_labels):
     return model, task
 
 
-def _infer(model, task, test_data_path, train_with_additional_labels):
+def _infer(model, task, test_data_path, train_with_additional_labels,
+           batch_size):
     """Computes the predicted label sequence using the trained model."""
     test_data_config = tagging_dataloader.TaggingDataConfig(
         input_path=test_data_path,
         seq_length=128,
-        global_batch_size=64,
+        global_batch_size=batch_size,
         is_training=False,
         include_sentence_id=True,
         drop_remainder=False)
@@ -450,11 +453,12 @@ def _get_predictions_from_lf_directory(lf_directory, raw_path, tokenizer):
 
 def _infer_characterwise_label_names(model, task, input_path,
                                      train_with_additional_labels,
-                                     words_per_sentence, raw_path, tokenizer):
+                                     words_per_sentence, raw_path, tokenizer,
+                                     batch_size):
     """Extracts the characterwise label names."""
     if input_path.endswith(".tfrecord"):
         predicted_label_ids_per_sentence = _infer(
-            model, task, input_path, train_with_additional_labels)
+            model, task, input_path, train_with_additional_labels, batch_size)
 
         characterwise_predicted_label_ids_per_sentence = (
             _transform_wordwise_labels_to_characterwise_labels(
@@ -596,9 +600,9 @@ def main(_):
     if len(FLAGS.input_paths) != len(FLAGS.raw_paths):
         raise ValueError("The number of inputs and raw paths must be equal.")
 
-    if FLAGS.tpu_ip is not None:
+    if FLAGS.tpu is not None:
         resolver = tf.distribute.cluster_resolver.TPUClusterResolver(
-            tpu="grpc://%s" % FLAGS.tpu_ip)
+            tpu=FLAGS.tpu)
         tf.config.experimental_connect_to_cluster(resolver)
         tf.tpu.experimental.initialize_tpu_system(resolver)
         strategy = tf.distribute.experimental.TPUStrategy(resolver)
@@ -621,7 +625,7 @@ def main(_):
                 _infer_characterwise_label_names(
                     model, task, input_path,
                     FLAGS.train_with_additional_labels, words_per_sentence,
-                    raw_path, tokenizer))
+                    raw_path, tokenizer, FLAGS.batch_size))
 
             if FLAGS.save_output_as_lftxt or FLAGS.save_output_as_tfrecord:
                 if not FLAGS.output_directory:

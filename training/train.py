@@ -58,23 +58,22 @@ flags.DEFINE_boolean(
 flags.DEFINE_boolean("train_last_layer_only", False,
                      "If set, only the last layer is trainable.")
 flags.DEFINE_string(
-    "tpu_ip", None,
-    "The internal ip address of the TPU node. If not set, no tpu is used.")
+    "tpu", None,
+    "The internal address of the TPU node, including 'grpc://'. If not set, no"
+    " tpu is used.")
 
 FLAGS = flags.FLAGS
 
 
 def train(module_url, train_data_path, validation_data_path, epochs,
           train_size, save_path, batch_size, optimizer_name, learning_rate,
-          train_last_layer_only, plateau_lr_reduction, plateau_patience,
-          tpu_ip):
-    if tpu_ip is not None:
+          train_last_layer_only, plateau_lr_reduction, plateau_patience, tpu):
+    if tpu is not None:
         if plateau_lr_reduction != 1.0:
             raise NotImplementedError(
                 "Learning rate reduction cannot be used on TPUs, because the"
                 " validation set cannot be evaluated.")
-        resolver = tf.distribute.cluster_resolver.TPUClusterResolver(
-            tpu="grpc://%s" % tpu_ip)
+        resolver = tf.distribute.cluster_resolver.TPUClusterResolver(tpu=tpu)
         tf.config.experimental_connect_to_cluster(resolver)
         tf.tpu.experimental.initialize_tpu_system(resolver)
         strategy = tf.distribute.TPUStrategy(resolver)
@@ -155,7 +154,7 @@ def main(_):
     train(FLAGS.module_url, FLAGS.train_data_path, FLAGS.validation_data_path,
           FLAGS.epochs, FLAGS.train_size, FLAGS.save_path, FLAGS.batch_size,
           FLAGS.optimizer, FLAGS.learning_rate, FLAGS.train_last_layer_only,
-          FLAGS.plateau_lr_reduction, FLAGS.plateau_patience, FLAGS.tpu_ip)
+          FLAGS.plateau_lr_reduction, FLAGS.plateau_patience, FLAGS.tpu)
 
 
 if __name__ == "__main__":
