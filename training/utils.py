@@ -72,7 +72,7 @@ BERT_SENTENCE_START = "[CLS]"
 BERT_SENTENCE_SEPARATOR = "[SEP]"
 BERT_SENTENCE_PADDING = "[PAD]"
 
-_MAX_BINPROTO_PREFIX_LENGTH = 10
+LABEL_ID_MAP = {label: i for i, label in enumerate(LABELS + ADDITIONAL_LABELS)}
 
 LabeledExample = collections.namedtuple(
     "LabeledExample",

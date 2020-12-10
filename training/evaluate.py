@@ -32,8 +32,8 @@ import orbit
 from official.nlp.tasks import utils
 from official.nlp.tasks.tagging import TaggingConfig, TaggingTask
 from official.nlp.data import tagging_dataloader
-from training.utils import (ADDITIONAL_LABELS, LABELS, LABEL_OUTSIDE,
-                            MAIN_LABELS, LabeledExample,
+from training.utils import (ADDITIONAL_LABELS, LABELS, LABEL_ID_MAP,
+                            LABEL_OUTSIDE, MAIN_LABELS, LabeledExample,
                             create_tokenizer_from_hub_module,
                             remove_whitespace_and_parse)
 from training.file_reader import get_file_reader
@@ -141,7 +141,6 @@ def _viterbi(probabilities, train_with_additional_labels):
     path_probabilities = np.zeros(len(labels))
     label_outside_index = labels.index(LABEL_OUTSIDE)
     path_probabilities[label_outside_index] = 1.0
-    label_id_map = {label: i for i, label in enumerate(labels)}
     path_pointers = []
     for prob_token in probabilities:
         prev_path_probabilities = path_probabilities.copy()
@@ -156,7 +155,7 @@ def _viterbi(probabilities, train_with_additional_labels):
                                           ("I-%s" % current_main_label_name)]
                 mask = np.zeros(len(labels))
                 for prev_label_name in valid_prev_label_names:
-                    prev_label_id = label_id_map[prev_label_name]
+                    prev_label_id = LABEL_ID_MAP[prev_label_name]
                     mask[prev_label_id] = 1
                 masked_prev_path_probabilities = prev_path_probabilities * mask
             else:

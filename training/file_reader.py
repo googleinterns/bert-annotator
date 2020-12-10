@@ -16,14 +16,17 @@
 """Readers for different file formats."""
 
 from official.nlp.data import tagging_data_lib
-from training.utils import (ADDITIONAL_LABELS, LABELS, LABEL_CONTAINER_NAME,
-                            LABEL_OUTSIDE, LF_ADDRESS_LABEL,
-                            LF_TELEPHONE_LABEL, MAIN_LABELS, LabeledExample,
+from training.utils import (ADDITIONAL_LABELS, LABEL_CONTAINER_NAME,
+                            LABEL_ID_MAP, LABEL_OUTSIDE, LF_ADDRESS_LABEL,
+                            LF_TELEPHONE_LABEL, MAIN_LABELS,
                             MAIN_LABEL_ADDRESS, MAIN_LABEL_TELEPHONE,
-                            split_into_words, remove_whitespace_and_parse)
+                            LabeledExample, split_into_words,
+                            remove_whitespace_and_parse)
 from google.protobuf.internal.decoder import _DecodeVarint32
 
 import protocol_buffer.document_pb2 as proto_document
+
+_MAX_BINPROTO_PREFIX_LENGTH = 10
 
 
 def get_file_reader(path):
@@ -59,20 +62,18 @@ class FileReader:
     def _add_label(self, text, label, tokenizer, example,
                    use_additional_labels):
         """Adds one label for each word in the text to the example."""
-        label_id_map = {label: i for i, label in enumerate(LABELS)}
-
         words = split_into_words(text, tokenizer)
-        if label in MAIN_LABELS or (use_additional_labels and label
-                                    in MAIN_LABELS + ADDITIONAL_LABELS):
+        if label in MAIN_LABELS or (use_additional_labels
+                                    and label in ADDITIONAL_LABELS):
             example.add_word_and_label_id(words[0],
-                                          label_id_map["B-%s" % label])
+                                          LABEL_ID_MAP["B-%s" % label])
             for word in words[1:]:
                 example.add_word_and_label_id(word,
-                                              label_id_map["I-%s" % label])
+                                              LABEL_ID_MAP["I-%s" % label])
         else:
             for word in words:
                 example.add_word_and_label_id(word,
-                                              label_id_map[LABEL_OUTSIDE])
+                                              LABEL_ID_MAP[LABEL_OUTSIDE])
 
     def _update_characterwise_target_labels(self, tokenizer, labeled_example,
                                             characterwise_target_labels):
@@ -154,10 +155,9 @@ class BinProtoReader(FileReader):
 
     def _get_documents(self):
         """Provides an iterator over all documents."""
-        length_prefix_length = 10
         document = proto_document.Document()
         with open(self.path, "rb") as src_file:
-            msg_buf = src_file.read(length_prefix_length)
+            msg_buf = src_file.read(_MAX_BINPROTO_PREFIX_LENGTH)
             while msg_buf:
                 # Get the message length.
                 msg_len, new_pos = _DecodeVarint32(msg_buf, 1)
@@ -167,7 +167,7 @@ class BinProtoReader(FileReader):
                 document.ParseFromString(msg_buf)
                 msg_buf = msg_buf[msg_len:]
                 # Read the length prefix for the next message.
-                msg_buf += src_file.read(length_prefix_length)
+                msg_buf += src_file.read(_MAX_BINPROTO_PREFIX_LENGTH)
                 yield self._convert_token_boundaries_to_codeunits(document)
 
     def _get_labeled_text(self, document, only_main_labels=False):
@@ -258,7 +258,6 @@ class LftxtReader(FileReader):
     def get_examples(self, tokenizer, use_additional_labels,
                      use_gold_tokenization_and_include_target_labels):
         """Reads one file and returns a list of `InputExample` instances."""
-        label_id_map = {label: i for i, label in enumerate(LABELS)}
         examples = []
         sentence_id = 0
         example = tagging_data_lib.InputExample(sentence_id=0)
@@ -273,7 +272,7 @@ class LftxtReader(FileReader):
                     prefix_word_length = len(
                         split_into_words(labeled_example.prefix, tokenizer))
                     if any([
-                            label_id != label_id_map[LABEL_OUTSIDE] for
+                            label_id != LABEL_ID_MAP[LABEL_OUTSIDE] for
                             label_id in example.label_ids[prefix_word_length:]
                     ]):
                         raise NotImplementedError(
