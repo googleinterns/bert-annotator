@@ -25,6 +25,7 @@ from official.nlp.tasks.tagging import TaggingConfig
 from official.nlp.data import tagging_dataloader
 import tensorflow as tf
 from tensorflow.keras.callbacks import ModelCheckpoint
+from tensorflow.python.keras.callbacks import ReduceLROnPlateau
 from training.configurable_training_tagging_task import (
     ConfigurableTrainingTaggingTask)
 from training.utils import LABELS, ADDITIONAL_LABELS
@@ -35,9 +36,7 @@ flags.DEFINE_string("train_data_path", None,
                     "The path to the training data in .tfrecord format.")
 flags.DEFINE_string("validation_data_path", None,
                     "The path to the validation data in .tfrecord format.")
-flags.DEFINE_integer(
-    "epochs", None, "The maximal number of training epochs. Early stopping may"
-    " supercede this setting.")
+flags.DEFINE_integer("epochs", None, "The maximal number of training epochs.")
 flags.DEFINE_integer("train_size", None,
                      "The number of samples in the training set.")
 flags.DEFINE_string("save_path", None,
@@ -45,6 +44,14 @@ flags.DEFINE_string("save_path", None,
 flags.DEFINE_integer("batch_size", 64, "The number of samples per batch.")
 flags.DEFINE_enum("optimizer", "sgd", ["sgd", "adam"], "The optimizer.")
 flags.DEFINE_float("learning_rate", 0.01, "The learning rate.")
+flags.DEFINE_float(
+    "plateau_lr_reduction", 0.2,
+    "The learning rate is reduced by this factor once a plateau (measured on"
+    " the validation loss) is reached)")
+flags.DEFINE_integer(
+    "plateau_patience", 3,
+    "How many epochs to wait on a plateau before the learning rate is reduced."
+)
 flags.DEFINE_boolean(
     "train_with_additional_labels", False,
     "If set, the flags other than address/phone are used, too.")
@@ -94,12 +101,15 @@ def train(module_url, train_data_path, validation_data_path, epochs,
                                  save_best_only=False,
                                  save_weights_only=True,
                                  period=1)
-    early_stopping = tf.keras.callbacks.EarlyStopping("val_loss", patience=3)
+    reduce_lr = ReduceLROnPlateau(monitor="val_loss",
+                                  factor=FLAGS.plateau_lr_reduction,
+                                  patience=FLAGS.plateau_patience,
+                                  verbose=1)
     model.fit(dataset_train,
               validation_data=dataset_validation,
               epochs=epochs,
               steps_per_epoch=train_size // batch_size,
-              callbacks=[checkpoint, early_stopping])
+              callbacks=[checkpoint, reduce_lr])
 
 
 def main(_):
