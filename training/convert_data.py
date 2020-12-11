@@ -156,15 +156,11 @@ def main(_):
             use_additional_labels=False,
             use_gold_tokenization_and_include_target_labels=False)
 
-    moving_window_overlap = FLAGS.moving_window_overlap
-    if moving_window_overlap % 2 != 0:
-        raise ValueError("moving_window_overlap must be even.")
-
     _generate_tf_records(tokenizer, FLAGS.max_seq_length, train_examples,
                          dev_examples, test_examples,
                          FLAGS.train_data_output_path,
                          FLAGS.dev_data_output_path, FLAGS.meta_data_file_path,
-                         moving_window_overlap)
+                         FLAGS.moving_window_overlap)
 
 
 if __name__ == "__main__":

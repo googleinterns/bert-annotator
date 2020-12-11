@@ -109,17 +109,15 @@ def remove_whitespace_and_parse(text, tokenizer):
 
 def add_tfrecord_label(text, label, tokenizer, example, use_additional_labels):
     """Adds one label for each word in the text to the example."""
-    label_id_map = {label: i for i, label in enumerate(LABELS)}
-
     words = split_into_words(text, tokenizer)
     if label in MAIN_LABELS or (use_additional_labels
                                 and label in MAIN_LABELS + ADDITIONAL_LABELS):
-        example.add_word_and_label_id(words[0], label_id_map["B-%s" % label])
+        example.add_word_and_label_id(words[0], LABEL_ID_MAP["B-%s" % label])
         for word in words[1:]:
-            example.add_word_and_label_id(word, label_id_map["I-%s" % label])
+            example.add_word_and_label_id(word, LABEL_ID_MAP["I-%s" % label])
     else:
         for word in words:
-            example.add_word_and_label_id(word, label_id_map[LABEL_OUTSIDE])
+            example.add_word_and_label_id(word, LABEL_ID_MAP[LABEL_OUTSIDE])
 
 
 def _tokenize_example(example,
@@ -135,7 +133,8 @@ def _tokenize_example(example,
     sub-sentence. The half of the repeated tokens that are closest to the border
     are not labeled if mask_overlap is True.
     """
-    assert moving_window_overlap % 2 == 0, "moving_window_overlap must be even."
+    if moving_window_overlap % 2 != 0:
+        raise ValueError("moving_window_overlap must be even.")
     half_moving_window_overlap = moving_window_overlap // 2
     moving_window_padding = [MOVING_WINDOW_MASK_LABEL_ID
                              ] * half_moving_window_overlap

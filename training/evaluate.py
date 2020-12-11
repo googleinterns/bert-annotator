@@ -529,6 +529,7 @@ def _get_main_label_from_bio_label(label_name):
     if _is_label_type(label_name, LabelType.OUTSIDE):
         return LABEL_OUTSIDE
     else:
+        assert len(label_name) > 2
         return label_name[2:]  # Strip "B-" or "I-"
 
 
@@ -550,6 +551,7 @@ def _save_predictions_as_tfrecord(
                 selection_label = _get_main_label_from_bio_label(label_name)
                 continue
 
+            # Check if a new label begins.
             if _is_label_type(label_name, LabelType.BEGINNING) or (
                     selection_label != LABEL_OUTSIDE
                     and _is_label_type(label_name, LabelType.OUTSIDE)):
