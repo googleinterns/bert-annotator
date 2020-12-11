@@ -190,19 +190,31 @@ class IntegrationTests(absltest.TestCase):
                 "Phone number: 00 - 11 222 333 and {{{911}}}!\tphone"
             ])
 
+        self.test3_data_dir = os.path.join(self.out_dir, "test3")
+        os.makedirs(self.test3_data_dir)
+        self.test3_txt = os.path.join(self.test3_data_dir, "test3.txt")
+        with open(self.test3_txt, "w") as f:
+            f.writelines([
+                "Not a real address.\n",
+                "Phone number: 00 - 11 222 333 and 911!"
+            ])
+
         self.train_tfrecord = os.path.join(self.train_data_dir,
                                            "train.tfrecord")
         self.dev_tfrecord = os.path.join(self.train_data_dir, "dev.tfrecord")
         self.test_tfrecord = os.path.join(self.test_data_dir, "test.tfrecord")
         self.test2_tfrecord = os.path.join(self.test2_data_dir,
                                            "test2.tfrecord")
+        self.test3_tfrecord = os.path.join(self.test3_data_dir,
+                                           "test3.tfrecord")
         self.meta_data = os.path.join(self.train_data_dir, "meta.data")
         self.module_url = (
             "https://tfhub.dev/tensorflow/small_bert/bert_en_uncased_L-2_H-128_A-2/1"  # pylint: disable=line-too-long
         )
+        self.checkpoint_dir = os.path.join(self.out_dir, "checkpoints")
 
     def test_training(self):
-        """Test data conversion."""
+        """Test normal training."""
         self.run_helper(
             "main",
             arguments=("--corpora", "train", "--input_directory",
@@ -223,26 +235,26 @@ class IntegrationTests(absltest.TestCase):
                        "--test_data_input_paths", self.test2_lftxt,
                        "--test_data_output_paths", self.test2_tfrecord,
                        "--meta_data_file_path", self.meta_data))
-        checkpoint_dir = os.path.join(self.out_dir, "checkpoints")
         self.run_helper("train",
                         arguments=("--module_url", self.module_url,
                                    "--train_data_path", self.train_tfrecord,
                                    "--validation_data_path", self.dev_tfrecord,
                                    "--epochs", "1", "--train_size", "128",
-                                   "--save_path", checkpoint_dir))
-        model_path = os.path.join(checkpoint_dir, "model_01")
+                                   "--save_path", self.checkpoint_dir))
+        model_path = os.path.join(self.checkpoint_dir, "model_01")
         visualisation_dir = os.path.join(self.out_dir, "visualisation")
         self.run_helper(
             "evaluate",
             arguments=("--module_url", self.module_url, "--model_path",
-                       model_path, "--input_paths", self.test_tfrecord,
-                       "--raw_paths", self.test_lftxt, "--input_paths",
-                       self.test2_tfrecord, "--raw_paths", self.test2_lftxt,
-                       "--visualisation_folder", visualisation_dir))
+                       model_path, "--input_paths", self.train_tfrecord,
+                       "--raw_paths", train_binproto, "--input_paths",
+                       self.test_tfrecord, "--raw_paths", self.test_lftxt,
+                       "--input_paths", self.test2_tfrecord, "--raw_paths",
+                       self.test2_lftxt, "--visualisation_folder",
+                       visualisation_dir))
 
     def test_training_additional_labels(self):
         """Training with additional labels."""
-        checkpoint_dir = os.path.join(self.out_dir, "checkpoints")
         self.run_helper(
             "convert_data",
             arguments=("--module_url", self.module_url,
@@ -261,9 +273,9 @@ class IntegrationTests(absltest.TestCase):
                                    "--train_data_path", self.train_tfrecord,
                                    "--validation_data_path", self.dev_tfrecord,
                                    "--epochs", "1", "--train_size", "128",
-                                   "--save_path", checkpoint_dir,
+                                   "--save_path", self.checkpoint_dir,
                                    "--train_with_additional_labels"))
-        model_path = os.path.join(checkpoint_dir, "model_01")
+        model_path = os.path.join(self.checkpoint_dir, "model_01")
         visualisation_dir = os.path.join(self.out_dir, "visualisation")
         self.run_helper(
             "evaluate",
@@ -276,7 +288,6 @@ class IntegrationTests(absltest.TestCase):
 
     def test_training_last_layer_only(self):
         """Training of the last layer only, the bert model is frozen."""
-        checkpoint_dir = os.path.join(self.out_dir, "checkpoints")
         self.run_helper(
             "convert_data",
             arguments=("--module_url", self.module_url,
@@ -294,9 +305,9 @@ class IntegrationTests(absltest.TestCase):
                                    "--train_data_path", self.train_tfrecord,
                                    "--validation_data_path", self.dev_tfrecord,
                                    "--epochs", "1", "--train_size", "128",
-                                   "--save_path", checkpoint_dir,
+                                   "--save_path", self.checkpoint_dir,
                                    "--train_last_layer_only"))
-        model_path = os.path.join(checkpoint_dir, "model_01")
+        model_path = os.path.join(self.checkpoint_dir, "model_01")
         visualisation_dir = os.path.join(self.out_dir, "visualisation")
         self.run_helper(
             "evaluate",
@@ -325,15 +336,20 @@ class IntegrationTests(absltest.TestCase):
                        self.augmenter_replacement_input, "--phones_path",
                        self.augmenter_replacement_input, "--num_total", "0"))
         train_binproto = os.path.join(self.train_data_dir, "train.binproto")
-        self.run_helper("convert_data",
-                        arguments=("--module_url", self.module_url,
-                                   "--train_data_input_path", train_binproto,
-                                   "--train_data_output_path",
-                                   self.train_tfrecord,
-                                   "--dev_data_input_path", self.test_lftxt,
-                                   "--dev_data_output_path", self.dev_tfrecord,
-                                   "--meta_data_file_path", self.meta_data))
+        self.run_helper(
+            "convert_data",
+            arguments=("--module_url", self.module_url,
+                       "--train_data_input_path", train_binproto,
+                       "--train_data_output_path", self.train_tfrecord,
+                       "--dev_data_input_path", self.test_lftxt,
+                       "--dev_data_output_path", self.dev_tfrecord,
+                       "--test_data_input_paths", self.test2_lftxt,
+                       "--test_data_output_paths", self.test2_tfrecord,
+                       "--test_data_input_paths", self.test3_txt,
+                       "--test_data_output_paths", self.test3_tfrecord,
+                       "--meta_data_file_path", self.meta_data))
         filecmp(self.train_tfrecord, self.dev_tfrecord)
+        filecmp(self.test2_tfrecord, self.test3_tfrecord)
 
 
 if __name__ == "__main__":
