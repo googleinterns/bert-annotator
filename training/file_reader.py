@@ -132,8 +132,13 @@ class BinProtoReader(FileReader):
         examples = []
         sentence_id = 0
         example = tagging_data_lib.InputExample(sentence_id=0)
+        characters_per_sentence = set()
         for document in self._get_documents():
             text = document.text
+            characters = remove_whitespace_and_parse(text, tokenizer)
+            if characters in characters_per_sentence:
+                continue
+            characters_per_sentence.add(characters)
 
             if use_gold_tokenization_and_include_target_labels:
                 for labeled_example in self._get_labeled_text(document):
@@ -247,7 +252,7 @@ class LftxtReader(FileReader):
         characters_per_sentence_list = []
         characters_per_sentence_set = set()
         characterwise_target_labels = []
-        characters = []
+        characters = ""
         prev_text = ""
         for labeled_example in self.get_labeled_text():
             if prev_text == labeled_example.complete_text:
@@ -284,6 +289,7 @@ class LftxtReader(FileReader):
         sentence_id = 0
         example = tagging_data_lib.InputExample(sentence_id=0)
         prev_text = ""
+        characters_per_sentence = set()
         for labeled_example in self.get_labeled_text():
             if use_gold_tokenization_and_include_target_labels:
                 if prev_text == labeled_example.complete_text:
@@ -304,6 +310,14 @@ class LftxtReader(FileReader):
                     del example.label_ids[prefix_word_length:]
                     del example.words[prefix_word_length:]
                 else:
+                    # The sentence could be a duplicate (not repeated because it
+                    # has multiple labels, but a completely separate entry).
+                    # Those # should be ignored.
+                    characters = remove_whitespace_and_parse(
+                        labeled_example.complete_text, tokenizer)
+                    if characters in characters_per_sentence:
+                        continue
+                    characters_per_sentence.add(characters)
                     add_tfrecord_label(labeled_example.prefix, LABEL_OUTSIDE,
                                        tokenizer, example,
                                        use_additional_labels)
@@ -313,7 +327,9 @@ class LftxtReader(FileReader):
                 add_tfrecord_label(labeled_example.suffix, LABEL_OUTSIDE,
                                    tokenizer, example, use_additional_labels)
             else:
-                if prev_text == labeled_example.complete_text:
+                characters = remove_whitespace_and_parse(
+                    labeled_example.complete_text, tokenizer)
+                if characters in characters_per_sentence:
                     continue
                 add_tfrecord_label(labeled_example.complete_text,
                                    LABEL_OUTSIDE,
@@ -389,13 +405,11 @@ class TxtReader(FileReader):
         characters_per_sentence_list = []
         characters_per_sentence_set = set()
         characterwise_target_labels = []
-        characters = []
         with GFile(self.path, "r") as file:
             for text in file:
+                characters = remove_whitespace_and_parse(text, tokenizer)
                 if characters in characters_per_sentence_set:
                     continue
-
-                characters = remove_whitespace_and_parse(text, tokenizer)
                 characterwise_target_labels = [LABEL_OUTSIDE] * len(characters)
 
                 characterwise_target_labels_per_sentence.append(
@@ -416,17 +430,19 @@ class TxtReader(FileReader):
         examples = []
         sentence_id = 0
         example = tagging_data_lib.InputExample(sentence_id=0)
-        prev_text = ""
+        characters_per_sentence = set()
         with GFile(self.path, "r") as file:
             for text in file:
-                if prev_text == text:
+                characters = remove_whitespace_and_parse(text, tokenizer)
+                if characters in characters_per_sentence:
                     continue
+                characters_per_sentence.add(characters)
+
                 add_tfrecord_label(text,
                                    LABEL_OUTSIDE,
                                    tokenizer,
                                    example,
                                    use_additional_labels=False)
-                prev_text = text
 
                 if example.words:
                     examples.append(example)

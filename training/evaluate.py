@@ -341,11 +341,17 @@ def _transform_wordwise_labels_to_characterwise_labels(
     label, all other characters are assigned the corresponding "I-" label.
     """
     characterwise_predicted_label_ids_per_sentence = []
-    for words, predicted_label_ids in zip(words_per_sentence,
-                                          predicted_label_ids_per_sentence):
+    assert len(words_per_sentence) == len(
+        predicted_label_ids_per_sentence
+    ), "Different number of sentences: %d vs. %d" % (
+        len(words_per_sentence), len(predicted_label_ids_per_sentence))
+    for i, (words, predicted_label_ids) in enumerate(
+            zip(words_per_sentence, predicted_label_ids_per_sentence)):
         characterwise_predicted_label_ids = []
 
-        assert len(words) == len(predicted_label_ids)
+        assert len(words) == len(
+            predicted_label_ids), "Got %d vs. %d words in sentence %d" % (
+                len(words), len(predicted_label_ids), i)
         for word, label_id in zip(words, predicted_label_ids):
             if _is_label_type(LABELS[label_id], LabelType.BEGINNING):
                 characterwise_predicted_label_ids += [
