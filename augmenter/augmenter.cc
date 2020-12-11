@@ -217,7 +217,9 @@ void Augmenter::Augment() {
 
   // If the documents are not shuffled, the unmodified sentences are all next to
   // each other. This is problematic when merging sentences in the next step.
-  shuffler_->Shuffle(&documents_, bitgenref_);
+  if (augmentations_.shuffle) {
+    shuffler_->Shuffle(&documents_, bitgenref_);
+  }
 
   for (int i = documents_.documents_size() - 1; i > 0; --i) {
     if (absl::Bernoulli(bitgenref_,
