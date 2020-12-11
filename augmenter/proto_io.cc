@@ -27,11 +27,11 @@
 
 namespace augmenter {
 
-bool ProtoIO::Load(absl::string_view path) {
+bool ProtoIO::Load(const absl::string_view path) {
   if (absl::EndsWith(path, ".binproto")) {
     return LoadBinary(path);
   } else if (absl::EndsWith(path, ".textproto")) {
-    return LoadText(path);
+    return LoadTextproto(path);
   } else {
     std::cerr << "File format of file " << path << " is not supported"
               << std::endl;
@@ -39,7 +39,7 @@ bool ProtoIO::Load(absl::string_view path) {
   }
 }
 
-bool ProtoIO::LoadText(absl::string_view path) {
+bool ProtoIO::LoadTextproto(const absl::string_view path) {
   std::ifstream input(std::string(path), std::ios::in);
   if (input.fail()) {
     std::cerr << "Failed to load corpus " << path << std::endl;
@@ -53,7 +53,7 @@ bool ProtoIO::LoadText(absl::string_view path) {
   return true;
 }
 
-bool ProtoIO::LoadBinary(absl::string_view path) {
+bool ProtoIO::LoadBinary(const absl::string_view path) {
   std::ifstream input(std::string(path), std::ios::in | std::ios::binary);
   if (input.fail()) {
     std::cerr << "Failed to load corpus " << path << std::endl;
@@ -66,11 +66,11 @@ bool ProtoIO::LoadBinary(absl::string_view path) {
   return true;
 }
 
-bool ProtoIO::Save(absl::string_view path) const {
+bool ProtoIO::Save(const absl::string_view path) const {
   if (absl::EndsWith(path, ".binproto")) {
     return SaveBinary(path);
   } else if (absl::EndsWith(path, ".textproto")) {
-    return SaveText(path);
+    return SaveTextproto(path);
   } else if (absl::EndsWith(path, ".txt")) {
     return SaveTxt(path);
   } else {
@@ -80,7 +80,7 @@ bool ProtoIO::Save(absl::string_view path) const {
   }
 }
 
-bool ProtoIO::SaveText(absl::string_view path) const {
+bool ProtoIO::SaveTextproto(const absl::string_view path) const {
   std::ofstream output(std::string(path), std::ios::out);
   google::protobuf::io::OstreamOutputStream fileOutput(&output,
                                                        std::ios::binary);
@@ -91,7 +91,7 @@ bool ProtoIO::SaveText(absl::string_view path) const {
   return true;
 }
 
-bool ProtoIO::SaveBinary(absl::string_view path) const {
+bool ProtoIO::SaveBinary(const absl::string_view path) const {
   std::ofstream output(std::string(path),
                        std::ios::out | std::ios::trunc | std::ios::binary);
   if (!documents_.SerializeToOstream(&output)) {
@@ -101,7 +101,7 @@ bool ProtoIO::SaveBinary(absl::string_view path) const {
   return true;
 }
 
-bool ProtoIO::SaveTxt(absl::string_view path) const {
+bool ProtoIO::SaveTxt(const absl::string_view path) const {
   std::ofstream output(std::string(path), std::ios::out);
   if (output.is_open()) {
     for (const bert_annotator::Document& document : documents_.documents()) {
