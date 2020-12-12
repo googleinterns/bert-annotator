@@ -229,6 +229,11 @@ void Augmenter::Augment() {
     }
   }
 
+  // Shuffle again, now that concatenated sentences have been added.
+  if (augmentations_.shuffle) {
+    shuffler_->Shuffle(&documents_, bitgenref_);
+  }
+
   if (augmentations_.mask_digits) {
     for (bert_annotator::Document& document : *documents_.mutable_documents()) {
       MaskDigits(&document);
