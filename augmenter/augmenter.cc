@@ -188,9 +188,10 @@ void Augmenter::Augment() {
   const int original_document_number = documents_->documents_size();
 
   for (int i = 0; i < augmentations_.num_total; ++i) {
-    if(i % 100000 == 0) {
-      std::cout << "Augmentation progress: " << 
-	  std::to_string(i / augmentations_.num_total * 100) << "%" << std::endl;
+    if (i % 100000 == 0) {
+      std::cout << "Augmentation progress: "
+                << std::to_string(i / augmentations_.num_total * 100) << "%"
+                << std::endl;
     }
     bert_annotator::Document* augmented_document;
 
@@ -243,7 +244,8 @@ void Augmenter::Augment() {
 
   if (augmentations_.mask_digits) {
     std::cout << "Maskinkg digits..." << std::endl;
-    for (bert_annotator::Document& document : *documents_->mutable_documents()) {
+    for (bert_annotator::Document& document :
+         *documents_->mutable_documents()) {
       MaskDigits(&document);
     }
   }

@@ -72,7 +72,6 @@ bool ProtoIO::LoadBinary(const absl::string_view path) {
 bool ProtoIO::Save(const absl::string_view path,
                    const int output_sentences_per_file) const {
   if (output_sentences_per_file == -1) {
-    std::cout << "Saving to " << path << std::endl;
     return Save(path, &documents_);
   }
 
@@ -85,10 +84,10 @@ bool ProtoIO::Save(const absl::string_view path,
     }
     bert_annotator::Documents documents_to_save;
     *documents_to_save.mutable_documents() = {
-        documents_.documents().begin() + start, documents_.documents().begin() + end};
+        documents_.documents().begin() + start,
+        documents_.documents().begin() + end};
     const std::string shard_path = absl::StrFormat(path, file_number);
 
-    std::cout << "Saving to " << shard_path << std::endl;
     const bool success = Save(shard_path, &documents_to_save);
     if (!success) {
       return false;
@@ -100,6 +99,7 @@ bool ProtoIO::Save(const absl::string_view path,
 
 bool ProtoIO::Save(absl::string_view path,
                    const bert_annotator::Documents* documents_to_save) const {
+  std::cout << "Saving to " << path << std::endl;
   if (absl::EndsWith(path, ".binproto")) {
     return SaveBinary(path, documents_to_save);
   } else if (absl::EndsWith(path, ".textproto")) {
@@ -155,8 +155,6 @@ bool ProtoIO::SaveTxt(
   }
 }
 
-bert_annotator::Documents* ProtoIO::documents() {
-  return &documents_;
-}
+bert_annotator::Documents* ProtoIO::documents() { return &documents_; }
 
 }  // namespace augmenter
