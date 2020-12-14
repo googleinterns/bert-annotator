@@ -35,7 +35,7 @@
 
 namespace augmenter {
 
-Augmenter::Augmenter(const bert_annotator::Documents& documents,
+Augmenter::Augmenter(bert_annotator::Documents* documents,
                      Augmentations augmentations,
                      RandomSampler* const address_sampler,
                      RandomSampler* const phone_sampler,
@@ -76,20 +76,20 @@ Augmenter::Augmenter(const bert_annotator::Documents& documents,
 
   // Skip invalid sentences where the start/end value of tokens does not
   // match their length.
-  for (int i = documents_.documents_size() - 1; i >= 0; --i) {
-    bert_annotator::Document* document = documents_.mutable_documents(i);
+  for (int i = documents_->documents_size() - 1; i >= 0; --i) {
+    bert_annotator::Document* document = documents_->mutable_documents(i);
 
     for (bert_annotator::Token token : document->token()) {
       if (static_cast<int>(token.word().size()) !=
           token.end() - token.start() + 1) {
-        documents_.mutable_documents()->erase(
-            documents_.mutable_documents()->begin() + i);
+        documents_->mutable_documents()->erase(
+            documents_->mutable_documents()->begin() + i);
         break;
       }
     }
   }
 
-  for (bert_annotator::Document& document : *documents_.mutable_documents()) {
+  for (bert_annotator::Document& document : *documents_->mutable_documents()) {
     InitializeLabelList(&document);
     MergePhoneNumberTokens(&document);
     DropSeparatorTokens(&document);
@@ -161,7 +161,7 @@ void Augmenter::AugmentCase(bert_annotator::Document* const document) {
 bert_annotator::Document* Augmenter::AugmentContextless(
     const absl::string_view label, const bool split_into_tokens,
     RandomSampler* const sampler) {
-  bert_annotator::Document* document = documents_.add_documents();
+  bert_annotator::Document* document = documents_->add_documents();
 
   const std::string sample = sampler->Sample();
   document->set_text(sample);
@@ -185,9 +185,13 @@ bert_annotator::Document* Augmenter::AugmentContextless(
 }
 
 void Augmenter::Augment() {
-  const int original_document_number = documents_.documents_size();
+  const int original_document_number = documents_->documents_size();
 
   for (int i = 0; i < augmentations_.num_total; ++i) {
+    if(i % 100000 == 0) {
+      std::cout << "Augmentation progress: " << 
+	  std::to_string(i / augmentations_.num_total * 100) << "%" << std::endl;
+    }
     bert_annotator::Document* augmented_document;
 
     if (i < augmentations_.num_contextless_addresses) {
@@ -202,8 +206,8 @@ void Augmenter::Augment() {
       const int document_id = absl::Uniform(absl::IntervalClosed, bitgenref_, 0,
                                             original_document_number - 1);
       const bert_annotator::Document& original_document =
-          documents_.documents(document_id);
-      augmented_document = documents_.add_documents();
+          documents_->documents(document_id);
+      augmented_document = documents_->add_documents();
       augmented_document->CopyFrom(original_document);
 
       AugmentAddress(augmented_document);
@@ -218,29 +222,33 @@ void Augmenter::Augment() {
   // If the documents are not shuffled, the unmodified sentences are all next to
   // each other. This is problematic when merging sentences in the next step.
   if (augmentations_.shuffle) {
-    shuffler_->Shuffle(&documents_, bitgenref_);
+    std::cout << "Shuffling..." << std::endl;
+    shuffler_->Shuffle(documents_, bitgenref_);
   }
 
-  for (int i = documents_.documents_size() - 1; i > 0; --i) {
+  std::cout << "Concatenating..." << std::endl;
+  for (int i = documents_->documents_size() - 1; i > 0; --i) {
     if (absl::Bernoulli(bitgenref_,
                         augmentations_.prob_sentence_concatenation)) {
-      AddConcatenatedDocument(documents_.documents(i - 1),
-                              documents_.documents(i));
+      AddConcatenatedDocument(documents_->documents(i - 1),
+                              documents_->documents(i));
     }
   }
 
   // Shuffle again, now that concatenated sentences have been added.
   if (augmentations_.shuffle) {
-    shuffler_->Shuffle(&documents_, bitgenref_);
+    std::cout << "Shuffling..." << std::endl;
+    shuffler_->Shuffle(documents_, bitgenref_);
   }
 
   if (augmentations_.mask_digits) {
-    for (bert_annotator::Document& document : *documents_.mutable_documents()) {
+    std::cout << "Maskinkg digits..." << std::endl;
+    for (bert_annotator::Document& document : *documents_->mutable_documents()) {
       MaskDigits(&document);
     }
   }
 
-  for (const bert_annotator::Document& document : documents_.documents()) {
+  for (const bert_annotator::Document& document : documents_->documents()) {
     if (document.text().length() == 0) {
       std::cerr << "Empty document in output detected. This will break the "
                    "evaluation scripts, aborting."
@@ -253,7 +261,7 @@ void Augmenter::Augment() {
 void Augmenter::AddConcatenatedDocument(
     const bert_annotator::Document& first_document,
     const bert_annotator::Document& second_document) {
-  bert_annotator::Document* concatenated_document = documents_.add_documents();
+  bert_annotator::Document* concatenated_document = documents_->add_documents();
   concatenated_document->CopyFrom(first_document);
   bert_annotator::Document tmp_copy_of_second_document;
   tmp_copy_of_second_document.CopyFrom(second_document);
@@ -870,10 +878,6 @@ void Augmenter::MaskDigits(bert_annotator::Document* const document) const {
   for (bert_annotator::Token& token : *document->mutable_token()) {
     MaskDigits(token.mutable_word());
   }
-}
-
-const bert_annotator::Documents Augmenter::documents() const {
-  return documents_;
 }
 
 const absl::flat_hash_set<absl::string_view>& Augmenter::kAddressLabels =

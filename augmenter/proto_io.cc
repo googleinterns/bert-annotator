@@ -72,11 +72,10 @@ bool ProtoIO::LoadBinary(const absl::string_view path) {
 bool ProtoIO::Save(const absl::string_view path,
                    const int output_sentences_per_file) const {
   if (output_sentences_per_file == -1) {
+    std::cout << "Saving to " << path << std::endl;
     return Save(path, &documents_);
   }
 
-  std::vector<bert_annotator::Document> documents_as_vector(
-      documents_.documents().begin(), documents_.documents().end());
   int file_number = 0;
   for (int start = 0; start < documents_.documents_size();
        start += output_sentences_per_file) {
@@ -86,10 +85,10 @@ bool ProtoIO::Save(const absl::string_view path,
     }
     bert_annotator::Documents documents_to_save;
     *documents_to_save.mutable_documents() = {
-        documents_as_vector.begin() + start, documents_as_vector.begin() + end};
+        documents_.documents().begin() + start, documents_.documents().begin() + end};
     const std::string shard_path = absl::StrFormat(path, file_number);
 
-    std::cout << "Got " << path << " made it to " << shard_path << std::endl;
+    std::cout << "Saving to " << shard_path << std::endl;
     const bool success = Save(shard_path, &documents_to_save);
     if (!success) {
       return false;
@@ -156,12 +155,8 @@ bool ProtoIO::SaveTxt(
   }
 }
 
-const bert_annotator::Documents ProtoIO::documents() const {
-  return documents_;
-}
-
-void ProtoIO::set_documents(const bert_annotator::Documents documents) {
-  documents_ = documents;
+bert_annotator::Documents* ProtoIO::documents() {
+  return &documents_;
 }
 
 }  // namespace augmenter

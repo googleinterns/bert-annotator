@@ -30,7 +30,6 @@ class ProtoIO {
   bool Save(const absl::string_view path,
             const int output_sentences_per_file) const;
   const bert_annotator::Documents documents() const;
-  void set_documents(const bert_annotator::Documents documents);
 
  private:
   bool Save(const absl::string_view path,

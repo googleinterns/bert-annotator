@@ -36,12 +36,11 @@ namespace augmenter {
 
 class Augmenter {
  public:
-  Augmenter(const bert_annotator::Documents& documents,
+  Augmenter(bert_annotator::Documents* documents,
             Augmentations augmentations, RandomSampler* const address_sampler,
             RandomSampler* const phone_sampler, Shuffler* const shuffler,
             absl::BitGenRef bitgenref);
   void Augment();
-  const bert_annotator::Documents documents() const;
   static const absl::flat_hash_set<absl::string_view>& kAddressLabels;
   static constexpr absl::string_view kAddressReplacementLabel = "ADDRESS";
   static const absl::flat_hash_set<absl::string_view>& kPhoneLabels;
@@ -144,7 +143,7 @@ class Augmenter {
   // Masks all digits with zero.
   void MaskDigits(std::string* text) const;
   void MaskDigits(bert_annotator::Document* const document) const;
-  bert_annotator::Documents documents_;
+  bert_annotator::Documents* documents_;
   RandomSampler* const address_sampler_;
   RandomSampler* const phone_sampler_;
   Shuffler* const shuffler_;
