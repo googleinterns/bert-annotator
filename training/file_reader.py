@@ -99,12 +99,13 @@ class BinProtoReader(FileReader):
     def get_characterwise_target_labels(self, tokenizer):
         """Returns a label for each character."""
         characterwise_target_labels_per_sentence = []
-        # Only the dictionary keys are used. Enables fast membership tests and
-        # preserves insertion order.
-        characters_per_sentence = dict()
+        # The list is used to preserve the insertion order, the set to test for
+        # containment.
+        characters_per_sentence_list = []
+        characters_per_sentence_set = set()
         for document in self._get_documents():
             characters = remove_whitespace_and_parse(document.text, tokenizer)
-            if characters in characters_per_sentence:
+            if characters in characters_per_sentence_set:
                 continue
             characterwise_target_labels = [LABEL_OUTSIDE] * len(characters)
             total_prefix = ""
@@ -119,9 +120,10 @@ class BinProtoReader(FileReader):
 
             characterwise_target_labels_per_sentence.append(
                 characterwise_target_labels)
-            characters_per_sentence[characters] = None
+            characters_per_sentence_set.add(characters)
+            characters_per_sentence_list.append(characters)
         return (characterwise_target_labels_per_sentence,
-                list(characters_per_sentence.keys()))
+                characters_per_sentence_list)
 
     def get_examples(self, tokenizer, use_additional_labels,
                      use_gold_tokenization_and_include_target_labels):
@@ -239,9 +241,10 @@ class LftxtReader(FileReader):
     def get_characterwise_target_labels(self, tokenizer):
         """Returns a label for each character."""
         characterwise_target_labels_per_sentence = []
-        # Only the dictionary keys are used. Enables fast membership tests and
-        # preserves insertion order.
-        characters_per_sentence = dict()
+        # The list is used to preserve the insertion order, the set to test for
+        # containment.
+        characters_per_sentence_list = []
+        characters_per_sentence_set = set()
         characterwise_target_labels = []
         characters = []
         prev_text = ""
@@ -249,8 +252,7 @@ class LftxtReader(FileReader):
             if prev_text == labeled_example.complete_text:
                 # The last entry is updated, it will be added again.
                 del characterwise_target_labels_per_sentence[-1]
-                # characters_per_sentence is a dict, so the enty does not need
-                # to be removed.
+                del characters_per_sentence_list[-1]
             else:
                 characters = remove_whitespace_and_parse(
                     labeled_example.complete_text, tokenizer)
@@ -258,7 +260,7 @@ class LftxtReader(FileReader):
                 # The sentence could be a duplicate (not repeated because it has
                 # multiple labels, but a completely separate entry). Those
                 # should be ignored.
-                if characters in characters_per_sentence:
+                if characters in characters_per_sentence_set:
                     prev_text = ""
                     continue
 
@@ -267,11 +269,12 @@ class LftxtReader(FileReader):
 
             characterwise_target_labels_per_sentence.append(
                 characterwise_target_labels)
-            characters_per_sentence[characters] = None
+            characters_per_sentence_set.add(characters)
+            characters_per_sentence_list.append(characters)
             prev_text = labeled_example.complete_text
 
         return (characterwise_target_labels_per_sentence,
-                list(characters_per_sentence.keys()))
+                characters_per_sentence_list)
 
     def get_examples(self, tokenizer, use_additional_labels,
                      use_gold_tokenization_and_include_target_labels):
@@ -380,14 +383,15 @@ class TxtReader(FileReader):
     def get_characterwise_target_labels(self, tokenizer):
         """Returns the outside label for each character"""
         characterwise_target_labels_per_sentence = []
-        # Only the dictionary keys are used. Enables fast membership tests and
-        # preserves insertion order.
-        characters_per_sentence = dict()
+        # The list is used to preserve the insertion order, the set to test for
+        # containment.
+        characters_per_sentence_list = []
+        characters_per_sentence_set = set()
         characterwise_target_labels = []
         characters = []
         with open(self.path, "r") as file:
             for text in file:
-                if characters in characters_per_sentence:
+                if characters in characters_per_sentence_set:
                     continue
 
                 characters = remove_whitespace_and_parse(text, tokenizer)
@@ -395,10 +399,11 @@ class TxtReader(FileReader):
 
                 characterwise_target_labels_per_sentence.append(
                     characterwise_target_labels)
-                characters_per_sentence[characters] = None
+                characters_per_sentence_set.add(characters)
+                characters_per_sentence_list.append(characters)
 
         return (characterwise_target_labels_per_sentence,
-                list(characters_per_sentence.keys()))
+                characters_per_sentence_list)
 
     def get_examples(self, tokenizer, use_additional_labels,
                      use_gold_tokenization_and_include_target_labels):
