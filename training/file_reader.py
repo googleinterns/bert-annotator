@@ -16,14 +16,12 @@
 """Readers for different file formats."""
 
 from abc import ABCMeta, abstractmethod
-from official.nlp.data import tagging_data_lib
 from tensorflow.io.gfile import GFile
 from google.protobuf.internal.decoder import _DecodeVarint32
 from official.nlp.data import tagging_data_lib
 
-from training.utils import (LABELS, LABEL_CONTAINER_NAME, LABEL_ID_MAP,
-                            LABEL_OUTSIDE, LF_ADDRESS_LABEL,
-                            LF_TELEPHONE_LABEL, MAIN_LABELS,
+from training.utils import (LABEL_CONTAINER_NAME, LABEL_ID_MAP, LABEL_OUTSIDE,
+                            LF_ADDRESS_LABEL, LF_TELEPHONE_LABEL, MAIN_LABELS,
                             MAIN_LABEL_ADDRESS, MAIN_LABEL_TELEPHONE,
                             LabeledExample, add_tfrecord_label,
                             split_into_words, remove_whitespace_and_parse)
