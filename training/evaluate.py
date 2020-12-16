@@ -77,7 +77,7 @@ flags.DEFINE_integer(
     "The maximal sequence length. Longer sequences are split.")
 flags.DEFINE_integer("batch_size", 64, "The number of samples per batch.")
 flags.DEFINE_string(
-    "tpu", None,
+    "tpu_address", None,
     "The internal address of the TPU node, including 'grpc://'. If not set, no"
     " tpu is used.")
 
@@ -600,9 +600,9 @@ def main(_):
     if len(FLAGS.input_paths) != len(FLAGS.raw_paths):
         raise ValueError("The number of inputs and raw paths must be equal.")
 
-    if FLAGS.tpu is not None:
+    if FLAGS.tpu_address is not None:
         resolver = tf.distribute.cluster_resolver.TPUClusterResolver(
-            tpu=FLAGS.tpu)
+            tpu=FLAGS.tpu_address)
         tf.config.experimental_connect_to_cluster(resolver)
         tf.tpu.experimental.initialize_tpu_system(resolver)
         strategy = tf.distribute.experimental.TPUStrategy(resolver)

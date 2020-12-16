@@ -147,7 +147,7 @@ linkfragment files.
 #### TPU support
 To use TPUs for training and evaluation:
  - Ensure that the VM has cloud API access to the compute enginge and storage.
- - Use the flag `--tpu` to define the internal address of the TPU node,
+ - Use the flag `--tpu_address` to define the internal address of the TPU node,
    including "grpc://".
  - Set the environment variable `TFHUB_CACHE_DIR` to a directory in a storage
    bucket.
