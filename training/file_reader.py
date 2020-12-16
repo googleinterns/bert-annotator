@@ -331,6 +331,7 @@ class LftxtReader(FileReader):
                     labeled_example.complete_text, tokenizer)
                 if characters in characters_per_sentence:
                     continue
+                characters_per_sentence.add(characters)
                 add_tfrecord_label(labeled_example.complete_text,
                                    LABEL_OUTSIDE,
                                    tokenizer,
