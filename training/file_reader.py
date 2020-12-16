@@ -312,7 +312,7 @@ class LftxtReader(FileReader):
                 else:
                     # The sentence could be a duplicate (not repeated because it
                     # has multiple labels, but a completely separate entry).
-                    # Those # should be ignored.
+                    # Those should be ignored.
                     characters = remove_whitespace_and_parse(
                         labeled_example.complete_text, tokenizer)
                     if characters in characters_per_sentence:

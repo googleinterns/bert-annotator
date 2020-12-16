@@ -86,6 +86,21 @@ FLAGS = flags.FLAGS
 LabelType = Enum("LabelType", "OUTSIDE BEGINNING INSIDE")
 
 
+def _assert_same_length(sequences, sentence_id=None):
+    lengths = [len(sequence) for sequence in sequences]
+    if len(lengths) == 0:
+        return
+    if sentence_id is not None:
+        additional_information = "(sentence id %d)" % sentence_id
+    else:
+        additional_information = ""
+
+    for length in lengths[1:]:
+        assert length == lengths[
+            0], "Not all sequences have the same length: %s %s" % (
+                str(lengths), additional_information)
+
+
 def _predict(task, params, model):
     """Predicts on the input data.
 
@@ -133,6 +148,8 @@ def _predict(task, params, model):
 
                 real_probs = []
                 assert len(tmp_prob) == len(tmp_label_mask)
+                _assert_same_length([tmp_prob, tmp_label_mask],
+                                    tmp_sentence_id)
                 for i in range(len(tmp_prob)):
                     # Skip the padding label.
                     if tmp_label_mask[i]:
@@ -230,9 +247,10 @@ def _infer(model, task, test_data_path, train_with_additional_labels,
             merged_probabilities[-1].extend(predicted_probabilies)
 
     merged_predictions = []
-    for probabilities in merged_probabilities:
+    for i, probabilities in enumerate(merged_probabilities):
         assert not np.isnan(probabilities).any(), (
-            "There was an error during decoding. Try reducing the batch size.")
+            "There was an error during decoding. Try reducing the batch size."
+            " First error in sentence %d" % i)
         prediction = _viterbi(probabilities, train_with_additional_labels)
         merged_predictions.append(prediction)
 
@@ -244,9 +262,10 @@ def _visualise(test_name, characterwise_target_labels_per_sentence,
                characters_per_sentence, words_per_sentence, visualised_label,
                visualisation_folder):
     """Generates a .html file comparing the hypothesis/target labels."""
-    assert len(characterwise_target_labels_per_sentence) == len(
-        characterwise_predicted_labels_per_sentence) == len(
-            characters_per_sentence)
+    _assert_same_length([
+        characterwise_target_labels_per_sentence,
+        characterwise_predicted_labels_per_sentence, characters_per_sentence
+    ])
     number_of_sentences = len(characterwise_target_labels_per_sentence)
 
     directory = os.path.join(visualisation_folder, test_name)
@@ -341,17 +360,12 @@ def _transform_wordwise_labels_to_characterwise_labels(
     label, all other characters are assigned the corresponding "I-" label.
     """
     characterwise_predicted_label_ids_per_sentence = []
-    assert len(words_per_sentence) == len(
-        predicted_label_ids_per_sentence
-    ), "Different number of sentences: %d vs. %d" % (
-        len(words_per_sentence), len(predicted_label_ids_per_sentence))
+    _assert_same_length([words_per_sentence, predicted_label_ids_per_sentence])
     for i, (words, predicted_label_ids) in enumerate(
             zip(words_per_sentence, predicted_label_ids_per_sentence)):
         characterwise_predicted_label_ids = []
 
-        assert len(words) == len(
-            predicted_label_ids), "Got %d vs. %d words in sentence %d" % (
-                len(words), len(predicted_label_ids), i)
+        _assert_same_length([words, predicted_label_ids], i)
         for word, label_id in zip(words, predicted_label_ids):
             if _is_label_type(LABELS[label_id], LabelType.BEGINNING):
                 characterwise_predicted_label_ids += [
