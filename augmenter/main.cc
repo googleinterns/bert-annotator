@@ -158,7 +158,7 @@ int main(int argc, char* argv[]) {
     absl::BitGen bitgen;
 
     augmenter::Augmenter augmenter = augmenter::Augmenter(
-        proto_io.documents(), augmentations, &address_sampler, &phones_sampler,
+        augmentations, proto_io.documents(), &address_sampler, &phones_sampler,
         &shuffler, bitgen);
     augmenter.Augment();
     const int output_sentences_per_file =

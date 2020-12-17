@@ -72,7 +72,7 @@ bool ProtoIO::LoadBinary(const absl::string_view path) {
 bool ProtoIO::Save(const absl::string_view path,
                    const int output_sentences_per_file) const {
   if (output_sentences_per_file == -1) {
-    return Save(path, &documents_);
+    return Save(path, documents_);
   }
 
   int file_number = 0;
@@ -88,7 +88,7 @@ bool ProtoIO::Save(const absl::string_view path,
         documents_.documents().begin() + end};
     const std::string shard_path = absl::StrFormat(path, file_number);
 
-    const bool success = Save(shard_path, &documents_to_save);
+    const bool success = Save(shard_path, documents_to_save);
     if (!success) {
       return false;
     }
@@ -98,7 +98,7 @@ bool ProtoIO::Save(const absl::string_view path,
 }
 
 bool ProtoIO::Save(absl::string_view path,
-                   const bert_annotator::Documents* documents_to_save) const {
+                   const bert_annotator::Documents& documents_to_save) const {
   std::cout << "Saving to " << path << std::endl;
   if (absl::EndsWith(path, ".binproto")) {
     return SaveBinary(path, documents_to_save);
@@ -115,11 +115,11 @@ bool ProtoIO::Save(absl::string_view path,
 
 bool ProtoIO::SaveTextproto(
     const absl::string_view path,
-    const bert_annotator::Documents* documents_to_save) const {
+    const bert_annotator::Documents& documents_to_save) const {
   std::ofstream output(std::string(path), std::ios::out);
   google::protobuf::io::OstreamOutputStream fileOutput(&output,
                                                        std::ios::binary);
-  if (!google::protobuf::TextFormat::Print(*documents_to_save, &fileOutput)) {
+  if (!google::protobuf::TextFormat::Print(documents_to_save, &fileOutput)) {
     std::cerr << "Failed to save document " << path << "." << std::endl;
     return false;
   }
@@ -128,10 +128,10 @@ bool ProtoIO::SaveTextproto(
 
 bool ProtoIO::SaveBinary(
     const absl::string_view path,
-    const bert_annotator::Documents* documents_to_save) const {
+    const bert_annotator::Documents& documents_to_save) const {
   std::ofstream output(std::string(path),
                        std::ios::out | std::ios::trunc | std::ios::binary);
-  if (!documents_to_save->SerializeToOstream(&output)) {
+  if (!documents_to_save.SerializeToOstream(&output)) {
     std::cerr << "Failed to save document " << path << "." << std::endl;
     return false;
   }
@@ -140,11 +140,11 @@ bool ProtoIO::SaveBinary(
 
 bool ProtoIO::SaveTxt(
     const absl::string_view path,
-    const bert_annotator::Documents* documents_to_save) const {
+    const bert_annotator::Documents& documents_to_save) const {
   std::ofstream output(std::string(path), std::ios::out);
   if (output.is_open()) {
     for (const bert_annotator::Document& document :
-         documents_to_save->documents()) {
+         documents_to_save.documents()) {
       output << document.text() << "\n";
     }
     output.close();

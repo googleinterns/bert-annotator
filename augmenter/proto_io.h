@@ -33,15 +33,15 @@ class ProtoIO {
 
  private:
   bool Save(const absl::string_view path,
-            const bert_annotator::Documents* documents_to_save) const;
+            const bert_annotator::Documents& documents_to_save) const;
   bool LoadTextproto(const absl::string_view path);
   bool SaveTextproto(const absl::string_view path,
-                     const bert_annotator::Documents* documents_to_save) const;
+                     const bert_annotator::Documents& documents_to_save) const;
   bool SaveTxt(const absl::string_view path,
-               const bert_annotator::Documents* documents_to_save) const;
+               const bert_annotator::Documents& documents_to_save) const;
   bool LoadBinary(const absl::string_view path);
   bool SaveBinary(const absl::string_view path,
-                  const bert_annotator::Documents* documents_to_save) const;
+                  const bert_annotator::Documents& documents_to_save) const;
   bert_annotator::Documents documents_;
 };
 

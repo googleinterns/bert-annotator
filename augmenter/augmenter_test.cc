@@ -169,7 +169,7 @@ TEST(AugmenterDeathTest, NegativeProbability) {
 
   EXPECT_DEATH(
       {
-        Augmenter(&documents, augmentations, &address_sampler, &phone_sampler,
+        Augmenter(augmentations, &documents, &address_sampler, &phone_sampler,
                   &shuffler, bitgen);
       },
       "All probabilities must have values between zero and one.");
@@ -187,7 +187,7 @@ TEST(AugmenterDeathTest, ProbabilityGreaterOne) {
 
   EXPECT_DEATH(
       {
-        Augmenter(&documents, augmentations, &address_sampler, &phone_sampler,
+        Augmenter(augmentations, &documents, &address_sampler, &phone_sampler,
                   &shuffler, bitgen);
       },
       "All probabilities must have values between zero and one.");
@@ -204,7 +204,7 @@ TEST(AugmenterTest, NoAugmentation) {
   absl::MockingBitGen bitgen;
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(&documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
@@ -227,7 +227,7 @@ TEST(AugmenterDeathTest, InvalidCaseProbabilitySum) {
 
   EXPECT_DEATH(
       {
-        Augmenter(&documents, augmentations, &address_sampler, &phone_sampler,
+        Augmenter(augmentations, &documents, &address_sampler, &phone_sampler,
                   &shuffler, bitgen);
       },
       "The probabilities for changing the case of tokens must sum up to at "
@@ -243,7 +243,7 @@ TEST(AugmenterDeathTest, EmptyDocument) {
   absl::MockingBitGen bitgen;
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(&documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   EXPECT_DEATH({ augmenter.Augment(); },
@@ -260,7 +260,7 @@ TEST(AugmenterTest, CreateMissingLabelList) {
   absl::MockingBitGen bitgen;
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(&documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
   augmenter.Augment();
 
@@ -287,7 +287,7 @@ TEST(AugmenterTest, RemoveInvalidSentences) {
   absl::MockingBitGen bitgen;
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(&documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
   augmenter.Augment();
 
@@ -323,7 +323,7 @@ TEST(AugmenterTest, LowercasingCompleteTokens) {
       .WillOnce(Return(0.4));  // Only lowercase last token.
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(&documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
   augmenter.Augment();
 
@@ -359,7 +359,7 @@ TEST(AugmenterTest, LowercasingFirstLetter) {
       .WillOnce(Return(0.4));  // Only lowercase last token.
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(&documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
   augmenter.Augment();
 
@@ -395,7 +395,7 @@ TEST(AugmenterTest, UppercasingCompleteTokens) {
       .WillOnce(Return(0.4));  // Only uppercase last token.
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(&documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
   augmenter.Augment();
 
@@ -431,7 +431,7 @@ TEST(AugmenterTest, UppercasingFirstLetter) {
       .WillOnce(Return(0.4));  // Only uppercase last token.
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(&documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
   augmenter.Augment();
 
@@ -471,7 +471,7 @@ TEST(AugmenterTest, MultipleCaseChanges) {
       .WillOnce(Return(0.9));  // Do not change fourth token.
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(&documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
   augmenter.Augment();
 
@@ -509,7 +509,7 @@ TEST(AugmenterTest, ReplacePhoneSameLength) {
       .WillOnce(Return(true));
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(&documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
@@ -549,7 +549,7 @@ TEST(AugmenterTest, ReplacePhoneLongerLength) {
       .WillOnce(Return(true));
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(&documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
@@ -590,7 +590,7 @@ TEST(AugmenterTest, ReplacePhoneShorterLength) {
       .WillOnce(Return(true));
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(&documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
@@ -629,7 +629,7 @@ TEST(AugmenterTest, ReplacePhoneStart) {
       .WillOnce(Return(true));
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(&documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
@@ -667,7 +667,7 @@ TEST(AugmenterTest, ReplacePhoneEnd) {
       .WillOnce(Return(true));
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(&documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
@@ -716,7 +716,7 @@ TEST(AugmenterTest, ReplacePhoneChooseLabel) {
       .WillOnce(Return(false));
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(&documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
@@ -762,7 +762,7 @@ TEST(AugmenterTest, UpdateLabels) {
   absl::MockingBitGen bitgen;
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(&documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
@@ -802,7 +802,7 @@ TEST(AugmenterTest, ReplaceAddressSameLength) {
       .WillOnce(Return(true));
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(&documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
@@ -843,7 +843,7 @@ TEST(AugmenterTest, ReplaceAddressFewerTokens) {
       .WillOnce(Return(true));
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(&documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
@@ -888,7 +888,7 @@ TEST(AugmenterTest, ReplaceMultipleAddressesFewerTokens) {
       .WillRepeatedly(Return(true));
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(&documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
@@ -931,7 +931,7 @@ TEST(AugmenterTest, ReplaceAddressMultiWordReplacement) {
       .WillOnce(Return(true));
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(&documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
@@ -972,7 +972,7 @@ TEST(AugmenterTest, ReplaceAddressMoreTokensReplacement) {
       .WillOnce(Return(true));
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(&documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
@@ -1013,7 +1013,7 @@ TEST(AugmenterTest, ReplaceAddressPunctuation) {
       .WillOnce(Return(true));
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(&documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
@@ -1054,7 +1054,7 @@ TEST(AugmenterTest, DropContextDetectMultipleDroppableSequences) {
       .WillRepeatedly(Return(true));
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(&documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
@@ -1096,7 +1096,7 @@ TEST(AugmenterTest, DropContextStartAndEnd) {
   // Dropping "Prefix" is defined above.
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(&documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
@@ -1143,7 +1143,7 @@ TEST(AugmenterTest, DropContextRemoveBeginningOfLabel) {
       .WillOnce(Return(true));  //  Drop from first sequence.
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(&documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
@@ -1193,7 +1193,7 @@ TEST(AugmenterTest, DropContextRemoveMiddleOfLabel) {
       .WillRepeatedly(Return(2));
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(&documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
@@ -1242,7 +1242,7 @@ TEST(AugmenterTest, DropContextRemoveEndOfLabel) {
       .WillOnce(Return(4));
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(&documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
@@ -1288,7 +1288,7 @@ TEST(AugmenterTest, DropContextNoLabels) {
       .WillOnce(Return(0));
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(&documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
@@ -1331,7 +1331,7 @@ TEST(AugmenterTest, DropContextDropLabelsNoLabels) {
       .WillOnce(Return(0));
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(&documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
@@ -1369,7 +1369,7 @@ TEST(AugmenterTest, DropContextDropLabelsNoLabelsSingleRemainingToken) {
       .WillOnce(Return(1));
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(&documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
@@ -1417,7 +1417,7 @@ TEST(AugmenterTest, DropContextDropLabelsPrefix) {
       .WillOnce(Return(0));  // Drop first token.
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(&documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
@@ -1469,7 +1469,7 @@ TEST(AugmenterTest, DropContextDropLabelsSuffix) {
       .WillOnce(Return(3));
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(&documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
@@ -1514,7 +1514,7 @@ TEST(AugmenterTest, ChangePunctuationBetweenWords) {
       .WillOnce(Return(3));
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(&documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
@@ -1562,7 +1562,7 @@ TEST(AugmenterTest, ChangePunctuationAtSentenceEnd) {
       .WillOnce(Return(5));
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(&documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
@@ -1625,7 +1625,7 @@ TEST(AugmenterTest, ChangePunctuationAtSentenceEndNoTokens) {
       .Times(0);
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(&documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
@@ -1649,7 +1649,7 @@ TEST(AugmenterTest, MergePhoneNumberTokens) {
   absl::MockingBitGen bitgen;
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(&documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
@@ -1678,7 +1678,7 @@ TEST(AugmenterTest, RemoveSeparatorTokens) {
   absl::MockingBitGen bitgen;
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(&documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
@@ -1707,7 +1707,7 @@ TEST(AugmenterTest, RemoveSeparatorTokensUpdateLabelBoundaries) {
   absl::MockingBitGen bitgen;
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(&documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
@@ -1740,7 +1740,7 @@ TEST(AugmenterTest, RemoveSeparatorTokensDropLabels) {
   absl::MockingBitGen bitgen;
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(&documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
@@ -1771,7 +1771,7 @@ TEST(AugmenterTest, UnifyAndMergeAddresses) {
   absl::MockingBitGen bitgen;
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(&documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
@@ -1802,7 +1802,7 @@ TEST(AugmenterTest, DontUnifyAndMergeAddressesOverOtherTokens) {
   absl::MockingBitGen bitgen;
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(&documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
@@ -1846,7 +1846,7 @@ TEST(AugmenterTest, MergeDocuments) {
       .WillOnce(Return(true));
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(&documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
   augmenter.Augment();
 
@@ -1892,7 +1892,7 @@ TEST(AugmenterTest, MaskDigits) {
       .WillOnce(Return(true));
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(&documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
@@ -1938,7 +1938,7 @@ TEST(AugmenterTest, ContextlessAddress) {
       .WillRepeatedly(Return(false));
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(&documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
@@ -1997,7 +1997,7 @@ TEST(AugmenterTest, ContextlessAddressChangeCaseAndPunctuation) {
       .WillOnce(Return(0));
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(&documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
@@ -2028,7 +2028,7 @@ TEST(AugmenterTest, ContextlessPhone) {
       .WillRepeatedly(Return(false));
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(&documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
@@ -2058,7 +2058,7 @@ TEST(AugmenterTest, ContextlessPhoneMaskedDigits) {
       .WillRepeatedly(Return(false));
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(&documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();

@@ -35,8 +35,8 @@
 
 namespace augmenter {
 
-Augmenter::Augmenter(bert_annotator::Documents* documents,
-                     Augmentations augmentations,
+Augmenter::Augmenter(Augmentations augmentations,
+                     bert_annotator::Documents* const documents,
                      RandomSampler* const address_sampler,
                      RandomSampler* const phone_sampler,
                      Shuffler* const shuffler, absl::BitGenRef bitgenref)

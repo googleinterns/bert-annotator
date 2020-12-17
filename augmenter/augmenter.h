@@ -36,8 +36,8 @@ namespace augmenter {
 
 class Augmenter {
  public:
-  Augmenter(bert_annotator::Documents* documents,
-            Augmentations augmentations, RandomSampler* const address_sampler,
+  Augmenter(Augmentations augmentations, bert_annotator::Documents* documents,
+            RandomSampler* const address_sampler,
             RandomSampler* const phone_sampler, Shuffler* const shuffler,
             absl::BitGenRef bitgenref);
   void Augment();
@@ -143,7 +143,7 @@ class Augmenter {
   // Masks all digits with zero.
   void MaskDigits(std::string* text) const;
   void MaskDigits(bert_annotator::Document* const document) const;
-  bert_annotator::Documents* documents_;
+  bert_annotator::Documents* const documents_;
   RandomSampler* const address_sampler_;
   RandomSampler* const phone_sampler_;
   Shuffler* const shuffler_;
