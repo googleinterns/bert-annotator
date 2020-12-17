@@ -551,6 +551,12 @@ def _save_predictions_as_lftxt(
                     label_start = i
                 else:
                     assert label_name == "I-%s" % label
+            if label is not None:
+                _save_as_linkfragment(
+                    words, label_start,
+                    len(characterwise_predicted_label_names) - 1, label,
+                    output_file)
+                saved_at_least_once = True
             if not saved_at_least_once:
                 _save_as_linkfragment(words, 0, -1, "OUTSIDE", output_file)
 
