@@ -161,7 +161,7 @@ int main(int argc, char* argv[]) {
         proto_io.documents(), augmentations, &address_sampler, &phones_sampler,
         &shuffler, bitgen);
     augmenter.Augment();
-    int output_sentences_per_file =
+    const int output_sentences_per_file =
         absl::GetFlag(FLAGS_output_sentences_per_file);
     proto_io.Save(output_file, output_sentences_per_file);
   }
