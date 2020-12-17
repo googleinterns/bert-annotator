@@ -111,8 +111,10 @@ def train(module_url, train_data_path, validation_data_path, epochs,
         model = task.build_model(train_last_layer_only)
         if optimizer_name == "sgd":
             optimizer = tf.keras.optimizers.SGD(lr=learning_rate)
-        else:
+        elif optimizer_name == "adam":
             optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
+        else:
+            raise ValueError("Only SGD and Adam are supported optimizers.")
 
         iterations_per_epoch = train_size // batch_size
         model.compile(
