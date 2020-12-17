@@ -29,14 +29,14 @@ class ProtoIO {
   bool Load(const absl::string_view path);
   bool Save(const absl::string_view path,
             const int output_sentences_per_file) const;
-  const bert_annotator::Documents documents() const;
+  bert_annotator::Documents* documents();
 
  private:
   bool Save(const absl::string_view path,
             const bert_annotator::Documents* documents_to_save) const;
   bool LoadTextproto(const absl::string_view path);
   bool SaveTextproto(const absl::string_view path,
-                const bert_annotator::Documents* documents_to_save) const;
+                     const bert_annotator::Documents* documents_to_save) const;
   bool SaveTxt(const absl::string_view path,
                const bert_annotator::Documents* documents_to_save) const;
   bool LoadBinary(const absl::string_view path);

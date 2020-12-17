@@ -190,7 +190,7 @@ void Augmenter::Augment() {
   for (int i = 0; i < augmentations_.num_total; ++i) {
     if (i % 100000 == 0) {
       std::cout << "Augmentation progress: "
-                << std::to_string(i / augmentations_.num_total * 100) << "%"
+                << std::to_string(i * 100 / augmentations_.num_total) << "%"
                 << std::endl;
     }
     bert_annotator::Document* augmented_document;

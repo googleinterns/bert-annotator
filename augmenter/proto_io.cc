@@ -113,7 +113,7 @@ bool ProtoIO::Save(absl::string_view path,
   }
 }
 
-bool ProtoIO::SaveText(
+bool ProtoIO::SaveTextproto(
     const absl::string_view path,
     const bert_annotator::Documents* documents_to_save) const {
   std::ofstream output(std::string(path), std::ios::out);
