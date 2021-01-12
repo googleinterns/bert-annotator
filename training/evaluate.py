@@ -31,6 +31,7 @@ from official.nlp.data import tagging_dataloader
 from seqeval.scheme import IOB2
 from seqeval.metrics import classification_report
 import tensorflow as tf
+from tensorflow.io.gfile import GFile
 import orbit
 from com_google_research_bert import tokenization
 
@@ -74,6 +75,11 @@ flags.DEFINE_integer(
 flags.DEFINE_integer(
     "max_seq_length", 128,
     "The maximal sequence length. Longer sequences are split.")
+flags.DEFINE_integer("batch_size", 64, "The number of samples per batch.")
+flags.DEFINE_string(
+    "tpu_address", None,
+    "The internal address of the TPU node, including 'grpc://'. If not set, no"
+    " tpu is used.")
 
 FLAGS = flags.FLAGS
 
@@ -204,12 +210,13 @@ def _get_model_and_task(module_url, model_path, train_with_additional_labels):
     return model, task
 
 
-def _infer(model, task, test_data_path, train_with_additional_labels):
+def _infer(model, task, test_data_path, train_with_additional_labels,
+           batch_size):
     """Computes the predicted label sequence using the trained model."""
     test_data_config = tagging_dataloader.TaggingDataConfig(
         input_path=test_data_path,
         seq_length=128,
-        global_batch_size=64,
+        global_batch_size=batch_size,
         is_training=False,
         include_sentence_id=True,
         drop_remainder=False)
@@ -224,6 +231,8 @@ def _infer(model, task, test_data_path, train_with_additional_labels):
 
     merged_predictions = []
     for probabilities in merged_probabilities:
+        assert not np.isnan(probabilities).any(), (
+            "There was an error during decoding. Try reducing the batch size.")
         prediction = _viterbi(probabilities, train_with_additional_labels)
         merged_predictions.append(prediction)
 
@@ -244,7 +253,7 @@ def _visualise(test_name, characterwise_target_labels_per_sentence,
     if not os.path.exists(directory):
         os.makedirs(directory)
     file_name = os.path.join(directory, "%s.html" % visualised_label.lower())
-    with open(file_name, "w") as file:
+    with GFile(file_name, "w") as file:
         file.write("%s labels in %s <br>\n" % (visualised_label, test_name))
         file.write("<font color='green'>Correct labels</font> <br>\n")
         file.write("<font color='blue'>Superfluous labels</font> <br>\n")
@@ -444,11 +453,12 @@ def _get_predictions_from_lf_directory(lf_directory, raw_path, tokenizer):
 
 def _infer_characterwise_label_names(model, task, input_path,
                                      train_with_additional_labels,
-                                     words_per_sentence, raw_path, tokenizer):
+                                     words_per_sentence, raw_path, tokenizer,
+                                     batch_size):
     """Extracts the characterwise label names."""
     if input_path.endswith(".tfrecord"):
         predicted_label_ids_per_sentence = _infer(
-            model, task, input_path, train_with_additional_labels)
+            model, task, input_path, train_with_additional_labels, batch_size)
 
         characterwise_predicted_label_ids_per_sentence = (
             _transform_wordwise_labels_to_characterwise_labels(
@@ -496,8 +506,8 @@ def _save_predictions_as_lftxt(
         output_directory, test_name,
         characterwise_predicted_label_names_per_sentence, words_per_sentence):
     """Saves the hypotheses to an .lftxt file."""
-    with open(os.path.join(output_directory, "%s.lftxt" % test_name),
-              "w") as output_file:
+    with GFile(os.path.join(output_directory, "%s.lftxt" % test_name),
+               "w") as output_file:
         for (characterwise_predicted_label_names,
              words) in zip(characterwise_predicted_label_names_per_sentence,
                            words_per_sentence):
@@ -590,58 +600,70 @@ def main(_):
     if len(FLAGS.input_paths) != len(FLAGS.raw_paths):
         raise ValueError("The number of inputs and raw paths must be equal.")
 
-    model, task = _get_model_and_task(FLAGS.module_url, FLAGS.model_path,
-                                      FLAGS.train_with_additional_labels)
+    if FLAGS.tpu_address is not None:
+        resolver = tf.distribute.cluster_resolver.TPUClusterResolver(
+            tpu=FLAGS.tpu_address)
+        tf.config.experimental_connect_to_cluster(resolver)
+        tf.tpu.experimental.initialize_tpu_system(resolver)
+        strategy = tf.distribute.experimental.TPUStrategy(resolver)
+    else:
+        strategy = tf.distribute.get_strategy()
 
-    for input_path, raw_path in zip(FLAGS.input_paths, FLAGS.raw_paths):
-        test_name = os.path.splitext(os.path.basename(raw_path))[0]
+    with strategy.scope():
         tokenizer = create_tokenizer_from_hub_module(FLAGS.module_url)
+        model, task = _get_model_and_task(FLAGS.module_url, FLAGS.model_path,
+                                          FLAGS.train_with_additional_labels)
 
-        file_reader = get_file_reader(raw_path)
+        for input_path, raw_path in zip(FLAGS.input_paths, FLAGS.raw_paths):
+            test_name = os.path.splitext(os.path.basename(raw_path))[0]
 
-        words_per_sentence = file_reader.get_words(tokenizer)
+            file_reader = get_file_reader(raw_path)
 
-        characterwise_predicted_label_names_per_sentence = (
-            _infer_characterwise_label_names(
-                model, task, input_path, FLAGS.train_with_additional_labels,
-                words_per_sentence, raw_path, tokenizer))
+            words_per_sentence = file_reader.get_words(tokenizer)
 
-        (characterwise_target_labels_per_sentence, characters_per_sentence
-         ) = file_reader.get_characterwise_target_labels(tokenizer)
+            characterwise_predicted_label_names_per_sentence = (
+                _infer_characterwise_label_names(
+                    model, task, input_path,
+                    FLAGS.train_with_additional_labels, words_per_sentence,
+                    raw_path, tokenizer, FLAGS.batch_size))
 
-        if FLAGS.save_output_as_lftxt or FLAGS.save_output_as_tfrecord:
-            if not FLAGS.output_directory:
-                raise ValueError(
-                    "If the hypotheses are supposed to be saved, an output"
-                    " directory must be specified.")
-            if FLAGS.save_output_as_lftxt:
-                _save_predictions_as_lftxt(
-                    FLAGS.output_directory, test_name,
-                    characterwise_predicted_label_names_per_sentence,
-                    words_per_sentence)
-            if FLAGS.save_output_as_tfrecord:
-                _save_predictions_as_tfrecord(
-                    output_directory=FLAGS.output_directory,
-                    test_name=test_name,
-                    characterwise_predicted_label_names_per_sentence=
-                    characterwise_predicted_label_names_per_sentence,
-                    words_per_sentence=words_per_sentence,
-                    moving_window_overlap=FLAGS.moving_window_overlap,
-                    max_seq_length=FLAGS.max_seq_length,
-                    tokenizer=tokenizer)
-
-        if FLAGS.visualisation_folder:
-            for visualised_label in MAIN_LABELS:
-                _visualise(test_name, characterwise_target_labels_per_sentence,
-                           characterwise_predicted_label_names_per_sentence,
-                           characters_per_sentence, words_per_sentence,
-                           visualised_label, FLAGS.visualisation_folder)
-
-        report = _score(characterwise_target_labels_per_sentence,
+            if FLAGS.save_output_as_lftxt or FLAGS.save_output_as_tfrecord:
+                if not FLAGS.output_directory:
+                    raise ValueError(
+                        "If the hypotheses are supposed to be saved, an output"
+                        " directory must be specified.")
+                if FLAGS.save_output_as_lftxt:
+                    _save_predictions_as_lftxt(
+                        FLAGS.output_directory, test_name,
                         characterwise_predicted_label_names_per_sentence,
-                        FLAGS.strict_eval)
-        print("Scores for %s:" % test_name)
-        print(report)
+                        words_per_sentence)
+                if FLAGS.save_output_as_tfrecord:
+                    _save_predictions_as_tfrecord(
+                        output_directory=FLAGS.output_directory,
+                        test_name=test_name,
+                        characterwise_predicted_label_names_per_sentence=
+                        characterwise_predicted_label_names_per_sentence,
+                        words_per_sentence=words_per_sentence,
+                        moving_window_overlap=FLAGS.moving_window_overlap,
+                        max_seq_length=FLAGS.max_seq_length,
+                        tokenizer=tokenizer)
+
+            (characterwise_target_labels_per_sentence, characters_per_sentence
+             ) = file_reader.get_characterwise_target_labels(tokenizer)
+
+            if FLAGS.visualisation_folder:
+                for visualised_label in MAIN_LABELS:
+                    _visualise(
+                        test_name, characterwise_target_labels_per_sentence,
+                        characterwise_predicted_label_names_per_sentence,
+                        characters_per_sentence, words_per_sentence,
+                        visualised_label, FLAGS.visualisation_folder)
+
+            report = _score(characterwise_target_labels_per_sentence,
+                            characterwise_predicted_label_names_per_sentence,
+                            FLAGS.strict_eval)
+            print("Scores for %s:" % test_name)
+            print(report)
 
 
 if __name__ == "__main__":

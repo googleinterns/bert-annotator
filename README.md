@@ -143,3 +143,12 @@ linkfragment files.
  --raw_paths=data/input/raw/test_phone.lftxt \
  --visualisation_folder=visualisation/
 ```
+
+#### TPU support
+To use TPUs for training and evaluation:
+ - Ensure that the VM has cloud API access to the compute enginge and storage.
+ - Use the flag `--tpu_address` to define the internal address of the TPU node,
+   including "grpc://".
+ - Set the environment variable `TFHUB_CACHE_DIR` to a directory in a storage
+   bucket.
+ - Only pass paths to storage buckets for datasets and checkpoints.
