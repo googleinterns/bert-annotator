@@ -17,10 +17,13 @@
 #include "augmenter/proto_io.h"
 
 #include <fstream>
-#include <string>
 #include <iostream>
+#include <string>
+#include <vector>
 
 #include "absl/strings/match.h"
+#include "absl/strings/str_format.h"
+#include "absl/strings/strip.h"
 #include "google/protobuf/io/zero_copy_stream_impl.h"
 #include "google/protobuf/text_format.h"
 #include "protocol_buffer/documents.pb.h"
@@ -66,13 +69,43 @@ bool ProtoIO::LoadBinary(const absl::string_view path) {
   return true;
 }
 
-bool ProtoIO::Save(const absl::string_view path) const {
+bool ProtoIO::Save(const absl::string_view path,
+                   const int output_sentences_per_file) const {
+  if (output_sentences_per_file == -1) {
+    return Save(path, documents_);
+  }
+
+  int file_number = 0;
+  for (int start = 0; start < documents_.documents_size();
+       start += output_sentences_per_file) {
+    int end = start + output_sentences_per_file;
+    if (end > documents_.documents_size()) {
+      end = documents_.documents_size();
+    }
+    bert_annotator::Documents documents_to_save;
+    *documents_to_save.mutable_documents() = {
+        documents_.documents().begin() + start,
+        documents_.documents().begin() + end};
+    const std::string shard_path = absl::StrFormat(path, file_number);
+
+    const bool success = Save(shard_path, documents_to_save);
+    if (!success) {
+      return false;
+    }
+    file_number += 1;
+  }
+  return true;
+}
+
+bool ProtoIO::Save(absl::string_view path,
+                   const bert_annotator::Documents& documents_to_save) const {
+  std::cout << "Saving to " << path << std::endl;
   if (absl::EndsWith(path, ".binproto")) {
-    return SaveBinary(path);
+    return SaveBinary(path, documents_to_save);
   } else if (absl::EndsWith(path, ".textproto")) {
-    return SaveTextproto(path);
+    return SaveTextproto(path, documents_to_save);
   } else if (absl::EndsWith(path, ".txt")) {
-    return SaveTxt(path);
+    return SaveTxt(path, documents_to_save);
   } else {
     std::cerr << "File format of file " << path << " is not supported"
               << std::endl;
@@ -80,47 +113,48 @@ bool ProtoIO::Save(const absl::string_view path) const {
   }
 }
 
-bool ProtoIO::SaveTextproto(const absl::string_view path) const {
+bool ProtoIO::SaveTextproto(
+    const absl::string_view path,
+    const bert_annotator::Documents& documents_to_save) const {
   std::ofstream output(std::string(path), std::ios::out);
   google::protobuf::io::OstreamOutputStream fileOutput(&output,
                                                        std::ios::binary);
-  if (!google::protobuf::TextFormat::Print(documents_, &fileOutput)) {
-    std::cerr << "Failed to save document." << std::endl;
+  if (!google::protobuf::TextFormat::Print(documents_to_save, &fileOutput)) {
+    std::cerr << "Failed to save document " << path << "." << std::endl;
     return false;
   }
   return true;
 }
 
-bool ProtoIO::SaveBinary(const absl::string_view path) const {
+bool ProtoIO::SaveBinary(
+    const absl::string_view path,
+    const bert_annotator::Documents& documents_to_save) const {
   std::ofstream output(std::string(path),
                        std::ios::out | std::ios::trunc | std::ios::binary);
-  if (!documents_.SerializeToOstream(&output)) {
-    std::cerr << "Failed to save document." << std::endl;
+  if (!documents_to_save.SerializeToOstream(&output)) {
+    std::cerr << "Failed to save document " << path << "." << std::endl;
     return false;
   }
   return true;
 }
 
-bool ProtoIO::SaveTxt(const absl::string_view path) const {
+bool ProtoIO::SaveTxt(
+    const absl::string_view path,
+    const bert_annotator::Documents& documents_to_save) const {
   std::ofstream output(std::string(path), std::ios::out);
   if (output.is_open()) {
-    for (const bert_annotator::Document& document : documents_.documents()) {
+    for (const bert_annotator::Document& document :
+         documents_to_save.documents()) {
       output << document.text() << "\n";
     }
     output.close();
     return true;
   } else {
-    std::cerr << "Failed to save document.";
+    std::cerr << "Failed to save document " << path << "." << std::endl;
     return false;
   }
 }
 
-const bert_annotator::Documents ProtoIO::documents() const {
-  return documents_;
-}
-
-void ProtoIO::set_documents(const bert_annotator::Documents documents) {
-  documents_ = documents;
-}
+bert_annotator::Documents* ProtoIO::documents() { return &documents_; }
 
 }  // namespace augmenter

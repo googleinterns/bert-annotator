@@ -58,6 +58,7 @@ cc_library(
   deps = [
     "//protocol_buffer:documents_cc_proto",
     "@com_google_absl//absl/strings:strings",
+    "@com_google_absl//absl/strings:str_format",
   ]
 )
 

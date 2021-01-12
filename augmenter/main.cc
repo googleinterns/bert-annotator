@@ -70,8 +70,10 @@ ABSL_FLAG(int, num_contextless_phones, 0,
           "any context");
 ABSL_FLAG(bool, mask_digits, false,
           "If set, all digits are replaced with zeros");
-ABSL_FLAG(bool, shuffle, true,
-          "If set, the documents are shuffled");
+ABSL_FLAG(bool, shuffle, true, "If set, the documents are shuffled");
+ABSL_FLAG(int, output_sentences_per_file, -1,
+          "If set, the output file is sharded. The output path needs to "
+          "contain '%d' where the shard number should be inserted.");
 
 // Augments the dataset by applying configurable actions, see defined flags.
 int main(int argc, char* argv[]) {
@@ -156,11 +158,12 @@ int main(int argc, char* argv[]) {
     absl::BitGen bitgen;
 
     augmenter::Augmenter augmenter = augmenter::Augmenter(
-        proto_io.documents(), augmentations, &address_sampler,
-        &phones_sampler, &shuffler, bitgen);
+        augmentations, proto_io.documents(), &address_sampler, &phones_sampler,
+        &shuffler, bitgen);
     augmenter.Augment();
-    proto_io.set_documents(augmenter.documents());
-    proto_io.Save(output_file);
+    const int output_sentences_per_file =
+        absl::GetFlag(FLAGS_output_sentences_per_file);
+    proto_io.Save(output_file, output_sentences_per_file);
   }
 
   return 0;

@@ -27,16 +27,21 @@ namespace augmenter {
 class ProtoIO {
  public:
   bool Load(const absl::string_view path);
-  bool Save(const absl::string_view path) const;
-  const bert_annotator::Documents documents() const;
-  void set_documents(const bert_annotator::Documents documents);
+  bool Save(const absl::string_view path,
+            const int output_sentences_per_file) const;
+  bert_annotator::Documents* documents();
 
  private:
+  bool Save(const absl::string_view path,
+            const bert_annotator::Documents& documents_to_save) const;
   bool LoadTextproto(const absl::string_view path);
-  bool SaveTextproto(const absl::string_view path) const;
-  bool SaveTxt(const absl::string_view path) const;
+  bool SaveTextproto(const absl::string_view path,
+                     const bert_annotator::Documents& documents_to_save) const;
+  bool SaveTxt(const absl::string_view path,
+               const bert_annotator::Documents& documents_to_save) const;
   bool LoadBinary(const absl::string_view path);
-  bool SaveBinary(const absl::string_view path) const;
+  bool SaveBinary(const absl::string_view path,
+                  const bert_annotator::Documents& documents_to_save) const;
   bert_annotator::Documents documents_;
 };
 

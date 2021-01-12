@@ -169,9 +169,8 @@ TEST(AugmenterDeathTest, NegativeProbability) {
 
   EXPECT_DEATH(
       {
-        Augmenter augmenter =
-            Augmenter(documents, augmentations, &address_sampler,
-                      &phone_sampler, &shuffler, bitgen);
+        Augmenter(augmentations, &documents, &address_sampler, &phone_sampler,
+                  &shuffler, bitgen);
       },
       "All probabilities must have values between zero and one.");
 }
@@ -188,9 +187,8 @@ TEST(AugmenterDeathTest, ProbabilityGreaterOne) {
 
   EXPECT_DEATH(
       {
-        Augmenter augmenter =
-            Augmenter(documents, augmentations, &address_sampler,
-                      &phone_sampler, &shuffler, bitgen);
+        Augmenter(augmentations, &documents, &address_sampler, &phone_sampler,
+                  &shuffler, bitgen);
       },
       "All probabilities must have values between zero and one.");
 }
@@ -206,12 +204,12 @@ TEST(AugmenterTest, NoAugmentation) {
   absl::MockingBitGen bitgen;
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
-  EXPECT_EQ(augmenter.documents().documents_size(), 1);
+  EXPECT_EQ(documents.documents_size(), 1);
 }
 
 TEST(AugmenterDeathTest, InvalidCaseProbabilitySum) {
@@ -229,9 +227,8 @@ TEST(AugmenterDeathTest, InvalidCaseProbabilitySum) {
 
   EXPECT_DEATH(
       {
-        Augmenter augmenter =
-            Augmenter(documents, augmentations, &address_sampler,
-                      &phone_sampler, &shuffler, bitgen);
+        Augmenter(augmentations, &documents, &address_sampler, &phone_sampler,
+                  &shuffler, bitgen);
       },
       "The probabilities for changing the case of tokens must sum up to at "
       "most one.");
@@ -246,7 +243,7 @@ TEST(AugmenterDeathTest, EmptyDocument) {
   absl::MockingBitGen bitgen;
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   EXPECT_DEATH({ augmenter.Augment(); },
@@ -263,11 +260,11 @@ TEST(AugmenterTest, CreateMissingLabelList) {
   absl::MockingBitGen bitgen;
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
   augmenter.Augment();
 
-  bert_annotator::Document augmented = augmenter.documents().documents(0);
+  bert_annotator::Document augmented = documents.documents(0);
   bert_annotator::Document expected =
       ConstructBertDocument(
           {DocumentSpec("Text", {TokenSpec("Text", 0, 3)},
@@ -290,12 +287,12 @@ TEST(AugmenterTest, RemoveInvalidSentences) {
   absl::MockingBitGen bitgen;
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
   augmenter.Augment();
 
-  ASSERT_EQ(augmenter.documents().documents_size(), 1);
-  bert_annotator::Document augmented = augmenter.documents().documents(0);
+  ASSERT_EQ(documents.documents_size(), 1);
+  bert_annotator::Document augmented = documents.documents(0);
   bert_annotator::Document expected =
       ConstructBertDocument(
           {DocumentSpec("More e. g. text",
@@ -326,11 +323,11 @@ TEST(AugmenterTest, LowercasingCompleteTokens) {
       .WillOnce(Return(0.4));  // Only lowercase last token.
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
   augmenter.Augment();
 
-  bert_annotator::Document augmented = augmenter.documents().documents(1);
+  bert_annotator::Document augmented = documents.documents(1);
   bert_annotator::Document expected =
       ConstructBertDocument(
           {DocumentSpec("Text with [Non-Token] some interwordcapitalization",
@@ -362,11 +359,11 @@ TEST(AugmenterTest, LowercasingFirstLetter) {
       .WillOnce(Return(0.4));  // Only lowercase last token.
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
   augmenter.Augment();
 
-  bert_annotator::Document augmented = augmenter.documents().documents(1);
+  bert_annotator::Document augmented = documents.documents(1);
   bert_annotator::Document expected =
       ConstructBertDocument(
           {DocumentSpec("Text with [Non-Token] some interWordCapitalization",
@@ -398,11 +395,11 @@ TEST(AugmenterTest, UppercasingCompleteTokens) {
       .WillOnce(Return(0.4));  // Only uppercase last token.
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
   augmenter.Augment();
 
-  bert_annotator::Document augmented = augmenter.documents().documents(1);
+  bert_annotator::Document augmented = documents.documents(1);
   bert_annotator::Document expected =
       ConstructBertDocument(
           {DocumentSpec("Text with [Non-Token] some INTERWORDCAPITALIZATION",
@@ -434,11 +431,11 @@ TEST(AugmenterTest, UppercasingFirstLetter) {
       .WillOnce(Return(0.4));  // Only uppercase last token.
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
   augmenter.Augment();
 
-  bert_annotator::Document augmented = augmenter.documents().documents(1);
+  bert_annotator::Document augmented = documents.documents(1);
   bert_annotator::Document expected =
       ConstructBertDocument(
           {DocumentSpec("Text with [Non-Token] some InterWordCapitalization",
@@ -474,11 +471,11 @@ TEST(AugmenterTest, MultipleCaseChanges) {
       .WillOnce(Return(0.9));  // Do not change fourth token.
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
   augmenter.Augment();
 
-  bert_annotator::Document augmented = augmenter.documents().documents(1);
+  bert_annotator::Document augmented = documents.documents(1);
   bert_annotator::Document expected =
       ConstructBertDocument(
           {DocumentSpec(
@@ -512,12 +509,12 @@ TEST(AugmenterTest, ReplacePhoneSameLength) {
       .WillOnce(Return(true));
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
-  const bert_annotator::Document augmented = augmenter.documents().documents(1);
+  const bert_annotator::Document augmented = documents.documents(1);
   const bert_annotator::Document expected =
       ConstructBertDocument(
           {DocumentSpec(
@@ -552,12 +549,12 @@ TEST(AugmenterTest, ReplacePhoneLongerLength) {
       .WillOnce(Return(true));
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
-  const bert_annotator::Document augmented = augmenter.documents().documents(1);
+  const bert_annotator::Document augmented = documents.documents(1);
   const bert_annotator::Document expected =
       ConstructBertDocument(
           {DocumentSpec(
@@ -593,12 +590,12 @@ TEST(AugmenterTest, ReplacePhoneShorterLength) {
       .WillOnce(Return(true));
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
-  const bert_annotator::Document augmented = augmenter.documents().documents(1);
+  const bert_annotator::Document augmented = documents.documents(1);
   const bert_annotator::Document expected =
       ConstructBertDocument(
           {DocumentSpec(
@@ -632,12 +629,12 @@ TEST(AugmenterTest, ReplacePhoneStart) {
       .WillOnce(Return(true));
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
-  const bert_annotator::Document augmented = augmenter.documents().documents(1);
+  const bert_annotator::Document augmented = documents.documents(1);
   const bert_annotator::Document expected =
       ConstructBertDocument(
           {DocumentSpec(
@@ -670,12 +667,12 @@ TEST(AugmenterTest, ReplacePhoneEnd) {
       .WillOnce(Return(true));
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
-  const bert_annotator::Document augmented = augmenter.documents().documents(1);
+  const bert_annotator::Document augmented = documents.documents(1);
   const bert_annotator::Document expected =
       ConstructBertDocument(
           {DocumentSpec(
@@ -719,12 +716,12 @@ TEST(AugmenterTest, ReplacePhoneChooseLabel) {
       .WillOnce(Return(false));
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
-  bert_annotator::Document augmented = augmenter.documents().documents(1);
+  bert_annotator::Document augmented = documents.documents(1);
   bert_annotator::Document expected =
       ConstructBertDocument(
           {DocumentSpec(
@@ -736,7 +733,7 @@ TEST(AugmenterTest, ReplacePhoneChooseLabel) {
                  LabelSpec(Augmenter::kPhoneReplacementLabel, 2, 2)}}})})
           .documents(0);
   ExpectEq(augmented, expected);
-  augmented = augmenter.documents().documents(2);
+  augmented = documents.documents(2);
   expected = ConstructBertDocument(
                  {DocumentSpec(
                      "0123456789 or 9876543210",
@@ -765,12 +762,12 @@ TEST(AugmenterTest, UpdateLabels) {
   absl::MockingBitGen bitgen;
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
-  const auto augmented = augmenter.documents().documents(0);
+  const auto augmented = documents.documents(0);
   const auto expected =
       ConstructBertDocument(
           {DocumentSpec(
@@ -805,12 +802,12 @@ TEST(AugmenterTest, ReplaceAddressSameLength) {
       .WillOnce(Return(true));
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
-  const bert_annotator::Document augmented = augmenter.documents().documents(1);
+  const bert_annotator::Document augmented = documents.documents(1);
   const bert_annotator::Document expected =
       ConstructBertDocument(
           {DocumentSpec("Visit Munich! Thanks.",
@@ -846,12 +843,12 @@ TEST(AugmenterTest, ReplaceAddressFewerTokens) {
       .WillOnce(Return(true));
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
-  const bert_annotator::Document augmented = augmenter.documents().documents(1);
+  const bert_annotator::Document augmented = documents.documents(1);
   const bert_annotator::Document expected =
       ConstructBertDocument(
           {DocumentSpec("Visit Munich! Thanks.",
@@ -891,12 +888,12 @@ TEST(AugmenterTest, ReplaceMultipleAddressesFewerTokens) {
       .WillRepeatedly(Return(true));
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
-  const bert_annotator::Document augmented = augmenter.documents().documents(1);
+  const bert_annotator::Document augmented = documents.documents(1);
   const bert_annotator::Document expected =
       ConstructBertDocument(
           {DocumentSpec(
@@ -934,12 +931,12 @@ TEST(AugmenterTest, ReplaceAddressMultiWordReplacement) {
       .WillOnce(Return(true));
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
-  const bert_annotator::Document augmented = augmenter.documents().documents(1);
+  const bert_annotator::Document augmented = documents.documents(1);
   const bert_annotator::Document expected =
       ConstructBertDocument(
           {DocumentSpec(
@@ -975,12 +972,12 @@ TEST(AugmenterTest, ReplaceAddressMoreTokensReplacement) {
       .WillOnce(Return(true));
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
-  const bert_annotator::Document augmented = augmenter.documents().documents(1);
+  const bert_annotator::Document augmented = documents.documents(1);
   const bert_annotator::Document expected =
       ConstructBertDocument(
           {DocumentSpec(
@@ -1016,12 +1013,12 @@ TEST(AugmenterTest, ReplaceAddressPunctuation) {
       .WillOnce(Return(true));
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
-  const bert_annotator::Document augmented = augmenter.documents().documents(1);
+  const bert_annotator::Document augmented = documents.documents(1);
   const bert_annotator::Document expected =
       ConstructBertDocument(
           {DocumentSpec("Visit Str. A, 1 - a! Thanks.",
@@ -1057,7 +1054,7 @@ TEST(AugmenterTest, DropContextDetectMultipleDroppableSequences) {
       .WillRepeatedly(Return(true));
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
@@ -1099,12 +1096,12 @@ TEST(AugmenterTest, DropContextStartAndEnd) {
   // Dropping "Prefix" is defined above.
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
-  const bert_annotator::Document augmented = augmenter.documents().documents(1);
+  const bert_annotator::Document augmented = documents.documents(1);
   const bert_annotator::Document expected =
       ConstructBertDocument(
           {DocumentSpec(
@@ -1146,12 +1143,12 @@ TEST(AugmenterTest, DropContextRemoveBeginningOfLabel) {
       .WillOnce(Return(true));  //  Drop from first sequence.
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
-  const bert_annotator::Document augmented = augmenter.documents().documents(1);
+  const bert_annotator::Document augmented = documents.documents(1);
   const bert_annotator::Document expected =
       ConstructBertDocument(
           {DocumentSpec(
@@ -1196,12 +1193,12 @@ TEST(AugmenterTest, DropContextRemoveMiddleOfLabel) {
       .WillRepeatedly(Return(2));
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
-  const bert_annotator::Document augmented = augmenter.documents().documents(1);
+  const bert_annotator::Document augmented = documents.documents(1);
   const bert_annotator::Document expected =
       ConstructBertDocument(
           {DocumentSpec(
@@ -1245,12 +1242,12 @@ TEST(AugmenterTest, DropContextRemoveEndOfLabel) {
       .WillOnce(Return(4));
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
-  const bert_annotator::Document augmented = augmenter.documents().documents(1);
+  const bert_annotator::Document augmented = documents.documents(1);
   const bert_annotator::Document expected =
       ConstructBertDocument(
           {DocumentSpec(
@@ -1291,12 +1288,12 @@ TEST(AugmenterTest, DropContextNoLabels) {
       .WillOnce(Return(0));
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
-  const bert_annotator::Document augmented = augmenter.documents().documents(1);
+  const bert_annotator::Document augmented = documents.documents(1);
   const bert_annotator::Document expected =
       ConstructBertDocument(
           {DocumentSpec("without any.",
@@ -1334,12 +1331,12 @@ TEST(AugmenterTest, DropContextDropLabelsNoLabels) {
       .WillOnce(Return(0));
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
-  const bert_annotator::Document augmented = augmenter.documents().documents(1);
+  const bert_annotator::Document augmented = documents.documents(1);
   const bert_annotator::Document expected =
       ConstructBertDocument(
           {DocumentSpec("without any.",
@@ -1372,12 +1369,12 @@ TEST(AugmenterTest, DropContextDropLabelsNoLabelsSingleRemainingToken) {
       .WillOnce(Return(1));
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
-  const bert_annotator::Document augmented = augmenter.documents().documents(1);
+  const bert_annotator::Document augmented = documents.documents(1);
   const bert_annotator::Document expected =
       ConstructBertDocument({DocumentSpec("Some", {TokenSpec("Some", 0, 3)})})
           .documents(0);
@@ -1420,12 +1417,12 @@ TEST(AugmenterTest, DropContextDropLabelsPrefix) {
       .WillOnce(Return(0));  // Drop first token.
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
-  const bert_annotator::Document augmented = augmenter.documents().documents(1);
+  const bert_annotator::Document augmented = documents.documents(1);
   const bert_annotator::Document expected =
       ConstructBertDocument(
           {DocumentSpec(
@@ -1472,12 +1469,12 @@ TEST(AugmenterTest, DropContextDropLabelsSuffix) {
       .WillOnce(Return(3));
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
-  const bert_annotator::Document augmented = augmenter.documents().documents(1);
+  const bert_annotator::Document augmented = documents.documents(1);
   const bert_annotator::Document expected =
       ConstructBertDocument(
           {DocumentSpec(
@@ -1517,12 +1514,12 @@ TEST(AugmenterTest, ChangePunctuationBetweenWords) {
       .WillOnce(Return(3));
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
-  const bert_annotator::Document augmented = augmenter.documents().documents(1);
+  const bert_annotator::Document augmented = documents.documents(1);
   const bert_annotator::Document expected =
       ConstructBertDocument(
           {DocumentSpec("Text, with; some: more - punctuation.",
@@ -1565,42 +1562,42 @@ TEST(AugmenterTest, ChangePunctuationAtSentenceEnd) {
       .WillOnce(Return(5));
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
-  bert_annotator::Document augmented = augmenter.documents().documents(2);
+  bert_annotator::Document augmented = documents.documents(2);
   bert_annotator::Document expected =
       ConstructBertDocument({DocumentSpec("Text?", {TokenSpec("Text", 0, 3)})})
           .documents(0);
   ExpectEq(augmented, expected);
 
-  augmented = augmenter.documents().documents(3);
+  augmented = documents.documents(3);
   expected =
       ConstructBertDocument({DocumentSpec("Text!", {TokenSpec("Text", 0, 3)})})
           .documents(0);
   ExpectEq(augmented, expected);
 
-  augmented = augmenter.documents().documents(4);
+  augmented = documents.documents(4);
   expected =
       ConstructBertDocument({DocumentSpec("Text.", {TokenSpec("Text", 0, 3)})})
           .documents(0);
   ExpectEq(augmented, expected);
 
-  augmented = augmenter.documents().documents(5);
+  augmented = documents.documents(5);
   expected =
       ConstructBertDocument({DocumentSpec("Text:", {TokenSpec("Text", 0, 3)})})
           .documents(0);
   ExpectEq(augmented, expected);
 
-  augmented = augmenter.documents().documents(6);
+  augmented = documents.documents(6);
   expected =
       ConstructBertDocument({DocumentSpec("Text;", {TokenSpec("Text", 0, 3)})})
           .documents(0);
   ExpectEq(augmented, expected);
 
-  augmented = augmenter.documents().documents(7);
+  augmented = documents.documents(7);
   expected = ConstructBertDocument(
                  {DocumentSpec("Text - ", {TokenSpec("Text", 0, 3)})})
                  .documents(0);
@@ -1628,12 +1625,12 @@ TEST(AugmenterTest, ChangePunctuationAtSentenceEndNoTokens) {
       .Times(0);
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
-  const bert_annotator::Document augmented = augmenter.documents().documents(1);
+  const bert_annotator::Document augmented = documents.documents(1);
   const bert_annotator::Document expected =
       ConstructBertDocument({DocumentSpec("...", {})}).documents(0);
   ExpectEq(augmented, expected);
@@ -1652,12 +1649,12 @@ TEST(AugmenterTest, MergePhoneNumberTokens) {
   absl::MockingBitGen bitgen;
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
-  const bert_annotator::Document augmented = augmenter.documents().documents(0);
+  const bert_annotator::Document augmented = documents.documents(0);
   const bert_annotator::Document expected =
       ConstructBertDocument({DocumentSpec("A (00) 000 - 000 B",
                                           {TokenSpec("A", 0, 0),
@@ -1681,12 +1678,12 @@ TEST(AugmenterTest, RemoveSeparatorTokens) {
   absl::MockingBitGen bitgen;
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
-  const bert_annotator::Document augmented = augmenter.documents().documents(0);
+  const bert_annotator::Document augmented = documents.documents(0);
   const bert_annotator::Document expected =
       ConstructBertDocument(
           {DocumentSpec("Text, more ... t.e.x.t.!",
@@ -1710,12 +1707,12 @@ TEST(AugmenterTest, RemoveSeparatorTokensUpdateLabelBoundaries) {
   absl::MockingBitGen bitgen;
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
-  const bert_annotator::Document augmented = augmenter.documents().documents(0);
+  const bert_annotator::Document augmented = documents.documents(0);
   const bert_annotator::Document expected =
       ConstructBertDocument(
           {DocumentSpec(
@@ -1743,12 +1740,12 @@ TEST(AugmenterTest, RemoveSeparatorTokensDropLabels) {
   absl::MockingBitGen bitgen;
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
-  const bert_annotator::Document augmented = augmenter.documents().documents(0);
+  const bert_annotator::Document augmented = documents.documents(0);
   const bert_annotator::Document expected =
       ConstructBertDocument(
           {DocumentSpec(
@@ -1774,12 +1771,12 @@ TEST(AugmenterTest, UnifyAndMergeAddresses) {
   absl::MockingBitGen bitgen;
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
-  const bert_annotator::Document augmented = augmenter.documents().documents(0);
+  const bert_annotator::Document augmented = documents.documents(0);
   const bert_annotator::Document expected =
       ConstructBertDocument(
           {DocumentSpec(
@@ -1805,12 +1802,12 @@ TEST(AugmenterTest, DontUnifyAndMergeAddressesOverOtherTokens) {
   absl::MockingBitGen bitgen;
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
-  const bert_annotator::Document augmented = augmenter.documents().documents(0);
+  const bert_annotator::Document augmented = documents.documents(0);
   const bert_annotator::Document expected =
       ConstructBertDocument(
           {DocumentSpec(
@@ -1849,12 +1846,12 @@ TEST(AugmenterTest, MergeDocuments) {
       .WillOnce(Return(true));
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
   augmenter.Augment();
 
-  ASSERT_EQ(augmenter.documents().documents_size(), 3);
-  bert_annotator::Document augmented = augmenter.documents().documents(2);
+  ASSERT_EQ(documents.documents_size(), 3);
+  bert_annotator::Document augmented = documents.documents(2);
   bert_annotator::Document expected =
       ConstructBertDocument(
           {DocumentSpec(
@@ -1895,12 +1892,12 @@ TEST(AugmenterTest, MaskDigits) {
       .WillOnce(Return(true));
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
-  bert_annotator::Document augmented = augmenter.documents().documents(0);
+  bert_annotator::Document augmented = documents.documents(0);
   bert_annotator::Document expected =
       ConstructBertDocument(
           {DocumentSpec(
@@ -1913,7 +1910,7 @@ TEST(AugmenterTest, MaskDigits) {
           .documents(0);
   ExpectEq(augmented, expected);
 
-  augmented = augmenter.documents().documents(1);
+  augmented = documents.documents(1);
   expected =
       ConstructBertDocument(
           {DocumentSpec(
@@ -1941,12 +1938,12 @@ TEST(AugmenterTest, ContextlessAddress) {
       .WillRepeatedly(Return(false));
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
-  const bert_annotator::Document augmented = augmenter.documents().documents(0);
+  const bert_annotator::Document augmented = documents.documents(0);
   const bert_annotator::Document expected =
       ConstructBertDocument(
           {DocumentSpec("Sample Address 1",
@@ -2000,12 +1997,12 @@ TEST(AugmenterTest, ContextlessAddressChangeCaseAndPunctuation) {
       .WillOnce(Return(0));
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
-  const bert_annotator::Document augmented = augmenter.documents().documents(0);
+  const bert_annotator::Document augmented = documents.documents(0);
   const bert_annotator::Document expected =
       ConstructBertDocument(
           {DocumentSpec("sample, address, 1?",
@@ -2031,12 +2028,12 @@ TEST(AugmenterTest, ContextlessPhone) {
       .WillRepeatedly(Return(false));
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
-  const bert_annotator::Document augmented = augmenter.documents().documents(0);
+  const bert_annotator::Document augmented = documents.documents(0);
   const bert_annotator::Document expected =
       ConstructBertDocument({DocumentSpec("(01)234 - 56789",
                                           {TokenSpec("(01)234 - 56789", 0, 14)},
@@ -2061,12 +2058,12 @@ TEST(AugmenterTest, ContextlessPhoneMaskedDigits) {
       .WillRepeatedly(Return(false));
   ShufflerStub shuffler;
 
-  Augmenter augmenter = Augmenter(documents, augmentations, &address_sampler,
+  Augmenter augmenter = Augmenter(augmentations, &documents, &address_sampler,
                                   &phone_sampler, &shuffler, bitgen);
 
   augmenter.Augment();
 
-  const bert_annotator::Document augmented = augmenter.documents().documents(0);
+  const bert_annotator::Document augmented = documents.documents(0);
   const bert_annotator::Document expected =
       ConstructBertDocument(
           {DocumentSpec("0000000000", {TokenSpec("0000000000", 0, 9)},
