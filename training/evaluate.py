@@ -551,6 +551,7 @@ def _save_predictions_as_lftxt(
                     label_start = i
                 else:
                     assert label_name == "I-%s" % label
+            # If the label goes until the very end of the sentence.
             if label is not None:
                 _save_as_linkfragment(
                     words, label_start,
