@@ -434,7 +434,8 @@ def _get_predictions_from_lf_directory(lf_directory, raw_path, tokenizer):
             continue
 
         for labeled_example in get_file_reader(
-                os.path.join(lf_directory, file_name)).get_labeled_text():
+                os.path.join(lf_directory,
+                             file_name)).get_labeled_text(tokenizer):
             if labeled_example.label == LABEL_OUTSIDE:
                 continue
             labeled_example = _unescape_backslashes(labeled_example)
