@@ -177,9 +177,9 @@ def _viterbi(probabilities, train_with_additional_labels):
     labels = LABELS
     if train_with_additional_labels:
         labels += ADDITIONAL_LABELS
-    path_probabilities = np.zeros(len(labels))
+    path_probabilities = np.full(len(labels), -np.inf)
     label_outside_index = labels.index(LABEL_OUTSIDE)
-    path_probabilities[label_outside_index] = 1.0
+    path_probabilities[label_outside_index] = 0.0
     path_pointers = []
     for prob_token in probabilities:
         prev_path_probabilities = path_probabilities.copy()
@@ -192,15 +192,16 @@ def _viterbi(probabilities, train_with_additional_labels):
                 current_main_label_name = current_label_name[2:]
                 valid_prev_label_names = [("B-%s" % current_main_label_name),
                                           ("I-%s" % current_main_label_name)]
-                mask = np.zeros(len(labels))
+                mask = np.full(len(labels), True)
                 for prev_label_name in valid_prev_label_names:
                     prev_label_id = LABEL_ID_MAP[prev_label_name]
-                    mask[prev_label_id] = 1
-                masked_prev_path_probabilities = prev_path_probabilities * mask
+                    mask[prev_label_id] = False
+                masked_prev_path_probabilities = prev_path_probabilities.copy()
+                masked_prev_path_probabilities[mask] = -np.inf
             else:
                 masked_prev_path_probabilities = prev_path_probabilities
-            total_prob = masked_prev_path_probabilities * prob_token[
-                current_label_id]
+            total_prob = masked_prev_path_probabilities + np.log(
+                prob_token[current_label_id])
             max_prob_index = np.argmax(total_prob)
             path_probabilities[current_label_id] = total_prob[max_prob_index]
             new_pointers[current_label_id] = max_prob_index
