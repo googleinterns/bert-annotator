@@ -64,12 +64,9 @@ flags.DEFINE_boolean(
     "train_with_additional_labels", False,
     "Needs to be set if the flags other than address/phone were used for"
     " training, too.")
-flags.DEFINE_boolean("save_output_as_lftxt", False,
-                     "If set, the hypotheses are saved in an .lftxt file.")
-flags.DEFINE_boolean("save_output_as_binproto", False,
-                     "If set, the hypotheses are saved in a .binproto file.")
-flags.DEFINE_boolean("save_output_as_tfrecord", False,
-                     "If set, the hypotheses are saved in a .tfrecord file.")
+flags.DEFINE_multi_enum(
+    "save_output_formats", [], ["lftxt", "binproto", "tfrecord"],
+    "If set, the hypotheses are saved in the corresponding formats.")
 flags.DEFINE_string("output_directory", None,
                     "Controls where to save the hypotheses.")
 flags.DEFINE_integer(
@@ -83,6 +80,12 @@ flags.DEFINE_string(
     "tpu_address", None,
     "The internal address of the TPU node, including 'grpc://'. If not set, no"
     " tpu is used.")
+flags.DEFINE_multi_integer(
+    "unlabeled_sentence_filters", [1],
+    "For each entry, a copy of the hypothesis is saved (if activated). Only"
+    " every nth sentence without any labels is kept, the other unlabeled"
+    " sentences are dropped. Sentences with at least one predicted label are"
+    " always kept.")
 
 FLAGS = flags.FLAGS
 
@@ -540,11 +543,10 @@ def _save_as_linkfragment(words, label_start, label_end, label, file):
 
 
 def _save_predictions_as_lftxt(
-        output_directory, test_name,
+        output_directory, file_name,
         characterwise_predicted_label_names_per_sentence, words_per_sentence):
     """Saves the hypotheses to an .lftxt file."""
-    with GFile(os.path.join(output_directory, "%s.lftxt" % test_name),
-               "w") as output_file:
+    with GFile(os.path.join(output_directory, file_name), "w") as output_file:
         for (characterwise_predicted_label_names,
              words) in zip(characterwise_predicted_label_names_per_sentence,
                            words_per_sentence):
@@ -580,7 +582,7 @@ def _save_predictions_as_lftxt(
 
 
 def _save_predictions_as_binproto(
-        output_directory, test_name,
+        output_directory, file_name,
         characterwise_predicted_label_names_per_sentence, words_per_sentence):
     """Saves the hypotheses to a .binproto file."""
     def _add_labeled_span(label_start_char, label_end_char, label, words,
@@ -592,8 +594,7 @@ def _save_predictions_as_binproto(
                                              token_end=label_end,
                                              label=label)
 
-    with GFile(os.path.join(output_directory, "%s.binproto" % test_name),
-               "wb") as output_file:
+    with GFile(os.path.join(output_directory, file_name), "wb") as output_file:
         documents = proto_documents.Documents()
         for (characterwise_predicted_label_names,
              words) in zip(characterwise_predicted_label_names_per_sentence,
@@ -641,7 +642,7 @@ def _get_main_label_from_bio_label(label_name):
 
 
 def _save_predictions_as_tfrecord(
-        output_directory, test_name,
+        output_directory, file_name,
         characterwise_predicted_label_names_per_sentence, words_per_sentence,
         moving_window_overlap, max_seq_length, tokenizer):
     """Saves the hypotheses to an .lftxt file."""
@@ -687,10 +688,81 @@ def _save_predictions_as_tfrecord(
                           tokenizer=tokenizer,
                           max_seq_length=max_seq_length,
                           output_file=os.path.join(output_directory,
-                                                   "%s.tfrecord" % test_name),
+                                                   file_name),
                           text_preprocessing=tokenization.convert_to_unicode,
                           moving_window_overlap=moving_window_overlap,
                           mask_overlap=False)
+
+
+def _filter_unlabeled_sentences(
+        characterwise_predicted_label_names_per_sentence, words_per_sentence,
+        unlabeled_sentence_filter):
+    """Filters sentences without any predicted labels. Keeps every nth entry."""
+    sentences_without_label = 0
+    filtered_characterwise_predicted_label_names_per_sentence = []
+    filtered_words_per_sentence = []
+    for (characterwise_predicted_label_names,
+         words) in zip(characterwise_predicted_label_names_per_sentence,
+                       words_per_sentence):
+        if not any([
+                _is_label_type(label_name, LabelType.BEGINNING)
+                for label_name in characterwise_predicted_label_names
+        ]):
+            sentences_without_label += 1
+            if sentences_without_label % unlabeled_sentence_filter != 0:
+                continue
+        filtered_characterwise_predicted_label_names_per_sentence.append(
+            characterwise_predicted_label_names)
+        filtered_words_per_sentence.append(words)
+    return (filtered_characterwise_predicted_label_names_per_sentence,
+            filtered_words_per_sentence)
+
+
+def _save_hypotheses(test_name,
+                     characterwise_predicted_label_names_per_sentence,
+                     words_per_sentence, output_directory,
+                     unlabeled_sentence_filters, tokenizer,
+                     save_output_formats, moving_window_overlap,
+                     max_seq_length):
+    """Saves the hypotheses in the specified file formats."""
+    if not output_directory:
+        raise ValueError(
+            "If the hypotheses are supposed to be saved, an output"
+            " directory must be specified.")
+    for unlabeled_sentence_filter in unlabeled_sentence_filters:
+        (filtered_characterwise_predicted_label_names_per_sentence,
+         filtered_words_per_sentence) = _filter_unlabeled_sentences(
+             characterwise_predicted_label_names_per_sentence,
+             words_per_sentence, unlabeled_sentence_filter)
+        if unlabeled_sentence_filter == 1:
+            file_name_without_extension = test_name
+        else:
+            file_name_without_extension = "%s_filter_%d" % (
+                test_name, unlabeled_sentence_filter)
+        if "lftxt" in save_output_formats:
+            _save_predictions_as_lftxt(
+                output_directory=output_directory,
+                file_name="%s.lftxt" % file_name_without_extension,
+                characterwise_predicted_label_names_per_sentence=
+                filtered_characterwise_predicted_label_names_per_sentence,
+                words_per_sentence=filtered_words_per_sentence)
+        if "binproto" in save_output_formats:
+            _save_predictions_as_binproto(
+                output_directory=output_directory,
+                file_name="%s.binproto" % file_name_without_extension,
+                characterwise_predicted_label_names_per_sentence=
+                filtered_characterwise_predicted_label_names_per_sentence,
+                words_per_sentence=filtered_words_per_sentence)
+        if "tfrecord" in save_output_formats:
+            _save_predictions_as_tfrecord(
+                output_directory=output_directory,
+                file_name="%s.tfrecord" % file_name_without_extension,
+                characterwise_predicted_label_names_per_sentence=
+                filtered_characterwise_predicted_label_names_per_sentence,
+                words_per_sentence=filtered_words_per_sentence,
+                moving_window_overlap=moving_window_overlap,
+                max_seq_length=max_seq_length,
+                tokenizer=tokenizer)
 
 
 def main(_):
@@ -724,32 +796,19 @@ def main(_):
                     FLAGS.train_with_additional_labels, words_per_sentence,
                     raw_path, tokenizer, FLAGS.batch_size))
 
-            if (FLAGS.save_output_as_lftxt or FLAGS.save_output_as_tfrecord
-                    or FLAGS.save_output_as_binproto):
-                if not FLAGS.output_directory:
-                    raise ValueError(
-                        "If the hypotheses are supposed to be saved, an output"
-                        " directory must be specified.")
-                if FLAGS.save_output_as_lftxt:
-                    _save_predictions_as_lftxt(
-                        FLAGS.output_directory, test_name,
-                        characterwise_predicted_label_names_per_sentence,
-                        words_per_sentence)
-                if FLAGS.save_output_as_binproto:
-                    _save_predictions_as_binproto(
-                        FLAGS.output_directory, test_name,
-                        characterwise_predicted_label_names_per_sentence,
-                        words_per_sentence)
-                if FLAGS.save_output_as_tfrecord:
-                    _save_predictions_as_tfrecord(
-                        output_directory=FLAGS.output_directory,
-                        test_name=test_name,
-                        characterwise_predicted_label_names_per_sentence=
-                        characterwise_predicted_label_names_per_sentence,
-                        words_per_sentence=words_per_sentence,
-                        moving_window_overlap=FLAGS.moving_window_overlap,
-                        max_seq_length=FLAGS.max_seq_length,
-                        tokenizer=tokenizer)
+            if len(FLAGS.save_output_formats) != 0:
+                _save_hypotheses(
+                    test_name=test_name,
+                    characterwise_predicted_label_names_per_sentence=
+                    characterwise_predicted_label_names_per_sentence,
+                    words_per_sentence=words_per_sentence,
+                    output_directory=FLAGS.output_directory,
+                    unlabeled_sentence_filters=FLAGS.
+                    unlabeled_sentence_filters,
+                    tokenizer=tokenizer,
+                    save_output_formats=FLAGS.save_output_formats,
+                    moving_window_overlap=FLAGS.moving_window_overlap,
+                    max_seq_length=FLAGS.max_seq_length)
 
             (characterwise_target_labels_per_sentence, characters_per_sentence
              ) = file_reader.get_characterwise_target_labels(tokenizer)
