@@ -57,6 +57,7 @@ py_binary(
   deps = [
     ":utils",
     ":file_reader",
+    "//protocol_buffer:documents_py_proto",
     requirement("tf_models_nightly"),
   ],
   python_version = "PY3",

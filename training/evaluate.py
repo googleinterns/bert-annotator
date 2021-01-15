@@ -41,6 +41,7 @@ from training.utils import (ADDITIONAL_LABELS, LABELS, LABEL_ID_MAP,
                             create_tokenizer_from_hub_module,
                             remove_whitespace_and_parse, write_example_to_file)
 from training.file_reader import get_file_reader
+import protocol_buffer.documents_pb2 as proto_documents
 
 flags.DEFINE_string("module_url", None,
                     "The URL to the pretrained Bert model.")
@@ -65,8 +66,10 @@ flags.DEFINE_boolean(
     " training, too.")
 flags.DEFINE_boolean("save_output_as_lftxt", False,
                      "If set, the hypotheses are saved in an .lftxt file.")
+flags.DEFINE_boolean("save_output_as_binproto", False,
+                     "If set, the hypotheses are saved in a .binproto file.")
 flags.DEFINE_boolean("save_output_as_tfrecord", False,
-                     "If set, the hypotheses are saved in an .tfrecord file.")
+                     "If set, the hypotheses are saved in a .tfrecord file.")
 flags.DEFINE_string("output_directory", None,
                     "Controls where to save the hypotheses.")
 flags.DEFINE_integer(
@@ -495,20 +498,32 @@ def _infer_characterwise_label_names(model, task, input_path,
     return characterwise_predicted_label_names_per_sentence
 
 
+def _get_word_indices_from_character_indices(words, char_start, char_end):
+    """Converts the indices without whitespace to word indices."""
+    if char_start == 0 and char_end == -1:
+        return 0, -1  # End < start as both are inclusive.
+    word_start = None
+    word_end = None
+    accumulated_word_length = 0
+    for i, word in enumerate(words):
+        if accumulated_word_length == char_start:
+            word_start = i
+        accumulated_word_length += len(word)
+        if accumulated_word_length - 1 == char_end:
+            word_end = i
+    if accumulated_word_length == char_start:
+        word_start = len(words)
+    if char_end is None:
+        word_end = len(words) - 1
+    assert word_start is not None and word_end is not None
+    return word_start, word_end
+
+
 def _get_text_from_character_indices(words, start, end):
     """Returns text between the start/end indices which do not count spaces."""
-    text = ""
-    accumulated_word_length = 0
-    for word in words:
-        accumulated_word_length += len(word)
-        if accumulated_word_length <= start:
-            continue
-        elif end is not None and accumulated_word_length > end + 1:
-            return text
-        if text != "":
-            text += " "
-        text += word
-    return text
+    word_start, word_end = _get_word_indices_from_character_indices(
+        words, start, end)
+    return " ".join(words[word_start:word_end + 1])
 
 
 def _save_as_linkfragment(words, label_start, label_end, label, file):
@@ -560,6 +575,59 @@ def _save_predictions_as_lftxt(
                 saved_at_least_once = True
             if not saved_at_least_once:
                 _save_as_linkfragment(words, 0, -1, "OUTSIDE", output_file)
+
+
+def _save_predictions_as_binproto(
+        output_directory, test_name,
+        characterwise_predicted_label_names_per_sentence, words_per_sentence):
+    """Saves the hypotheses to a .binproto file."""
+    def _add_labeled_span(label_start_char, label_end_char, label, words,
+                          proto_labeled_spans):
+        """Adds a new labeled span to the list."""
+        label_start, label_end = (_get_word_indices_from_character_indices(
+            words, label_start_char, label_end_char))
+        proto_labeled_spans.labeled_span.add(token_start=label_start,
+                                             token_end=label_end,
+                                             label=label)
+
+    with GFile(os.path.join(output_directory, "%s.binproto" % test_name),
+               "wb") as output_file:
+        documents = proto_documents.Documents()
+        for (characterwise_predicted_label_names,
+             words) in zip(characterwise_predicted_label_names_per_sentence,
+                           words_per_sentence):
+            document = documents.documents.add()
+            document.text = " ".join(words)
+            token_start = 0
+            for word in words:
+                document.token.add(start=token_start,
+                                   end=token_start + len(word) - 1,
+                                   word=word)
+                token_start += len(word) + 1
+
+            label_start_char = 0
+            label = None
+            proto_labeled_spans = document.labeled_spans["lucid"]
+            for i, label_name in enumerate(
+                    characterwise_predicted_label_names):
+                if _is_label_type(label_name, LabelType.OUTSIDE):
+                    if label is not None:
+                        _add_labeled_span(label_start_char, i - 1, label,
+                                          words, proto_labeled_spans)
+                        label = None
+                elif _is_label_type(label_name, LabelType.BEGINNING):
+                    if label is not None:
+                        _add_labeled_span(label_start_char, i - 1, label,
+                                          words, proto_labeled_spans)
+                    label = label_name[len("B-"):]
+                    label_start_char = i
+                else:
+                    assert label_name == "I-%s" % label
+            if label is not None:
+                _add_labeled_span(label_start_char,
+                                  len(characterwise_predicted_label_names) - 1,
+                                  label, words, proto_labeled_spans)
+        output_file.write(documents.SerializeToString())
 
 
 def _get_main_label_from_bio_label(label_name):
@@ -654,13 +722,19 @@ def main(_):
                     FLAGS.train_with_additional_labels, words_per_sentence,
                     raw_path, tokenizer, FLAGS.batch_size))
 
-            if FLAGS.save_output_as_lftxt or FLAGS.save_output_as_tfrecord:
+            if (FLAGS.save_output_as_lftxt or FLAGS.save_output_as_tfrecord
+                    or FLAGS.save_output_as_binproto):
                 if not FLAGS.output_directory:
                     raise ValueError(
                         "If the hypotheses are supposed to be saved, an output"
                         " directory must be specified.")
                 if FLAGS.save_output_as_lftxt:
                     _save_predictions_as_lftxt(
+                        FLAGS.output_directory, test_name,
+                        characterwise_predicted_label_names_per_sentence,
+                        words_per_sentence)
+                if FLAGS.save_output_as_binproto:
+                    _save_predictions_as_binproto(
                         FLAGS.output_directory, test_name,
                         characterwise_predicted_label_names_per_sentence,
                         words_per_sentence)
