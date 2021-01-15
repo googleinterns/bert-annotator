@@ -67,9 +67,9 @@ flags.DEFINE_boolean(
 flags.DEFINE_boolean("save_output_as_lftxt", False,
                      "If set, the hypotheses are saved in an .lftxt file.")
 flags.DEFINE_boolean("save_output_as_binproto", False,
-                     "If set, the hypotheses are saved in an .binproto file.")
+                     "If set, the hypotheses are saved in a .binproto file.")
 flags.DEFINE_boolean("save_output_as_tfrecord", False,
-                     "If set, the hypotheses are saved in an .tfrecord file.")
+                     "If set, the hypotheses are saved in a .tfrecord file.")
 flags.DEFINE_string("output_directory", None,
                     "Controls where to save the hypotheses.")
 flags.DEFINE_integer(
@@ -580,16 +580,15 @@ def _save_predictions_as_lftxt(
 def _save_predictions_as_binproto(
         output_directory, test_name,
         characterwise_predicted_label_names_per_sentence, words_per_sentence):
-    """Saves the hypotheses to an .lftxt file."""
+    """Saves the hypotheses to a .binproto file."""
     def _add_labeled_span(label_start_char, label_end_char, label, words,
                           proto_labeled_spans):
         """Adds a new labeled span to the list."""
         label_start, label_end = (_get_word_indices_from_character_indices(
             words, label_start_char, label_end_char))
-        proto_labeled_span = proto_labeled_spans.labeled_span.add()
-        proto_labeled_span.token_start = label_start
-        proto_labeled_span.token_end = label_end
-        proto_labeled_span.label = label
+        proto_labeled_spans.labeled_span.add(token_start=label_start,
+                                             token_end=label_end,
+                                             label=label)
 
     with GFile(os.path.join(output_directory, "%s.binproto" % test_name),
                "wb") as output_file:
@@ -601,10 +600,9 @@ def _save_predictions_as_binproto(
             document.text = " ".join(words)
             token_start = 0
             for word in words:
-                token = document.token.add()
-                token.start = token_start
-                token.end = token_start + len(word) - 1
-                token.word = word
+                document.token.add(start=token_start,
+                                   end=token_start + len(word) - 1,
+                                   word=word)
                 token_start += len(word) + 1
 
             label_start_char = 0
