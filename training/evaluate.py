@@ -177,7 +177,7 @@ def _viterbi(probabilities, train_with_additional_labels):
     labels = LABELS
     if train_with_additional_labels:
         labels += ADDITIONAL_LABELS
-    path_probabilities = -np.ones(len(labels)) * np.inf
+    path_probabilities = np.full(len(labels), -np.inf)
     label_outside_index = labels.index(LABEL_OUTSIDE)
     path_probabilities[label_outside_index] = 0.0
     path_pointers = []
@@ -192,7 +192,7 @@ def _viterbi(probabilities, train_with_additional_labels):
                 current_main_label_name = current_label_name[2:]
                 valid_prev_label_names = [("B-%s" % current_main_label_name),
                                           ("I-%s" % current_main_label_name)]
-                mask = np.ones(len(labels), dtype="bool")
+                mask = np.full(len(labels), True)
                 for prev_label_name in valid_prev_label_names:
                     prev_label_id = LABEL_ID_MAP[prev_label_name]
                     mask[prev_label_id] = False
