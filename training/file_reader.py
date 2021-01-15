@@ -94,8 +94,6 @@ class BinProtoReader(FileReader):
     def get_characterwise_target_labels(self, tokenizer):
         """Returns a label for each character."""
         characterwise_target_labels_per_sentence = []
-        # The list is used to preserve the insertion order, the set to test for
-        # containment.
         characters_per_sentence = []
         for document in self._get_unique_documents(tokenizer):
             characters = remove_whitespace_and_parse(document.text, tokenizer)
@@ -397,8 +395,6 @@ class TxtReader(FileReader):
     def get_characterwise_target_labels(self, tokenizer):
         """Returns the outside label for each character"""
         characterwise_target_labels_per_sentence = []
-        # The list is used to preserve the insertion order, the set to test for
-        # containment.
         characters_per_sentence = []
         characterwise_target_labels = []
         for _, characters in self._get_unique_text_and_characters(tokenizer):
