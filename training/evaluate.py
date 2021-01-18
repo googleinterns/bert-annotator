@@ -704,10 +704,9 @@ def _filter_unlabeled_sentences(
     for (characterwise_predicted_label_names,
          words) in zip(characterwise_predicted_label_names_per_sentence,
                        words_per_sentence):
-        if not any([
+        if not any(
                 _is_label_type(label_name, LabelType.BEGINNING)
-                for label_name in characterwise_predicted_label_names
-        ]):
+                for label_name in characterwise_predicted_label_names):
             sentences_without_label += 1
             if sentences_without_label % unlabeled_sentence_filter != 0:
                 continue
@@ -739,30 +738,27 @@ def _save_hypotheses(test_name,
         else:
             file_name_without_extension = "%s_filter_%d" % (
                 test_name, unlabeled_sentence_filter)
+        common_args = {
+            "output_directory": output_directory,
+            "characterwise_predicted_label_names_per_sentence":
+            filtered_characterwise_predicted_label_names_per_sentence,
+            "words_per_sentence": filtered_words_per_sentence
+        }
         if "lftxt" in save_output_formats:
-            _save_predictions_as_lftxt(
-                output_directory=output_directory,
-                file_name="%s.lftxt" % file_name_without_extension,
-                characterwise_predicted_label_names_per_sentence=
-                filtered_characterwise_predicted_label_names_per_sentence,
-                words_per_sentence=filtered_words_per_sentence)
+            _save_predictions_as_lftxt(file_name="%s.lftxt" %
+                                       file_name_without_extension,
+                                       **common_args)
         if "binproto" in save_output_formats:
-            _save_predictions_as_binproto(
-                output_directory=output_directory,
-                file_name="%s.binproto" % file_name_without_extension,
-                characterwise_predicted_label_names_per_sentence=
-                filtered_characterwise_predicted_label_names_per_sentence,
-                words_per_sentence=filtered_words_per_sentence)
+            _save_predictions_as_binproto(file_name="%s.binproto" %
+                                          file_name_without_extension,
+                                          **common_args)
         if "tfrecord" in save_output_formats:
             _save_predictions_as_tfrecord(
-                output_directory=output_directory,
                 file_name="%s.tfrecord" % file_name_without_extension,
-                characterwise_predicted_label_names_per_sentence=
-                filtered_characterwise_predicted_label_names_per_sentence,
-                words_per_sentence=filtered_words_per_sentence,
                 moving_window_overlap=moving_window_overlap,
                 max_seq_length=max_seq_length,
-                tokenizer=tokenizer)
+                tokenizer=tokenizer,
+                **common_args)
 
 
 def main(_):
