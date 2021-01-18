@@ -608,11 +608,11 @@ def _save_predictions_as_binproto(
                     document.text += " "
                     token_start += 1
                 document.text += word
-                word_codepoint_length = len(bytes(word, "utf-8"))
+                num_bytes = len(bytes(word, "utf-8"))
                 document.token.add(start=token_start,
-                                   end=token_start + word_codepoint_length - 1,
+                                   end=token_start + num_bytes - 1,
                                    word=word)
-                token_start += word_codepoint_length
+                token_start += num_bytes
 
             label_start_char = 0
             label = None
