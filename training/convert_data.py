@@ -19,12 +19,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import os
-import json
-
 from absl import app, flags
-import tensorflow as tf
-from official.nlp.data import tagging_data_lib
 from com_google_research_bert import tokenization
 
 from training.utils import (LABELS, MAIN_LABELS, LABEL_OUTSIDE,
@@ -61,8 +56,6 @@ flags.DEFINE_multi_string(
     "The paths in which generated test input data will be written as tf "
     "records. May be defined more than once, in the same order as "
     "test_data_input_paths.")
-flags.DEFINE_string("meta_data_file_path", None,
-                    "The path in which input meta data will be written.")
 flags.DEFINE_integer(
     "moving_window_overlap", 20,
     "The size of the overlap for a moving window. Setting it to zero restores "
@@ -92,47 +85,32 @@ def _add_label(text, label, tokenizer, example, use_additional_labels):
 def _generate_tf_records(tokenizer, max_seq_length, train_examples,
                          dev_examples, test_input_data_examples,
                          train_data_output_path, dev_data_output_path,
-                         meta_data_file_path, moving_window_overlap):
+                         moving_window_overlap):
     """Generates tfrecord files from the `InputExample` lists."""
     common_kwargs = dict(tokenizer=tokenizer,
                          max_seq_length=max_seq_length,
                          text_preprocessing=tokenization.convert_to_unicode)
 
-    train_data_size = write_example_to_file(
-        train_examples,
-        output_file=train_data_output_path,
-        **common_kwargs,
-        moving_window_overlap=moving_window_overlap,
-        mask_overlap=False)
+    if train_data_output_path:
+        write_example_to_file(train_examples,
+                              output_file=train_data_output_path,
+                              **common_kwargs,
+                              moving_window_overlap=moving_window_overlap,
+                              mask_overlap=False)
 
-    dev_data_size = write_example_to_file(
-        dev_examples,
-        output_file=dev_data_output_path,
-        **common_kwargs,
-        moving_window_overlap=moving_window_overlap,
-        mask_overlap=True)
+    if dev_data_output_path:
+        write_example_to_file(dev_examples,
+                              output_file=dev_data_output_path,
+                              **common_kwargs,
+                              moving_window_overlap=moving_window_overlap,
+                              mask_overlap=True)
 
-    test_data_size = {}
     for output_path, examples in test_input_data_examples.items():
-        test_data_size[output_path] = write_example_to_file(
-            examples,
-            output_file=output_path,
-            **common_kwargs,
-            moving_window_overlap=moving_window_overlap,
-            mask_overlap=True)
-
-    meta_data = tagging_data_lib.token_classification_meta_data(
-        train_data_size,
-        max_seq_length,
-        len(LABELS),
-        dev_data_size,
-        test_data_size,
-        label_list=LABELS,
-        processor_type="text_classifier")
-
-    tf.io.gfile.makedirs(os.path.dirname(meta_data_file_path))
-    with tf.io.gfile.GFile(meta_data_file_path, "w") as writer:
-        writer.write(json.dumps(meta_data, indent=4) + "\n")
+        write_example_to_file(examples,
+                              output_file=output_path,
+                              **common_kwargs,
+                              moving_window_overlap=moving_window_overlap,
+                              mask_overlap=True)
 
 
 def main(_):
@@ -141,15 +119,44 @@ def main(_):
 
     tokenizer = create_tokenizer_from_hub_module(FLAGS.module_url)
 
-    train_examples = get_file_reader(FLAGS.train_data_input_path).get_examples(
-        tokenizer,
-        FLAGS.train_with_additional_labels,
-        use_gold_tokenization_and_include_target_labels=True)
-    dev_examples = get_file_reader(FLAGS.dev_data_input_path).get_examples(
-        tokenizer,
-        FLAGS.train_with_additional_labels,
-        use_gold_tokenization_and_include_target_labels=True)
+    if FLAGS.train_data_input_path:
+        if not FLAGS.train_data_output_path:
+            raise ValueError(
+                "If a training data input path is specified, an output path "
+                "must be given, too.")
+        train_examples = get_file_reader(
+            FLAGS.train_data_input_path).get_examples(
+                tokenizer,
+                FLAGS.train_with_additional_labels,
+                use_gold_tokenization_and_include_target_labels=True)
+    else:
+        if FLAGS.train_data_output_path:
+            raise ValueError(
+                "If a training data output path is specified, an input path "
+                "must be given, too.")
+        train_examples = []
+
+    if FLAGS.dev_data_input_path:
+        if not FLAGS.dev_data_output_path:
+            raise ValueError(
+                "If a dev data input path is specified, an output path "
+                "must be given, too.")
+        dev_examples = get_file_reader(FLAGS.dev_data_input_path).get_examples(
+            tokenizer,
+            FLAGS.train_with_additional_labels,
+            use_gold_tokenization_and_include_target_labels=True)
+    else:
+        if FLAGS.train_data_output_path:
+            raise ValueError(
+                "If a dev data output path is specified, an input path "
+                "must be given, too.")
+        dev_examples = []
+
     test_examples = {}
+    if len(FLAGS.test_data_input_paths) != len(FLAGS.test_data_output_paths):
+        raise ValueError(
+            "The number of specified test input and output files must be "
+            "equal.")
     for input_path, output_path in zip(FLAGS.test_data_input_paths,
                                        FLAGS.test_data_output_paths):
         test_examples[output_path] = get_file_reader(input_path).get_examples(
@@ -160,16 +167,11 @@ def main(_):
     _generate_tf_records(tokenizer, FLAGS.max_seq_length, train_examples,
                          dev_examples, test_examples,
                          FLAGS.train_data_output_path,
-                         FLAGS.dev_data_output_path, FLAGS.meta_data_file_path,
+                         FLAGS.dev_data_output_path,
                          FLAGS.moving_window_overlap)
 
 
 if __name__ == "__main__":
     flags.mark_flag_as_required("module_url")
-    flags.mark_flag_as_required("train_data_input_path")
-    flags.mark_flag_as_required("dev_data_input_path")
-    flags.mark_flag_as_required("train_data_output_path")
-    flags.mark_flag_as_required("dev_data_output_path")
-    flags.mark_flag_as_required("meta_data_file_path")
 
     app.run(main)
