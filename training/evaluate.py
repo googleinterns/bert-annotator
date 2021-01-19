@@ -87,6 +87,10 @@ flags.DEFINE_multi_integer(
     "every nth sentence without any labels is kept, the other unlabeled "
     "sentences are dropped. Sentences with at least one predicted label are "
     "always kept.")
+flags.DEFINE_boolean(
+    "no_eval", False,
+    "If set, no scores are computed. Useful if the hypotheses are saved and "
+    "reused later.")
 
 FLAGS = flags.FLAGS
 
@@ -823,11 +827,13 @@ def main(_):
                         characters_per_sentence, words_per_sentence,
                         visualised_label, FLAGS.visualisation_folder)
 
-            report = _score(characterwise_target_labels_per_sentence,
-                            characterwise_predicted_label_names_per_sentence,
-                            FLAGS.strict_eval)
-            print("Scores for %s:" % test_name)
-            print(report)
+            if not FLAGS.no_eval:
+                report = _score(
+                    characterwise_target_labels_per_sentence,
+                    characterwise_predicted_label_names_per_sentence,
+                    FLAGS.strict_eval)
+                print("Scores for %s:" % test_name)
+                print(report)
 
 
 if __name__ == "__main__":
