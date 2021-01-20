@@ -146,7 +146,7 @@ def main(_):
             FLAGS.train_with_additional_labels,
             use_gold_tokenization_and_include_target_labels=True)
     else:
-        if FLAGS.train_data_output_path:
+        if FLAGS.dev_data_output_path:
             raise ValueError(
                 "If a dev data output path is specified, an input path "
                 "must be given, too.")
