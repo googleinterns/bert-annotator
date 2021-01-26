@@ -26,7 +26,7 @@ from absl import app, flags
 import numpy as np
 from official.nlp.data import tagging_data_lib
 from official.nlp.tasks import utils
-from official.nlp.tasks.tagging import TaggingConfig, TaggingTask
+from official.nlp.tasks.tagging import TaggingTask
 from official.nlp.data import tagging_dataloader
 from seqeval.scheme import IOB2
 from seqeval.metrics import classification_report
@@ -35,16 +35,21 @@ from tensorflow.io.gfile import GFile
 import orbit
 from com_google_research_bert import tokenization
 
+from training.model_setup_config import ModelSetupConfig, ModelSize
 from training.utils import (ADDITIONAL_LABELS, LABELS, LABEL_ID_MAP,
                             LABEL_OUTSIDE, MAIN_LABELS, LabeledExample,
-                            add_tfrecord_label,
-                            create_tokenizer_from_hub_module,
-                            remove_whitespace_and_parse, write_example_to_file)
+                            add_tfrecord_label, get_tokenizer,
+                            remove_whitespace_and_parse, write_example_to_file,
+                            get_tagging_config)
 from training.file_reader import get_file_reader
 import protocol_buffer.documents_pb2 as proto_documents
 
-flags.DEFINE_string("module_url", None,
-                    "The URL to the pretrained Bert model.")
+flags.DEFINE_enum("size", "base", ["base", "tiny"],
+                  "The size of the BERT model.")
+flags.DEFINE_bool("pretrained", True,
+                  "If set, the pretrained model is loaded from the TF hub.")
+flags.DEFINE_bool("case_sensitive", False,
+                  "If set, the model is case sensitive.")
 flags.DEFINE_string("model_path", None, "The path to the trained model.")
 flags.DEFINE_multi_string(
     "input_paths", [],
@@ -224,13 +229,13 @@ def _viterbi(probabilities, train_with_additional_labels):
     return most_likely_path
 
 
-def _get_model_and_task(module_url, model_path, train_with_additional_labels):
+def _get_model_and_task(model_config, model_path):
     """Returns the loaded model and corresponding task."""
     labels = LABELS
-    if train_with_additional_labels:
+    if model_config.train_with_additional_labels:
         labels += ADDITIONAL_LABELS
-    config = TaggingConfig(hub_module_url=module_url, class_names=labels)
-    task = TaggingTask(config)
+    tagging_config = get_tagging_config(model_config, label_list=labels)
+    task = TaggingTask(tagging_config)
     if model_path:
         model = task.build_model()
         model.load_weights(model_path)
@@ -784,10 +789,19 @@ def main(_):
     else:
         strategy = tf.distribute.get_strategy()
 
+    if FLAGS.size == "tiny":
+        model_size = ModelSize.TINY
+    else:
+        model_size = ModelSize.BASE
+    model_config = ModelSetupConfig(
+        size=model_size,
+        case_sensitive=FLAGS.case_sensitive,
+        pretrained=FLAGS.pretrained,
+        train_with_additional_labels=FLAGS.train_with_additional_labels)
+
     with strategy.scope():
-        tokenizer = create_tokenizer_from_hub_module(FLAGS.module_url)
-        model, task = _get_model_and_task(FLAGS.module_url, FLAGS.model_path,
-                                          FLAGS.train_with_additional_labels)
+        tokenizer = get_tokenizer(model_config)
+        model, task = _get_model_and_task(model_config, FLAGS.model_path)
 
         for input_path, raw_path in zip(FLAGS.input_paths, FLAGS.raw_paths):
             test_name = os.path.splitext(os.path.basename(raw_path))[0]
@@ -799,8 +813,8 @@ def main(_):
             characterwise_predicted_label_names_per_sentence = (
                 _infer_characterwise_label_names(
                     model, task, input_path,
-                    FLAGS.train_with_additional_labels, words_per_sentence,
-                    raw_path, tokenizer, FLAGS.batch_size))
+                    model_config.train_with_additional_labels,
+                    words_per_sentence, raw_path, tokenizer, FLAGS.batch_size))
 
             if len(FLAGS.save_output_formats) != 0:
                 _save_hypotheses(
@@ -837,6 +851,6 @@ def main(_):
 
 
 if __name__ == "__main__":
-    flags.mark_flag_as_required("module_url")
+    flags.mark_flag_as_required("size")
 
     app.run(main)

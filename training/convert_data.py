@@ -22,14 +22,14 @@ from __future__ import print_function
 from absl import app, flags
 from com_google_research_bert import tokenization
 
+from training.model_setup_config import ModelSetupConfig
 from training.utils import (LABELS, MAIN_LABELS, LABEL_OUTSIDE,
-                            ADDITIONAL_LABELS,
-                            create_tokenizer_from_hub_module, split_into_words,
+                            ADDITIONAL_LABELS, get_tokenizer, split_into_words,
                             write_example_to_file)
 from training.file_reader import get_file_reader
 
-flags.DEFINE_string("module_url", None,
-                    "The URL to the pretrained Bert model.")
+flags.DEFINE_bool("case_sensitive", False,
+                  "If set, the model is case sensitive.")
 flags.DEFINE_integer(
     "max_seq_length", 128,
     "The maximal sequence length. Longer sequences are split.")
@@ -117,7 +117,9 @@ def main(_):
     if len(FLAGS.test_data_input_paths) != len(FLAGS.test_data_output_paths):
         raise ValueError("Specify an output path for each test input")
 
-    tokenizer = create_tokenizer_from_hub_module(FLAGS.module_url)
+    model_config = ModelSetupConfig(case_sensitive=FLAGS.case_sensitive)
+
+    tokenizer = get_tokenizer(model_config)
 
     if len(FLAGS.test_data_input_paths) != len(FLAGS.test_data_output_paths):
         raise ValueError(
@@ -173,6 +175,4 @@ def main(_):
 
 
 if __name__ == "__main__":
-    flags.mark_flag_as_required("module_url")
-
     app.run(main)
