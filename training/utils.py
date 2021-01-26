@@ -24,7 +24,7 @@ import tensorflow_hub as hub
 import tensorflow as tf
 from absl import logging
 
-from training.model_setup_config import ModelSetupConfig, ModelSize
+from training.model_setup_config import ModelSize
 
 # HACK: Required to make bert.tokenization work with TF2.
 tf.gfile = tf.io.gfile
@@ -86,12 +86,13 @@ LabeledExample = collections.namedtuple(
     ["prefix", "selection", "suffix", "complete_text", "label"])
 
 
-def get_tokenizer(case_sensitive):
+def get_tokenizer(model_config):
     """Returns a FullTokenizer."""
     # The tiny and base models both have the same tokenizer, so we can always
     # use the one of the base model.
-    module_url = _get_hub_url(
-        ModelSetupConfig(size=ModelSize.BASE, case_sensitive=case_sensitive))
+    if model_config.size is None:
+        model_config.size = ModelSize.BASE
+    module_url = _get_hub_url(model_config)
     model = hub.KerasLayer(module_url, trainable=False)
     vocab_file = model.resolved_object.vocab_file.asset_path.numpy()
     do_lower_case = model.resolved_object.do_lower_case.numpy()
