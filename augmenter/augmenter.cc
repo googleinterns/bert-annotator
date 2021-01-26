@@ -94,6 +94,14 @@ Augmenter::Augmenter(Augmentations augmentations,
     MergePhoneNumberTokens(&document);
     DropSeparatorTokens(&document);
     UnifyAndMergeAddressLabels(&document);
+
+    if (augmentations_.modify_original) {
+      AugmentAddress(&document);
+      AugmentPhone(&document);
+      AugmentContext(&document);
+      AugmentCase(&document);
+      AugmentPunctuation(&document);
+    }
   }
 }
 
