@@ -211,42 +211,6 @@ class IntegrationTests(absltest.TestCase):
                                            "test3.tfrecord")
         self.checkpoint_dir = os.path.join(self.out_dir, "checkpoints")
 
-    def test_training_base(self):
-        """Test normal training."""
-        self.run_helper(
-            "main",
-            arguments=("--inputs", self.train_textproto, "--outputs",
-                       self.train_binproto, "--addresses_path",
-                       self.augmenter_replacement_input, "--phones_path",
-                       self.augmenter_replacement_input, "--num_total", "0"))
-        self.run_helper(
-            "convert_data",
-            arguments=("--train_data_input_path", self.train_binproto,
-                       "--train_data_output_path", self.train_tfrecord,
-                       "--dev_data_input_path", self.train_binproto,
-                       "--dev_data_output_path", self.dev_tfrecord,
-                       "--test_data_input_paths", self.train_binproto,
-                       "--test_data_output_paths", self.test_tfrecord,
-                       "--test_data_input_paths", self.test2_lftxt,
-                       "--test_data_output_paths", self.test2_tfrecord))
-        self.run_helper("train",
-                        arguments=("--size", "base", "--train_data_path",
-                                   self.train_tfrecord,
-                                   "--validation_data_path", self.dev_tfrecord,
-                                   "--epochs", "1", "--train_size", "128",
-                                   "--save_path", self.checkpoint_dir))
-        model_path = os.path.join(self.checkpoint_dir, "model_01")
-        visualisation_dir = os.path.join(self.out_dir, "visualisation")
-        self.run_helper(
-            "evaluate",
-            arguments=("--size", "base", "--model_path", model_path,
-                       "--input_paths", self.train_tfrecord, "--raw_paths",
-                       self.train_binproto, "--input_paths",
-                       self.test_tfrecord, "--raw_paths", self.test_lftxt,
-                       "--input_paths", self.test2_tfrecord, "--raw_paths",
-                       self.test2_lftxt, "--visualisation_folder",
-                       visualisation_dir))
-
     def test_training_tiny(self):
         """Test normal training."""
         self.run_helper(
