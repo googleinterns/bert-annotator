@@ -789,12 +789,8 @@ def main(_):
     else:
         strategy = tf.distribute.get_strategy()
 
-    if FLAGS.size == "tiny":
-        model_size = ModelSize.TINY
-    else:
-        model_size = ModelSize.BASE
     model_config = ModelSetupConfig(
-        size=model_size,
+        size=ModelSize[FLAGS.size.upper()],
         case_sensitive=FLAGS.case_sensitive,
         pretrained=FLAGS.pretrained,
         train_with_additional_labels=FLAGS.train_with_additional_labels)

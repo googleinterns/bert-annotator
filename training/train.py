@@ -92,12 +92,8 @@ def train(size, pretrained, case_sensitive, train_data_path,
                 " set must be specified.")
         strategy = tf.distribute.get_strategy()
 
-    if size == "tiny":
-        model_size = ModelSize.TINY
-    else:
-        model_size = ModelSize.BASE
     model_config = ModelSetupConfig(
-        size=model_size,
+        size=ModelSize[size.upper()],
         case_sensitive=case_sensitive,
         pretrained=pretrained,
         train_with_additional_labels=train_with_additional_labels)

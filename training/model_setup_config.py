@@ -15,26 +15,24 @@
 #
 """Details about the used model."""
 
+from dataclasses import dataclass
 from enum import Enum
 
 ModelSize = Enum("ModelSize", "TINY BASE")
 
 
+@dataclass
 class ModelSetupConfig:
     """Stores details about the model setup."""
-    def __init__(self,
-                 size=None,
-                 case_sensitive=False,
-                 pretrained=True,
-                 train_with_additional_labels=False):
-        if not pretrained and size == ModelSize.BASE:
+    size: ModelSize = ModelSize.BASE
+    case_sensitive: bool = False
+    pretrained: bool = True
+    train_with_additional_labels: bool = False
+
+    def __post_init__(self):
+        if not self.pretrained and self.size == ModelSize.BASE:
             raise ValueError(
                 "Training from scratch is only supported for the tiny model.")
-        if case_sensitive and size == ModelSize.TINY:
+        if self.case_sensitive and self.size == ModelSize.TINY:
             raise ValueError(
                 "Case sensitivity is only supported for the base model.")
-
-        self.size = size
-        self.case_sensitive = case_sensitive
-        self.pretrained = pretrained
-        self.train_with_additional_labels = train_with_additional_labels
