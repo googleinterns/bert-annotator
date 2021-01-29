@@ -32,6 +32,7 @@ struct Augmentations {
   double prob_punctuation_change_between_tokens;
   double prob_punctuation_change_at_sentence_end;
   double prob_sentence_concatenation;
+  bool modify_original;
   int num_contextless_addresses;
   int num_contextless_phones;
   bool mask_digits;

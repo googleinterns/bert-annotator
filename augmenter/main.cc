@@ -62,6 +62,8 @@ ABSL_FLAG(double, prob_punctuation_change_at_sentence_end, 0,
           "one of {\"?\", \"!\", \".\", \":\", \";\", \" - \"}");
 ABSL_FLAG(double, prob_sentence_concatenation, 0,
           "Probability of concatenating sentences");
+ABSL_FLAG(bool, modify_original, false, "If set, the original sentences are "
+          "modified by the augmentations, too.");
 ABSL_FLAG(
     int, num_contextless_addresses, 0,
     "Number of sentences solely consisting of an address, without any context");
@@ -110,6 +112,7 @@ int main(int argc, char* argv[]) {
           absl::GetFlag(FLAGS_prob_punctuation_change_at_sentence_end),
       .prob_sentence_concatenation =
           absl::GetFlag(FLAGS_prob_sentence_concatenation),
+      .modify_original = absl::GetFlag(FLAGS_modify_original),
       .num_contextless_addresses =
           absl::GetFlag(FLAGS_num_contextless_addresses),
       .num_contextless_phones = absl::GetFlag(FLAGS_num_contextless_phones),

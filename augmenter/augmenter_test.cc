@@ -120,6 +120,7 @@ augmenter::Augmentations GetDefaultAugmentations() {
       .prob_punctuation_change_between_tokens = 0.0,
       .prob_punctuation_change_at_sentence_end = 0.0,
       .prob_sentence_concatenation = 0.0,
+      .modify_original = false,
       .num_contextless_addresses = 0,
       .num_contextless_phones = 0,
       .mask_digits = false,
