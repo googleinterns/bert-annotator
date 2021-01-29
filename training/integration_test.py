@@ -209,7 +209,6 @@ class IntegrationTests(absltest.TestCase):
                                            "test2.tfrecord")
         self.test3_tfrecord = os.path.join(self.test3_data_dir,
                                            "test3.tfrecord")
-        self.meta_data = os.path.join(self.train_data_dir, "meta.data")
         self.module_url = (
             "https://tfhub.dev/tensorflow/small_bert/bert_en_uncased_L-2_H-128_A-2/1"  # pylint: disable=line-too-long
         )
@@ -233,8 +232,7 @@ class IntegrationTests(absltest.TestCase):
                        "--test_data_input_paths", self.train_binproto,
                        "--test_data_output_paths", self.test_tfrecord,
                        "--test_data_input_paths", self.test2_lftxt,
-                       "--test_data_output_paths", self.test2_tfrecord,
-                       "--meta_data_file_path", self.meta_data))
+                       "--test_data_output_paths", self.test2_tfrecord))
         self.run_helper("train",
                         arguments=("--module_url", self.module_url,
                                    "--train_data_path", self.train_tfrecord,
@@ -266,7 +264,6 @@ class IntegrationTests(absltest.TestCase):
                        "--test_data_output_paths", self.test_tfrecord,
                        "--test_data_input_paths", self.test2_lftxt,
                        "--test_data_output_paths", self.test2_tfrecord,
-                       "--meta_data_file_path", self.meta_data,
                        "--train_with_additional_labels"))
         self.run_helper("train",
                         arguments=("--module_url", self.module_url,
@@ -298,8 +295,7 @@ class IntegrationTests(absltest.TestCase):
                        "--test_data_input_paths", self.test_lftxt,
                        "--test_data_output_paths", self.test_tfrecord,
                        "--test_data_input_paths", self.test2_lftxt,
-                       "--test_data_output_paths", self.test2_tfrecord,
-                       "--meta_data_file_path", self.meta_data))
+                       "--test_data_output_paths", self.test2_tfrecord))
         self.run_helper("train",
                         arguments=("--module_url", self.module_url,
                                    "--train_data_path", self.train_tfrecord,
@@ -344,8 +340,7 @@ class IntegrationTests(absltest.TestCase):
                        "--test_data_input_paths", self.test2_lftxt,
                        "--test_data_output_paths", self.test2_tfrecord,
                        "--test_data_input_paths", self.test3_txt,
-                       "--test_data_output_paths", self.test3_tfrecord,
-                       "--meta_data_file_path", self.meta_data))
+                       "--test_data_output_paths", self.test3_tfrecord))
         filecmp(self.train_tfrecord, self.dev_tfrecord)
         filecmp(self.test2_tfrecord, self.test3_tfrecord)
 
@@ -361,8 +356,7 @@ class IntegrationTests(absltest.TestCase):
                        "--test_data_input_paths", self.test_lftxt,
                        "--test_data_output_paths", self.test_tfrecord,
                        "--test_data_input_paths", self.test2_lftxt,
-                       "--test_data_output_paths", self.test2_tfrecord,
-                       "--meta_data_file_path", self.meta_data))
+                       "--test_data_output_paths", self.test2_tfrecord))
         self.run_helper("train",
                         arguments=("--module_url", self.module_url,
                                    "--train_data_path", self.train_tfrecord,
