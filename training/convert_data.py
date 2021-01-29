@@ -119,6 +119,11 @@ def main(_):
 
     tokenizer = create_tokenizer_from_hub_module(FLAGS.module_url)
 
+    if len(FLAGS.test_data_input_paths) != len(FLAGS.test_data_output_paths):
+        raise ValueError(
+            "The number of specified test input and output files must be "
+            "equal.")
+
     if FLAGS.train_data_input_path:
         if not FLAGS.train_data_output_path:
             raise ValueError(
@@ -153,10 +158,6 @@ def main(_):
         dev_examples = []
 
     test_examples = {}
-    if len(FLAGS.test_data_input_paths) != len(FLAGS.test_data_output_paths):
-        raise ValueError(
-            "The number of specified test input and output files must be "
-            "equal.")
     for input_path, output_path in zip(FLAGS.test_data_input_paths,
                                        FLAGS.test_data_output_paths):
         test_examples[output_path] = get_file_reader(input_path).get_examples(
