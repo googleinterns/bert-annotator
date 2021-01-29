@@ -601,13 +601,18 @@ def _save_predictions_as_binproto(
              words) in zip(characterwise_predicted_label_names_per_sentence,
                            words_per_sentence):
             document = documents.documents.add()
-            document.text = " ".join(words)
+            document.text = ""
             token_start = 0
             for word in words:
+                if len(document.text) > 0 and any(c.isalnum() for c in word):
+                    document.text += " "
+                    token_start += 1
+                document.text += word
+                num_bytes = len(bytes(word, "utf-8"))
                 document.token.add(start=token_start,
-                                   end=token_start + len(word) - 1,
+                                   end=token_start + num_bytes - 1,
                                    word=word)
-                token_start += len(word) + 1
+                token_start += num_bytes
 
             label_start_char = 0
             label = None

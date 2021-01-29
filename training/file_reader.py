@@ -201,7 +201,7 @@ class BinProtoReader(FileReader):
                              label=LABEL_OUTSIDE)
 
     def _convert_token_boundaries_to_codeunits(self, document):
-        """Converts the token boundaries from codepoints to codeunits."""
+        """Converts the token boundaries from bytes to codeunits."""
         text_as_string = document.text
         text_as_bytes = bytes(text_as_string, "utf-8")
         for token in document.token:
