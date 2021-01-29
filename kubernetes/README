@@ -1,0 +1,18 @@
+# Kubernetes
+
+Setup:
+ - Create a Kubernetes cluster on GCP and set up pools so nodes can be created.
+ - Move this directory outside of the bert repository, and update the path in the Dockerfiles correspondingly.
+ - Create a RabbitMQ and copy the username/password as well as the external IP into the worker scripts
+
+To start a job:
+ - Delete already existing workloads from Kubernetes on GCP
+ - Go to `new-tasks/`
+ - Update `new_tasks.py` and select a queue and how many entries to create
+ - Run `docker build -t job-new-tasks . &&   docker tag job-new-tasks gcr.io/bert-annotator-xgcp/job-new-tasks &&   gcloud docker -- push gcr.io/bert-annotator-xgcp/job-new-tasks`
+ - Run `kubectl apply -f ./job.yaml`
+ - Go to `convert/` or `infer/`
+ - Update the `job.yaml` file and use `parallelism` to controll how many parallel jobs should be used
+ - Update the `bashCommand` in the worker script to reflect the command you want the nodes to execute
+ - Run `docker build -t job-worker-[convert|infer] . &&   docker tag job-worker-[convert|infer] gcr.io/bert-annotator-xgcp/job-worker-[convert|infer] &&   gcloud docker -- push gcr.io/bert-annotator-xgcp/job-worker-[convert|infer]`
+ - Run `kubectl apply -f ./job.yaml`

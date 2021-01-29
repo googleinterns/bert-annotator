@@ -1,0 +1,30 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: job-worker-infer
+spec:
+  parallelism: 77
+  backoffLimit: 10000
+  template:
+    metadata:
+      name: job-worker-infer
+      annotations:
+        tf-version.cloud-tpus.google.com: "nightly"
+    spec:
+      containers:
+      - name: c
+        image: gcr.io/bert-annotator-xgcp/job-worker-infer
+        command:
+        - bash
+        - -c
+        - |
+          python worker_infer.py $(KUBE_GOOGLE_CLOUD_TPU_ENDPOINTS)
+        ports:
+        - containerPort: 80
+          hostIP: 10.0.0.1
+          hostPort: 8080
+        resources:
+          limits:
+            cloud-tpus.google.com/preemptible-v2: 8
+
+      restartPolicy: OnFailure

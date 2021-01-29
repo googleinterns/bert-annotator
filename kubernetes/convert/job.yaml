@@ -1,0 +1,19 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: job-worker-convert
+spec:
+  parallelism: 278
+  backoffLimit: 10000
+  template:
+    metadata:
+      name: job-worker-convert
+    spec:
+      containers:
+      - name: c
+        image: gcr.io/bert-annotator-xgcp/job-worker-convert
+        ports:
+        - containerPort: 80
+          hostIP: 10.0.0.1
+          hostPort: 8080
+      restartPolicy: OnFailure
