@@ -48,44 +48,45 @@ flags.DEFINE_string("module_url", None,
 flags.DEFINE_string("model_path", None, "The path to the trained model.")
 flags.DEFINE_multi_string(
     "input_paths", [],
-    "The paths to the test data in .tfrecord format (to be labeled) or a folder"
-    " containing .lftxt files with precomputed labels.")
+    "The paths to the test data in .tfrecord format (to be labeled) or a "
+    "folder containing .lftxt files with precomputed labels.")
 flags.DEFINE_multi_string(
     "raw_paths", [],
     "The paths to the test data in its original .binproto or .lftxt format.")
 flags.DEFINE_string(
     "visualisation_folder", None,
-    "If set, a comparison of the target/hypothesis labeling is saved in .html"
-    " format")
+    "If set, a comparison of the target/hypothesis labeling is saved in .html "
+    "format")
 flags.DEFINE_boolean(
     "strict_eval", False,
     "Only used for scoring. If True, a label must not begin with an 'I-' tag.")
 flags.DEFINE_boolean(
     "train_with_additional_labels", False,
-    "Needs to be set if the flags other than address/phone were used for"
-    " training, too.")
+    "Needs to be set if the flags other than address/phone were used for "
+    "training, too.")
 flags.DEFINE_multi_enum(
     "save_output_formats", [], ["lftxt", "binproto", "tfrecord"],
     "If set, the hypotheses are saved in the corresponding formats.")
 flags.DEFINE_string("output_directory", None,
                     "Controls where to save the hypotheses.")
 flags.DEFINE_integer(
-    "moving_window_overlap", 20, "The size of the overlap for a moving window."
-    " Setting it to zero restores the default behaviour of hard splitting.")
+    "moving_window_overlap", 20,
+    "The size of the overlap for a moving window. "
+    "Setting it to zero restores the default behaviour of hard splitting.")
 flags.DEFINE_integer(
     "max_seq_length", 128,
     "The maximal sequence length. Longer sequences are split.")
 flags.DEFINE_integer("batch_size", 64, "The number of samples per batch.")
 flags.DEFINE_string(
     "tpu_address", None,
-    "The internal address of the TPU node, including 'grpc://'. If not set, no"
-    " tpu is used.")
+    "The internal address of the TPU node, including 'grpc://'. If not set, no "
+    "tpu is used.")
 flags.DEFINE_multi_integer(
     "unlabeled_sentence_filters", [1],
-    "For each entry, a copy of the hypothesis is saved (if activated). Only"
-    " every nth sentence without any labels is kept, the other unlabeled"
-    " sentences are dropped. Sentences with at least one predicted label are"
-    " always kept.")
+    "For each entry, a copy of the hypothesis is saved (if activated). Only "
+    "every nth sentence without any labels is kept, the other unlabeled "
+    "sentences are dropped. Sentences with at least one predicted label are "
+    "always kept.")
 
 FLAGS = flags.FLAGS
 
