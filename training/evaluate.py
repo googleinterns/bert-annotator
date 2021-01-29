@@ -88,9 +88,9 @@ flags.DEFINE_multi_integer(
     "sentences are dropped. Sentences with at least one predicted label are "
     "always kept.")
 flags.DEFINE_boolean(
-    "no_eval", False,
-    "If set, no scores are computed. Useful if the hypotheses are saved and "
-    "reused later.")
+    "eval", True,
+    "If set, scores are computed. Disabling this is useful if the hypotheses "
+    "are saved and reused later, so no scores are needed.")
 
 FLAGS = flags.FLAGS
 
@@ -827,7 +827,7 @@ def main(_):
                         characters_per_sentence, words_per_sentence,
                         visualised_label, FLAGS.visualisation_folder)
 
-            if not FLAGS.no_eval:
+            if FLAGS.eval:
                 report = _score(
                     characterwise_target_labels_per_sentence,
                     characterwise_predicted_label_names_per_sentence,
