@@ -96,6 +96,8 @@ flags.DEFINE_boolean(
     "eval", True,
     "If set, scores are computed. Disabling this is useful if the hypotheses "
     "are saved and reused later, so no scores are needed.")
+flags.DEFINE_boolean("viterbi_decoding", True,
+                     "If set, Viterbi is used for decoding.")
 
 FLAGS = flags.FLAGS
 
@@ -181,11 +183,10 @@ def _predict(task, params, model):
     return sorted(outputs, key=lambda x: (x[0], x[1]))
 
 
-def _viterbi(probabilities, train_with_additional_labels):
+def _viterbi_decoding(probabilities, train_with_additional_labels):
     """"Applies the viterbi algorithm.
 
     This searches for the most likely valid label sequence.
-    Depends on the specific order of labels.
     """
     labels = LABELS
     if train_with_additional_labels:
@@ -229,6 +230,19 @@ def _viterbi(probabilities, train_with_additional_labels):
     return most_likely_path
 
 
+def _greedy_decoding(probabilities):
+    """"Applies greedy search.
+
+    For each position, the most likely label is selected. This may lead to
+    invalid sequences (entities starting with an "I-" label).
+    """
+    path = []
+    for prob_token in probabilities:
+        path.append(np.argmax(prob_token))
+
+    return path
+
+
 def _get_model_and_task(model_config, model_path):
     """Returns the loaded model and corresponding task."""
     labels = LABELS
@@ -268,7 +282,11 @@ def _infer(model, task, test_data_path, train_with_additional_labels,
         assert not np.isnan(probabilities).any(), (
             "There was an error during decoding. Try reducing the batch size."
             " First error in sentence %d" % i)
-        prediction = _viterbi(probabilities, train_with_additional_labels)
+        if FLAGS.viterbi_decoding:
+            prediction = _viterbi_decoding(probabilities,
+                                           train_with_additional_labels)
+        else:
+            prediction = _greedy_decoding(probabilities)
         merged_predictions.append(prediction)
 
     return merged_predictions
