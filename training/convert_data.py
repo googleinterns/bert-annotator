@@ -46,26 +46,27 @@ flags.DEFINE_string(
     "The path to the (augmented) development data in .binproto/.tftxt format.")
 flags.DEFINE_multi_string(
     "test_data_input_paths", [],
-    "The paths to the test data in .binproto/.tftxt format. May be defined more"
-    " than once.")
+    "The paths to the test data in .binproto/.tftxt format. May be defined "
+    "more than once.")
 flags.DEFINE_string(
     "train_data_output_path", None,
-    "The path in which generated training input data will be written as tf"
-    " records.")
+    "The path in which generated training input data will be written as tf "
+    "records.")
 flags.DEFINE_string(
     "dev_data_output_path", None,
-    "The path in which generated development input data will be written as tf"
-    " records.")
+    "The path in which generated development input data will be written as tf "
+    "records.")
 flags.DEFINE_multi_string(
     "test_data_output_paths", [],
-    "The paths in which generated test input data will be written as tf"
-    " records. May be defined more than once, in the same order as"
-    " test_data_input_paths.")
+    "The paths in which generated test input data will be written as tf "
+    "records. May be defined more than once, in the same order as "
+    "test_data_input_paths.")
 flags.DEFINE_string("meta_data_file_path", None,
                     "The path in which input meta data will be written.")
 flags.DEFINE_integer(
-    "moving_window_overlap", 20, "The size of the overlap for a moving window."
-    " Setting it to zero restores the default behaviour of hard splitting.")
+    "moving_window_overlap", 20,
+    "The size of the overlap for a moving window. Setting it to zero restores "
+    "the default behaviour of hard splitting.")
 flags.DEFINE_boolean(
     "train_with_additional_labels", False,
     "If set, the flags other than address/phone are used for training, too.")

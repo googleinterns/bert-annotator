@@ -378,7 +378,9 @@ class IntegrationTests(absltest.TestCase):
                        model_path, "--input_paths", self.test_tfrecord,
                        "--raw_paths", self.test_lftxt, "--input_paths",
                        self.test2_tfrecord, "--raw_paths", self.test2_lftxt,
-                       "--save_output_as_tfrecord", "--save_output_as_lftxt",
+                       "--save_output_formats", "lftxt",
+                       "--save_output_formats", "binproto",
+                       "--save_output_formats", "tfrecord",
                        "--output_directory", output_directory))
         distillation_train_file = os.path.join(output_directory,
                                                "test.tfrecord")

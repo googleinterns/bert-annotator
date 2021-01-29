@@ -46,12 +46,12 @@ flags.DEFINE_enum("optimizer", "sgd", ["sgd", "adam"], "The optimizer.")
 flags.DEFINE_float("learning_rate", 0.01, "The learning rate.")
 flags.DEFINE_float(
     "plateau_lr_reduction", 1.0,
-    "The learning rate is reduced by this factor once a plateau (measured on"
-    " the validation loss) is reached)")
+    "The learning rate is reduced by this factor once a plateau (measured on "
+    "the validation loss) is reached)")
 flags.DEFINE_integer(
     "plateau_patience", 3,
-    "How many epochs to wait on a plateau before the learning rate is reduced."
-)
+    "How many epochs to wait on a plateau before the learning rate is "
+    "reduced.")
 flags.DEFINE_boolean(
     "train_with_additional_labels", False,
     "If set, the flags other than address/phone are used, too.")
@@ -59,8 +59,8 @@ flags.DEFINE_boolean("train_last_layer_only", False,
                      "If set, only the last layer is trainable.")
 flags.DEFINE_string(
     "tpu_address", None,
-    "The internal address of the TPU node, including 'grpc://'. If not set, no"
-    " tpu is used.")
+    "The internal address of the TPU node, including 'grpc://'. If not set, "
+    "no tpu is used.")
 
 FLAGS = flags.FLAGS
 
