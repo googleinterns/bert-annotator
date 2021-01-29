@@ -101,7 +101,7 @@ Transform the (augmented or original) data into TFRecord files
  --meta_data_file_path=data/output/meta_data_file.test
 ```
 
-For the uncased BERT-base model, use `https://tfhub.dev/tensorflow/bert_en_uncased_L-12_H-768_A-12/2`, for cased use `https://tfhub.dev/tensorflow/bert_en_cased_L-12_H-768_A-12/2`.
+For the cased BERT-base model, add `--case_sensitive`.
 
 
 Finally, start the training.
@@ -117,6 +117,10 @@ Finally, start the training.
  --batch_size=64
 ```
 
+For the cased BERT-base model, add `--case_sensitive`.
+To train from scratch, add `--nopretrained`.
+Select the model size by adding `--size [base|tiny]`.
+
 And evaluate:
 
 ```sh
@@ -131,6 +135,10 @@ And evaluate:
  --raw_paths=data/input/raw/test_phone.lftxt \
  --visualisation_folder=visualisation/
 ```
+
+For the cased BERT-base model, add `--case_sensitive`.
+If the model was trained from scratch, add `--nopretrained`.
+Select the model size by adding `--size [base|tiny]`.
 
 You can also evaluate pre-generated labels if they were stored as linkfragments.
 As the `input_paths`, pass a path to a directory containing one or more

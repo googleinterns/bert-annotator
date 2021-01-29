@@ -18,9 +18,13 @@
 import collections
 import os
 from official.nlp.data import tagging_data_lib
+from official.nlp.configs import encoders
+from official.nlp.tasks.tagging import TaggingConfig, ModelConfig
 import tensorflow_hub as hub
 import tensorflow as tf
 from absl import logging
+
+from training.model_setup_config import ModelSize
 
 # HACK: Required to make bert.tokenization work with TF2.
 tf.gfile = tf.io.gfile
@@ -82,8 +86,13 @@ LabeledExample = collections.namedtuple(
     ["prefix", "selection", "suffix", "complete_text", "label"])
 
 
-def create_tokenizer_from_hub_module(module_url):
-    """Get the vocab file and casing info from the Hub module."""
+def get_tokenizer(model_config):
+    """Returns a FullTokenizer."""
+    # The tiny and base models both have the same tokenizer, so we can always
+    # use the one of the base model.
+    if model_config.size is None:
+        model_config.size = ModelSize.BASE
+    module_url = _get_hub_url(model_config)
     model = hub.KerasLayer(module_url, trainable=False)
     vocab_file = model.resolved_object.vocab_file.asset_path.numpy()
     do_lower_case = model.resolved_object.do_lower_case.numpy()
@@ -258,3 +267,37 @@ def write_example_to_file(examples,
 
     writer.close()
     return num_tokenized_examples
+
+
+def _get_hub_url(model_config):
+    if model_config.size == ModelSize.TINY:
+        assert not model_config.case_sensitive
+        return "https://tfhub.dev/tensorflow/small_bert/bert_en_uncased_L-2_H-128_A-2/1"  # pylint: disable=line-too-long
+    else:
+        if model_config.case_sensitive:
+            return "https://tfhub.dev/tensorflow/bert_en_cased_L-12_H-768_A-12/2"  # pylint: disable=line-too-long
+        else:
+            return "https://tfhub.dev/tensorflow/bert_en_uncased_L-12_H-768_A-12/2"  # pylint: disable=line-too-long
+
+
+def get_tagging_config(model_config,
+                       label_list,
+                       train_data_config=None,
+                       validation_data_config=None):
+    """Returns a TaggingConfig."""
+    common_params = {
+        "train_data": train_data_config,
+        "validation_data": validation_data_config,
+        "class_names": label_list
+    }
+    if model_config.pretrained:
+        return TaggingConfig(hub_module_url=_get_hub_url(model_config),
+                             **common_params)
+    else:
+        assert model_config.size == ModelSize.TINY
+        return TaggingConfig(model=ModelConfig(encoder=encoders.EncoderConfig(
+            bert=encoders.BertEncoderConfig(num_layers=2,
+                                            hidden_size=128,
+                                            num_attention_heads=2,
+                                            intermediate_size=128 * 4))),
+                             **common_params)

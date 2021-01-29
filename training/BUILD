@@ -5,6 +5,7 @@ py_library(
   name = "utils",
   srcs = ["utils.py"],
   deps = [
+    ":model_setup_config",
     "@com_google_research_bert//:tokenization",
     requirement("tf_models_nightly"),
   ],
@@ -28,12 +29,18 @@ py_library(
   ],
 )
 
+py_library(
+  name = "model_setup_config",
+  srcs = ["model_setup_config.py"],
+)
+
 py_binary(
   name = "convert_data",
   srcs = ["convert_data.py"],
   deps = [
     ":utils",
     ":file_reader",
+    ":model_setup_config",
     "@com_google_research_bert//:tokenization",
     requirement("tf_models_nightly"),
   ],
@@ -45,6 +52,7 @@ py_binary(
   srcs = ["train.py"],
   deps = [
     ":utils",
+    ":model_setup_config",
     ":configurable_training_tagging_task",
     requirement("tf_models_nightly"),
   ],
@@ -55,6 +63,7 @@ py_binary(
   name = "evaluate",
   srcs = ["evaluate.py"],
   deps = [
+    ":model_setup_config",
     ":utils",
     ":file_reader",
     "//protocol_buffer:documents_py_proto",
