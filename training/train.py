@@ -70,44 +70,42 @@ flags.DEFINE_string(
 FLAGS = flags.FLAGS
 
 
-def train(size, pretrained, case_sensitive, train_data_path,
-          validation_data_path, epochs, train_size, save_path, batch_size,
-          optimizer_name, learning_rate, train_last_layer_only,
-          plateau_lr_reduction, plateau_patience, train_with_additional_labels,
-          tpu_address):
-    if tpu_address is not None:
-        if plateau_lr_reduction != 1.0:
+def train():
+    """Trains a model."""
+    if FLAGS.tpu_address is not None:
+        if FLAGS.plateau_lr_reduction != 1.0:
             raise NotImplementedError(
                 "Learning rate reduction cannot be used on TPUs, because the"
                 " validation set cannot be evaluated.")
         resolver = tf.distribute.cluster_resolver.TPUClusterResolver(
-            tpu=tpu_address)
+            tpu=FLAGS.tpu_address)
         tf.config.experimental_connect_to_cluster(resolver)
         tf.tpu.experimental.initialize_tpu_system(resolver)
         strategy = tf.distribute.TPUStrategy(resolver)
     else:
-        if plateau_lr_reduction != 1.0 and validation_data_path is None:
+        if (FLAGS.plateau_lr_reduction != 1.0
+                and FLAGS.validation_data_path is None):
             raise ValueError(
                 "In order to reduce the learning rate on plateaus, a validation"
                 " set must be specified.")
         strategy = tf.distribute.get_strategy()
 
     model_config = ModelSetupConfig(
-        size=ModelSize[size.upper()],
-        case_sensitive=case_sensitive,
-        pretrained=pretrained,
-        train_with_additional_labels=train_with_additional_labels)
+        size=ModelSize[FLAGS.size.upper()],
+        case_sensitive=FLAGS.case_sensitive,
+        pretrained=FLAGS.pretrained,
+        train_with_additional_labels=FLAGS.train_with_additional_labels)
 
     with strategy.scope():
         train_data_config = tagging_dataloader.TaggingDataConfig(
-            input_path=train_data_path,
+            input_path=FLAGS.train_data_path,
             seq_length=128,
-            global_batch_size=batch_size)
-        if validation_data_path is not None:
+            global_batch_size=FLAGS.batch_size)
+        if FLAGS.validation_data_path is not None:
             validation_data_config = tagging_dataloader.TaggingDataConfig(
-                input_path=validation_data_path,
+                input_path=FLAGS.validation_data_path,
                 seq_length=128,
-                global_batch_size=batch_size,
+                global_batch_size=FLAGS.batch_size,
                 is_training=False)
         else:
             validation_data_config = None
@@ -121,15 +119,16 @@ def train(size, pretrained, case_sensitive, train_data_path,
             train_data_config=train_data_config,
             validation_data_config=validation_data_config)
         task = ConfigurableTrainingTaggingTask(tagging_config)
-        model = task.build_model(train_last_layer_only)
-        if optimizer_name == "sgd":
-            optimizer = tf.keras.optimizers.SGD(lr=learning_rate)
-        elif optimizer_name == "adam":
-            optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
+        model = task.build_model(FLAGS.train_last_layer_only)
+        if FLAGS.optimizer == "sgd":
+            optimizer = tf.keras.optimizers.SGD(lr=FLAGS.learning_rate)
+        elif FLAGS.optimizer == "adam":
+            optimizer = tf.keras.optimizers.Adam(
+                learning_rate=FLAGS.learning_rate)
         else:
             raise ValueError("Only SGD and Adam are supported optimizers.")
 
-        iterations_per_epoch = train_size // batch_size
+        iterations_per_epoch = FLAGS.train_size // FLAGS.batch_size
         model.compile(
             optimizer=optimizer,
             metrics=[
@@ -141,7 +140,7 @@ def train(size, pretrained, case_sensitive, train_data_path,
                                              optimizer=model.optimizer)
         dataset_train = task.build_inputs(tagging_config.train_data)
 
-        checkpoint = ModelCheckpoint(save_path + "/model_{epoch:02d}",
+        checkpoint = ModelCheckpoint(FLAGS.save_path + "/model_{epoch:02d}",
                                      verbose=1,
                                      save_best_only=False,
                                      save_weights_only=True,
@@ -149,12 +148,12 @@ def train(size, pretrained, case_sensitive, train_data_path,
         callbacks = [checkpoint]
 
         additional_fit_parameters = {}
-        if plateau_lr_reduction != 1.0:
+        if FLAGS.plateau_lr_reduction != 1.0:
             dataset_validation = task.build_inputs(
                 tagging_config.validation_data)
             reduce_lr = ReduceLROnPlateau(monitor="val_loss",
-                                          factor=plateau_lr_reduction,
-                                          patience=plateau_patience,
+                                          factor=FLAGS.plateau_lr_reduction,
+                                          patience=FLAGS.plateau_patience,
                                           verbose=1)
             callbacks.append(reduce_lr)
             additional_fit_parameters["validation_data"] = dataset_validation
@@ -162,19 +161,14 @@ def train(size, pretrained, case_sensitive, train_data_path,
                                                 model=model)
 
         model.fit(dataset_train,
-                  epochs=epochs,
+                  epochs=FLAGS.epochs,
                   steps_per_epoch=iterations_per_epoch,
                   callbacks=callbacks,
                   **additional_fit_parameters)
 
 
 def main(_):
-    train(FLAGS.size, FLAGS.pretrained, FLAGS.case_sensitive,
-          FLAGS.train_data_path, FLAGS.validation_data_path, FLAGS.epochs,
-          FLAGS.train_size, FLAGS.save_path, FLAGS.batch_size, FLAGS.optimizer,
-          FLAGS.learning_rate, FLAGS.train_last_layer_only,
-          FLAGS.plateau_lr_reduction, FLAGS.plateau_patience,
-          FLAGS.train_with_additional_labels, FLAGS.tpu_address)
+    train()
 
 
 if __name__ == "__main__":
