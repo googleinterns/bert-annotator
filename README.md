@@ -1,10 +1,12 @@
 # Bert-Annotator
 
-A possible improvement for entity selection and classification
+A possible improvement for entity selection and classification.
+
+**This is not an officially supported Google product.**
 
 ## General Setup
 
-First, clone this repository using 
+First, clone this repository using
 
 ```sh
 git clone git@github.com:googleinterns/bert-annotator.git

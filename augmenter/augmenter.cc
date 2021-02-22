@@ -583,7 +583,7 @@ void Augmenter::DropSeparatorTokens(
     bert_annotator::Document* const document) const {
   for (int i = document->token_size() - 1; i >= 0; --i) {
     const bert_annotator::Token& token = document->token(i);
-    // TODO(brix): depends on the installed C locale, may need to be changed
+    // TODO: depends on the installed C locale, may need to be changed
     // for non-english languages.
     if (absl::c_none_of(token.word(), [](unsigned char c) {
           return std::isdigit(c) || std::isalpha(c);
