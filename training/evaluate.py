@@ -491,14 +491,14 @@ def _get_predictions_from_lf_directory(lf_directory, raw_path, tokenizer):
                     LABEL_OUTSIDE,
                     "B-%s" % labeled_example.label.upper()
                 ]
-            other_labels_previously_unset = all([
+            other_labels_previously_unset = all(
                 label
                 in [LABEL_OUTSIDE,
                     "I-%s" % labeled_example.label.upper()]
                 for label in characterwise_labels[prefix_length +
                                                   1:prefix_length +
                                                   label_length]
-            ])
+            )
             if (not first_label_previously_unset) or (
                     not other_labels_previously_unset):
                 # Because whitespace is removed, we cannot handle cases where

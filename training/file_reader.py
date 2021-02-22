@@ -293,10 +293,10 @@ class LftxtReader(FileReader):
                     del examples[-1]
                     prefix_word_length = len(
                         split_into_words(labeled_example.prefix, tokenizer))
-                    if any([
+                    if any(
                             label_id != LABEL_ID_MAP[LABEL_OUTSIDE] for
                             label_id in example.label_ids[prefix_word_length:]
-                    ]):
+                    ):
                         raise NotImplementedError(
                             "If the .lftxt file contains the same sentence"
                             " multiple times, they are assumed to be sorted in"
